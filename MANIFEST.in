@@ -1,0 +1,2 @@
+recursive-include finlang/rulepacks *.fin
+recursive-include finlang/mapping *.json
