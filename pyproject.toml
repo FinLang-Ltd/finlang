@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finlang"
+version = "0.6.1"
+requires-python = ">=3.10"
+description = "FinLang: a deterministic, auditable DSL for financial rules"
+readme = "README.md"
+license = { text = "AGPL-3.0-only" }
+dependencies = ["pandas>=2.0"]
+
+[project.scripts]
+finlang = "finlang.cli.run_finlang:main"
+finlang-discover = "finlang.tools.discover:main"
+finlang-suggest  = "finlang.tools.suggest:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["finlang*"]
+
+[tool.setuptools.package-data]
+finlang = ["rulepacks/*.fin", "mapping/*.json"]
