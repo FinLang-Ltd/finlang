@@ -1,0 +1,45 @@
+# Bank/Fee/Interest — safe starters
+
+rule "Financial: BANK CHARGE" {
+  match:
+    - counterparty ~ "*BANK*CHARGE*"
+    - memo ~ "*CHARGE*"
+  set:
+    - category = "Review"
+    - flags += "BankFee"
+}
+
+rule "Financial: INTEREST" {
+  match:
+    - counterparty ~ "*INTEREST*"
+    - memo ~ "*INTEREST*"
+  set:
+    - category = "Review"
+    - flags += "Interest"
+}
+
+rule "Financial: FX FEE" {
+  match:
+    - counterparty ~ "*FX*FEE*"
+    - memo ~ "*FX*"
+  set:
+    - category = "Review"
+    - flags += "FX"
+}
+
+rule "Financial: CASH WITHDRAWAL / ATM" {
+  match:
+    - counterparty ~ "*CASH*WITHDRAWAL*"
+    - counterparty ~ "*ATM*"
+  set:
+    - category = "Review"
+    - flags += "Cash"
+}
+
+rule "Financial: OVERDRAFT FEE" {
+  match:
+    - counterparty ~ "*OVERDRAFT*"
+  set:
+    - category = "Review"
+    - flags += "BankFee"
+}

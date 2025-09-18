@@ -1,0 +1,49 @@
+# Transport & Fuel — safe starters
+
+rule "Transport: UBER" {
+  match:
+    - counterparty ~ "*UBER*"
+  set:
+    - category = "Review"
+    - flags += "Transport"
+}
+
+rule "Transport: TRAINLINE" {
+  match:
+    - counterparty ~ "*TRAINLINE*"
+  set:
+    - category = "Review"
+    - flags += "Transport"
+}
+
+rule "Transport: TFL" {
+  match:
+    - counterparty ~ "*TFL*"
+  set:
+    - category = "Review"
+    - flags += "Transport"
+}
+
+rule "Transport: SHELL" {
+  match:
+    - counterparty ~ "*SHELL*"
+  set:
+    - category = "Review"
+    - flags += "Fuel"
+}
+
+rule "Transport: BP" {
+  match:
+    - counterparty ~ "*BP*"
+  set:
+    - category = "Review"
+    - flags += "Fuel"
+}
+
+rule "Transport: NATIONAL RAIL" {
+  match:
+    - counterparty ~ "*NATIONAL*RAIL*"
+  set:
+    - category = "Review"
+    - flags += "Transport"
+}

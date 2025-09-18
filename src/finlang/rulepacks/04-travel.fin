@@ -1,0 +1,58 @@
+# Travel & Accommodation — safe starters
+
+rule "Travel: AIRBNB" {
+  match:
+    - counterparty ~ "*AIRBNB*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: BOOKING.COM" {
+  match:
+    - counterparty ~ "*BOOKING*COM*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: EASYJET" {
+  match:
+    - counterparty ~ "*EASYJET*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: RYANAIR" {
+  match:
+    - counterparty ~ "*RYANAIR*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: BRITISH AIRWAYS" {
+  match:
+    - counterparty ~ "*BRITISH*AIRWAYS*"
+    - counterparty ~ "*BA*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: HOTELS.COM" {
+  match:
+    - counterparty ~ "*HOTELS*COM*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: EXPEDIA" {
+  match:
+    - counterparty ~ "*EXPEDIA*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}

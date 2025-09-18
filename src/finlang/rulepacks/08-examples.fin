@@ -1,0 +1,40 @@
+# Examples & Tutorial — shows operators and safe actions
+# Operators supported: ==, ~ (with * wildcards), and numeric range 'in' (amount only)
+
+# 1) Equality on strings
+rule "Example: Equality" {
+  match:
+    - counterparty == "TESCO STORES 1234"
+  set:
+    - category = "Review"
+    - flags += "Example"
+}
+
+# 2) Wildcard contains (prefix, suffix, substring)
+rule "Example: Wildcard Contains" {
+  match:
+    - counterparty ~ "TESCO*"
+    - counterparty ~ "*COFFEE*"
+    - counterparty ~ "*AMAZON*"
+  set:
+    - category = "Review"
+    - flags += "Example"
+}
+
+# 3) Amount range
+rule "Example: Amount Range" {
+  match:
+    - amount in -50..-5
+  set:
+    - category = "Review"
+    - flags += "Example"
+}
+
+# 4) Flags are append-only (+=). Overwrite with '=' is invalid in v0.5.2+ and will be skipped.
+rule "Example: Flags Append-Only" {
+  match:
+    - counterparty ~ "*DEMO*"
+  set:
+    - flags += "TagA"
+    - flags += "TagB"
+}

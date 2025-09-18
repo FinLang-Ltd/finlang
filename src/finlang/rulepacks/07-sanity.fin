@@ -1,0 +1,25 @@
+# Sanity rules — surface data-quality issues for review
+
+rule "Sanity: Empty Counterparty" {
+  match:
+    - counterparty == ""
+  set:
+    - category = "Review"
+    - flags += "EmptyCounterparty"
+}
+
+rule "Sanity: Zero Amount" {
+  match:
+    - amount in 0..0
+  set:
+    - category = "Review"
+    - flags += "ZeroAmount"
+}
+
+rule "Sanity: Memo Mentions REFUND but No Category" {
+  match:
+    - memo ~ "*REFUND*"
+  set:
+    - category = "Review"
+    - flags += "RefundCheck"
+}

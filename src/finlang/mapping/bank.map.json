@@ -1,0 +1,38 @@
+{
+  "date": [
+    "date",
+    "Date",
+    "transaction_date",
+    "txn_date",
+    "posted_date",
+    "post_date",
+    "value_date",
+    "booking_date",
+    "timestamp",
+    "transaction date",
+    "posted date",
+    "value date",
+    "booking date"
+  ],
+  "counterparty": [
+    "description",
+    "Description",
+    "payee",
+    "vendor",
+    "merchant",
+    "narrative",
+    "details"
+  ],
+  "memo": [
+    "type",
+    "Type",
+    "notes",
+    "note",
+    "memo"
+  ],
+  "amount": {
+    "aliases": ["amount", "value", "transaction_amount", "amt"],
+    "debit": "debit",
+    "credit": "credit"
+  }
+}
