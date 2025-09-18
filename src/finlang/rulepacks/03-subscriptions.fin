@@ -1,0 +1,58 @@
+# Subscriptions — safe starters (recognition only)
+
+rule "Subs: SPOTIFY" {
+  match:
+    - counterparty ~ "*SPOTIFY*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: NETFLIX" {
+  match:
+    - counterparty ~ "*NETFLIX*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: AMAZON PRIME" {
+  match:
+    - counterparty ~ "*AMAZON*PRIME*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: YOUTUBE PREMIUM" {
+  match:
+    - counterparty ~ "*YOUTUBE*PREMIUM*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: APPLE.COM/BILL" {
+  match:
+    - counterparty ~ "*APPLE*BILL*"
+    - counterparty ~ "*APPLE.COM/BILL*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: MICROSOFT" {
+  match:
+    - counterparty ~ "*MICROSOFT*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: ADOBE" {
+  match:
+    - counterparty ~ "*ADOBE*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}

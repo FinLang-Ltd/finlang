@@ -1,0 +1,67 @@
+# Retail & Groceries — safe starters (category left as "Review")
+# Edit categories later to your preferred scheme.
+
+rule "Retail: TESCO" {
+  match:
+    - counterparty ~ "*TESCO*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: SAINSBURY" {
+  match:
+    - counterparty ~ "*SAINSBURY*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: LIDL" {
+  match:
+    - counterparty ~ "*LIDL*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: ALDI" {
+  match:
+    - counterparty ~ "*ALDI*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: ASDA" {
+  match:
+    - counterparty ~ "*ASDA*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: M&S / MARKS & SPENCER" {
+  match:
+    - counterparty ~ "*MARKS*SPENCER*"
+    - counterparty ~ "*M&S*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: CO-OP" {
+  match:
+    - counterparty ~ "*CO*OP*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: ICELAND" {
+  match:
+    - counterparty ~ "*ICELAND*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}

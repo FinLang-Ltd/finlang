@@ -5,22 +5,44 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "finlang"
 version = "0.6.1"
-requires-python = ">=3.10"
 description = "FinLang: a deterministic, auditable DSL for financial rules"
 readme = "README.md"
 license = { text = "AGPL-3.0-only" }
+requires-python = ">=3.10"
 dependencies = ["pandas>=2.0"]
 
+authors = [{ name = "FinLang Ltd" }]
+urls = { 
+  Homepage = "https://finlang.io",
+  Repository = "https://github.com/FinLang-Ltd/finlang"
+}
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU Affero General Public License v3",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Topic :: Office/Business :: Financial"
+]
+
 [project.scripts]
-finlang = "finlang.cli.run_finlang:main"
+finlang          = "finlang.cli.run_finlang:main"
 finlang-discover = "finlang.tools.discover:main"
 finlang-suggest  = "finlang.tools.suggest:main"
 
+[project.optional-dependencies]
+dev   = ["pytest", "build", "twine"]
+bench = ["matplotlib", "numpy"]
+fastio = ["pyarrow"]
+
 [tool.setuptools]
+package-dir = {"" = "src"}
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["finlang*"]
+where = ["src"]
 
 [tool.setuptools.package-data]
-finlang = ["rulepacks/*.fin", "mapping/*.json"]
+finlang = [
+  "rulepacks/*.fin",
+  "mapping/*.json"
+]

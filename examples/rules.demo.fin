@@ -1,0 +1,16 @@
+# Demo-safe examples (ok to commit)
+rule "Transport: Uber" {
+  match:
+    - counterparty ~ "*UBER*"
+  set:
+    - category = "Transport"
+}
+
+rule "Coffee: Costa/Pret" {
+  match:
+    - counterparty ~ "*COSTA*" 
+    - counterparty ~ "*PRET*"
+  set:
+    - category = "Coffee"
+    - flags += "Discretionary"
+}

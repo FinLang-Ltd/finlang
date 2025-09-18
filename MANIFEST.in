@@ -1,2 +1,4 @@
-recursive-include finlang/rulepacks *.fin
-recursive-include finlang/mapping *.json
+include LICENSE
+include README.md
+recursive-include src/finlang/mapping *.json
+recursive-include src/finlang/rulepacks *.fin
