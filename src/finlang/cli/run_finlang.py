@@ -57,7 +57,6 @@ PACK_MAP = {
 _THIS_DIR = Path(__file__).resolve().parent           # .../src/finlang/cli
 _PKG_ROOT = _THIS_DIR.parent                          # .../src/finlang
 _LOCAL_RULEPACKS = _PKG_ROOT / "rulepacks"
-_LOCAL_MAPPING = _PKG_ROOT / "mapping"
 
 
 # ---- Resource helpers: package-first, then dev-folder fallback ---------------
@@ -79,16 +78,26 @@ def _read_pack_text(pack_name: str) -> str:
         raise SystemExit(f"Could not find rulepack '{fname}' in package or at '{p}'.")
 
 
-def _load_default_bank_map_text() -> Optional[str]:
-    """Load default bank.map.json from package, with local dev-folder fallback."""
-    # Package-first
+def _load_default_bank_map_text() -> str:
+    """Load default bank.map.json from package, with robust dev-folder fallback."""
+    fname = "bank.map.json"
+    # Try packaged resource first
     try:
-        return resources.files("finlang.mapping").joinpath("bank.map.json").read_text(encoding="utf-8")
+        return resources.files("finlang.mapping").joinpath(fname).read_text(encoding="utf-8")
     except Exception:
-        p = _LOCAL_MAPPING / "bank.map.json"
+        pass
+
+    # Fallback: running from repo with multiple possible layouts
+    here = Path(__file__).resolve().parent
+    candidates = [
+        here / "mapping" / fname,                   # ./mapping/bank.map.json
+        here.parent / "mapping" / fname,            # ../mapping/bank.map.json
+        here.parent / "finlang" / "mapping" / fname,# ../finlang/mapping/bank.map.json
+    ]
+    for p in candidates:
         if p.exists():
             return p.read_text(encoding="utf-8")
-    return None
+    raise SystemExit("FATAL: Could not find default bank.map.json in package or development folders.")
 
 
 # ---- Rules concatenation & parsing -------------------------------------------
@@ -377,7 +386,7 @@ def main():
 
         # 3) Header mapping (map file or default)
         header_map: Optional[dict] = None
-        if args.map_path:
+        if getattr(args, "map_path", None):
             try:
                 header_map = load_header_map(args.map_path)
             except FileNotFoundError:
@@ -385,13 +394,13 @@ def main():
             except Exception as e:
                 print(f"(Warning) Failed to load mapping file '{args.map_path}': {e}. Continuing.", file=sys.stderr)
         else:
-            txt = _load_default_bank_map_text()
-            if txt:
-                header_map = json.loads(txt)
+            try:
+                header_map = json.loads(_load_default_bank_map_text())
                 if not args.headless:
                     print("→ Loaded default bank mapping file.")
-            elif not args.headless:
-                print("(Info) No --map provided and no default map found. Proceeding without mapping.")
+            except Exception as e:
+                print(f"(Warning) Could not load default mapping file: {e}", file=sys.stderr)
+                header_map = {}
 
         if header_map:
             df = apply_header_map(df, header_map, headless=args.headless)
@@ -433,7 +442,7 @@ def main():
 
         audit_path = None
         if args.audit and args.audit_mode != "none":
-            log(f"5. Writing {len(audit_log)} audit entries to {os.path.basename(args.audit)}...")
+        log(f"5. Writing {len(audit_log)} audit entries to {os.path.basename(args.audit)}...")
             audit_path = safe_write_json(audit_log, args.audit, verbose=not args.headless)
         t_write = time.perf_counter()
 
