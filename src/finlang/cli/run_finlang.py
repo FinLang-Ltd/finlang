@@ -97,7 +97,7 @@ def _load_default_bank_map_text() -> str:
     for p in candidates:
         if p.exists():
             return p.read_text(encoding="utf-8")
-    raise SystemExit("FATAL: Could not find default bank.map.json in package or development folders.")
+    raise SystemExit("Could not find default bank.map.json (provide --map explicitly).")
 
 
 # ---- Rules concatenation & parsing -------------------------------------------
@@ -397,7 +397,7 @@ def main():
             try:
                 header_map = json.loads(_load_default_bank_map_text())
                 if not args.headless:
-                    print("→ Loaded default bank mapping file.")
+                    print(f"→ Loaded default mapping: bank.map.json")
             except Exception as e:
                 print(f"(Warning) Could not load default mapping file: {e}", file=sys.stderr)
                 header_map = {}
@@ -442,7 +442,7 @@ def main():
 
         audit_path = None
         if args.audit and args.audit_mode != "none":
-        log(f"5. Writing {len(audit_log)} audit entries to {os.path.basename(args.audit)}...")
+            log(f"5. Writing {len(audit_log)} audit entries to {os.path.basename(args.audit)}...")
             audit_path = safe_write_json(audit_log, args.audit, verbose=not args.headless)
         t_write = time.perf_counter()
 
