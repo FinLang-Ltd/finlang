@@ -413,19 +413,27 @@ def main():
                 credit_name = amt_map.get("credit")
                 have_debit = bool(debit_name and debit_name in df.columns)
                 have_credit = bool(credit_name and credit_name in df.columns)
+
                 if (have_debit or have_credit) and not have_amount:
-                    debit_series = pd.to_numeric(df.get(debit_name, 0), errors="coerce").fillna(0)
-                    credit_series = pd.to_numeric(df.get(credit_name, 0), errors="coerce").fillna(0)
-                    df["amount"] = credit_series - debit_series
-                    if not args.headless:
-                        if have_debit and have_credit:
-                            print("→ Synthesized 'amount' from debit/credit columns")
-                        elif have_debit:
-                            print("→ Synthesized 'amount' from debit only (amount = -debit)")
-                        elif have_credit:
-                            print("→ Synthesized 'amount' from credit only (amount = credit)")
+                    debit_series  = pd.to_numeric(df.get(debit_name, 0),  errors="coerce").fillna(0).abs()
+                    credit_series = pd.to_numeric(df.get(credit_name, 0), errors="coerce").fillna(0).abs()
+
+                    if have_debit and have_credit:
+                        df["amount"] = credit_series - debit_series
+                        if not args.headless:
+                            print("→ Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
+                    elif have_debit:
+                        df["amount"] = -debit_series
+                        if not args.headless:
+                            print("→ Synthesized 'amount' from debit only (amount = -abs(debit))")
+                    elif have_credit:
+                        df["amount"] = credit_series
+                        if not args.headless:
+                            print("→ Synthesized 'amount' from credit only (amount = abs(credit))")
+
                 elif (have_debit or have_credit) and have_amount and not args.headless:
                     print("→ Amount column already present; skipping debit/credit synthesis")
+
 
         # 4) Canonical normalization
         df = _normalize_canonical(df, headless=args.headless)
