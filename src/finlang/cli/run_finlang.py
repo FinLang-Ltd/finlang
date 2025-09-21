@@ -441,7 +441,16 @@ def main():
 
         # 5) Engine
         log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
-        processed_df, audit_log = run_audit(df, rules, audit_mode=args.audit_mode)
+        # Engine-slim projection: Pass only the columns the engine needs
+        engine_cols = [c for c in ["counterparty","amount","date","memo","category","flags"] if c in df.columns]
+        engine_df = df[engine_cols].copy()
+        proc_engine_df, audit_log = run_audit(engine_df, rules, audit_mode=args.audit_mode)
+
+        # Join results back to the original DataFrame to preserve all columns
+        processed_df = df.copy()
+        for col in ["category","flags"]:
+            if col in proc_engine_df.columns:
+                processed_df[col] = proc_engine_df[col]
         t_engine = time.perf_counter()
 
         # 6) Writes
