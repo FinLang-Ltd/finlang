@@ -33,6 +33,12 @@
 | 1M × 50  | ~41.8 s | 23,900 rows/s   | Daily batches      |
 | **5M × 50** | **~210.3 s** | **23,800 rows/s** | Monthly compliance |
 
+## 🏢 Enterprise Ready
+- **ICO Registered • Trademarks Filed • Professional Indemnity Insurance**
+- **Deterministic Compliance** for regulated financial environments
+- **Self-Hosted Deployment** - no data egress, full control
+
+
 ---
 
 ## 💡 Key Architectural Advantages
@@ -71,6 +77,9 @@
    ```bash
    finlang --rules my_rules.fin --include-pack retail,sanity            --input transactions.csv --output categorized.csv --fastio
    ```
+
+> 💡 **Pro Tip:** Start with `--audit-mode full` during development, switch to `none` for production throughput.
+
 
 ---
 
