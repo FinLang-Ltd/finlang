@@ -1,4 +1,5 @@
 # 📖 Rule Language Reference
+*Applies to FinLang v0.6.x*
 
 FinLang uses a simple, declarative DSL (`.fin` files) to define categorization logic. Rules match transactions by conditions, then apply actions to set categories, flags, and other fields.
 
@@ -81,7 +82,7 @@ The `amount` field is critical for many rules. FinLang uses a clear, determinist
 **Resolution Order:**
 
 1. **If an `amount` column exists:** It is always trusted as the primary source.  
-2. **If `amount` is missing:** FinLang automatically *synthesizes* it from `debit` and `credit` columns using the following abs-safe formula:
+2. **If `amount` is missing:** FinLang automatically *synthesizes* it from `debit` and `credit` columns using the following formula:
    ```
    amount = abs(credit) - abs(debit)
    ```
@@ -105,9 +106,9 @@ This logic ensures that even if a bank export has inconsistent debit/credit sign
 
 ✅ **Specific first, general later**  
 Rules are applied in order of precedence:  
-1. Your personal rules (`my_rules.fin`).  
+1. Your personal rules (`--rules my_rules.fin`).  
 2. Then included packs (`--include-pack`).  
-Later rules can override earlier ones.
+Within each file, rules run top-to-bottom. For `category`, `memo`, and `exclude`, the **last matching rule wins**. Flags always accumulate.
 
 ✅ **Use audit mode**  
 Always review `audit.json` in **full audit mode** when testing new rules. It shows exactly which cells changed.
@@ -234,7 +235,7 @@ These catch-all rules act as guardrails, ensuring no high-value or suspicious-lo
 
 - **Operators:** `==`, `~`, `in`  
 - **Set fields:** `category`, `memo`, `status`, `exclude`, `flags +=`  
-- **Rule precedence:** personal rules → packs  
+- **Rule precedence:** personal rules → packs; last match wins for overwrites, flags always accumulate  
 - **Audit mode:** always use for testing
 
 ---
@@ -296,3 +297,7 @@ These commands enable CI/CD systems to:
 ---
 
 📌 See [`workflows.md`](workflows.md) for how rules integrate into the Growth Loop and daily workflows.
+
+---
+
+© FinLang Ltd
