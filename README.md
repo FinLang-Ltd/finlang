@@ -110,11 +110,20 @@ python -m benchmarks.bench_finlang_harness   --mode full-cli   --run-fin "finlan
 
 ## 📖 Documentation
 
-- [Manifesto](docs/manifesto.md)  
-- [Grammar](docs/grammar.md)  
-- [Benchmarks](docs/benchmarks.md) *(optional)*  
-- [Privacy Policy](docs/privacy.md)  
-- [Terms of Use](docs/terms.md)  
+**Getting Started**
+- [Installation Guide](docs/install.md)
+- [Core Workflows](docs/workflows.md)
+
+**Reference**
+- [Rule Language Grammar](docs/rule_language.md)
+- [CLI Reference](docs/cli_reference.md)
+- [Benchmarks](docs/benchmarks.md)
+
+**Project**
+- [FAQ](docs/faq.md)
+- [Privacy Policy](docs/privacy.md)
+- [Terms of Use](docs/terms.md)
+
 
 ---
 
