@@ -1,4 +1,5 @@
 # FinLang
+*Applies to FinLang v0.6.x*
 
 **Deterministic Financial Rules Engine • 23,800+ Rows/Second • Audit-First**
 
@@ -6,7 +7,6 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/FinLang-Ltd/finlang)
 [![Python versions](https://img.shields.io/pypi/pyversions/finlang.svg)](https://pypi.org/project/finlang/)
-
 
 ---
 
@@ -23,7 +23,8 @@
 | 5M × 20 cols   | ~95.1 s         | ~52,600 rows/s    | Transaction monitoring   |
 | 5M × 5 cols    | ~35.2 s         | ~142,800 rows/s   | Real-time screening      |
 
-> 🔍 *Variability ±5–10% at scale due to system noise*
+> 🔍 *Variability ±5–10% at scale due to system noise*  
+> 📌 Headline throughput is measured at **5M × 50 cols (~23,800 rows/s)**. Throughput scales upward as column count decreases.
 
 ### Scalability Profile (50 Columns)
 
@@ -38,12 +39,12 @@
 - **Deterministic Compliance** for regulated financial environments
 - **Self-Hosted Deployment** - no data egress, full control
 
-
 ---
 
 ## 💡 Key Architectural Advantages
 
 ### 🎯 Predictable Performance
+- **Engine-slim projection is always on** (no flag): only the minimal columns are evaluated, then results are joined back  
 - **Linear scaling** with row count → accurate capacity planning  
 - **Width-aware optimization** → engine projects to minimal column set  
 - **Ruleset-invariant** → business logic complexity has minimal impact  
@@ -78,8 +79,9 @@
    finlang --rules my_rules.fin --include-pack retail,sanity            --input transactions.csv --output categorized.csv --fastio
    ```
 
-> 💡 **Pro Tip:** Start with `--audit-mode full` during development, switch to `none` for production throughput.
-
+> 💡 **Pro Tip:** During development, use `--audit-mode full` to capture before/after snapshots.  
+> For daily runs, `lite` (default) logs changed cells only.  
+> For maximum throughput in production, use `none`.
 
 ---
 
@@ -93,8 +95,8 @@ type suggestions.fin >> my_rules.fin
 finlang --input transactions.csv --output categorized.csv         --rules my_rules.fin --include-pack retail,sanity --audit-mode full
 ```
 
-- **`discover.py`** → mines uncategorized counterparties  
-- **`suggest.py`** → generates conservative draft rules (deduplicated)
+- **`finlang-discover`** → mines uncategorized counterparties  
+- **`finlang-suggest`** → generates conservative draft rules (deduplicated)
 
 ---
 
@@ -124,7 +126,6 @@ python -m benchmarks.bench_finlang_harness   --mode full-cli   --run-fin "finlan
 - [Privacy Policy](docs/privacy.md)
 - [Terms of Use](docs/terms.md)
 
-
 ---
 
 ## 📦 Licensing
@@ -139,6 +140,6 @@ Commercial handled via **Lemon Squeezy**
 
 ## 🏢 Project
 
-- **Company:** FinLang Ltd (UK)  
+- **Company:** FinLang Ltd  
 - **Maintainer:** Angus McNab (founder)  
 - **Trademark:** FinLang™  

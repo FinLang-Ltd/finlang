@@ -1,4 +1,5 @@
-# Installation Guide
+# 📖 Installation Guide
+*Applies to FinLang v0.6.x*
 
 This guide walks you through installing **FinLang** on Windows, macOS, and Linux — with optional fast CSV I/O and tips for common pitfalls.
 
@@ -25,6 +26,12 @@ Verify:
 ```bash
 finlang --help
 ```
+
+📌 This will also install helper tools:  
+- `finlang-discover` (for surfacing uncategorized counterparties)  
+- `finlang-suggest` (for generating draft rules)  
+
+You can call them directly from the shell — no need to run `python discover.py`.
 
 ### Optional: Faster I/O (pyarrow)
 
@@ -89,6 +96,11 @@ finlang --input sample.csv --output categorized.csv --audit audit.json --audit-m
 
 You should get `categorized.csv` with canonical columns (`counterparty, amount, date, category, flags, memo`) and an `audit.json` file if changes were made.
 
+📌 Audit modes:  
+- `none` → fastest, no audit file written.  
+- `lite` (default) → records changed cells only.  
+- `full` → records before/after snapshots of all evaluated cells.
+
 ---
 
 ## Upgrading / Uninstalling
@@ -135,6 +147,10 @@ You should get `categorized.csv` with canonical columns (`counterparty, amount, 
 
 ## What’s Next?
 
-- Read the **[CLI Reference](cli_reference.md)** for all flags and switches.
-- Check **[Core Workflows](workflows.md)** to run the daily loop and the growth loop.
-- Learn the **[Rule Language](rule_language.md)** to write powerful, auditable rules.
+- Read the **[CLI Reference](cli_reference.md)** for all flags and switches.  
+- Check **[Core Workflows](workflows.md)** to run the daily loop and the growth loop.  
+- Learn the **[Rule Language](rule_language.md)** to write powerful, auditable rules.  
+
+---
+
+© FinLang Ltd

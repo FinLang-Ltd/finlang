@@ -1,4 +1,11 @@
-# FinLang CLI Reference
+# 📖 FinLang CLI Reference
+*Applies to FinLang v0.6.x*
+
+This document provides a full reference of available switches and flags across the FinLang ecosystem, 
+including the core CLI, discovery/suggestion helpers, and benchmarking harnesses. It also includes 
+example workflows such as the *growth loop* and practical recipes for daily use.
+
+---
 
 ## Install
 
@@ -6,13 +13,8 @@
 pip install "finlang[fastio]"
 ```
 
-Optional: install `pyarrow` for faster `--fastio`.
+Optional: install `pyarrow` for faster `--fastio`.  
 Supports Python 3.9+ on Windows, macOS, Linux.
-
-
-This document provides a full reference of available switches and flags across the FinLang ecosystem, 
-including the core CLI, discovery/suggestion helpers, and benchmarking harnesses. It also includes 
-example workflows such as the *growth loop* and practical recipes for daily use.
 
 ---
 
@@ -44,16 +46,20 @@ finlang --input <csv> --output <csv> [--rules FILE ...] [--include-pack PACKS] [
 - `--map FILE`  
   Optional header mapping JSON (defaults to bundled `bank.map.json`).  
 - Canonical columns: `counterparty, amount, date, category, flags, memo`.  
-- Debit/credit synthesis: `amount = credit – debit` if no `amount` column exists.
+- Debit/credit synthesis:  
+  ```
+  amount = abs(credit) - abs(debit)
+  ```  
+  if no `amount` column exists.
 
 ### Auditing
 
 - `--audit FILE`  
   Write structured audit JSON of rule-driven changes.  
 - `--audit-mode {none|lite|full}` (default: *lite*)  
-  - **none**: fastest, no audit  
-  - **lite**: records changed cells (capped)  
-  - **full**: maximum detail (capped)
+  - **none**: fastest, no audit.  
+  - **lite**: records changed cells only (capped).  
+  - **full**: records before/after snapshots of all evaluated cells (capped).
 
 ### Performance & Logging
 
@@ -66,6 +72,7 @@ finlang --input <csv> --output <csv> [--rules FILE ...] [--include-pack PACKS] [
 
 ### Rule Engine Notes
 
+- **Engine-slim projection is always on** (no flag): only the minimal columns are evaluated, then results are joined back.  
 - Match fields: `counterparty, amount, category, flags, status, memo`.  
 - Operators: `==`, `~` (wildcards), `in` (for `amount` ranges).  
 - Set fields: `category, status, memo, flags, exclude`.  
@@ -87,13 +94,11 @@ type suggestions.fin >> my_rules.fin    # (Windows)
 cat suggestions.fin >> my_rules.fin     # (Linux/macOS)
 
 # 3. Apply rules + packs with full audit trail
-finlang --input transactions.csv --output categorized.csv \
-        --rules my_rules.fin --include-pack retail,sanity --audit-mode full
+finlang --input transactions.csv --output categorized.csv         --rules my_rules.fin --include-pack retail,sanity --audit-mode full
 ```
 **Growth Loop Diagram**
 
 ![FinLang Growth Loop](assets/finlang_growth_loop.png)
-
 
 ---
 
@@ -129,20 +134,22 @@ finlang-discover --input canonical.csv --candidates out.csv --all out_full.csv
 
 ---
 
-## 4. Suggestion Helper (`suggest.py`)
+## 4. Suggestion Helper (`finlang-suggest`)
+
+**Purpose:** Generate conservative draft rules from discovery output.
 
 **Usage:**
 
 ```bash
-python suggest.py --input candidates.csv --output draft_rules.fin
-                  [--rules existing.fin] [--category "Review"]
-                  [--prefix "SUGGEST"] [--append|--overwrite]
+finlang-suggest --input candidates.csv --output draft_rules.fin
+                [--rules existing.fin] [--category "Review"]
+                [--prefix "SUGGEST"] [--append|--overwrite]
 ```
 
 ### Flags
 
 - `--input FILE` (required)  
-  Shortlist from `discover`.  
+  Shortlist from `finlang-discover`.  
 - `--output FILE` (required)  
   Draft rules file.  
 - `--rules FILE`  
@@ -156,7 +163,7 @@ python suggest.py --input candidates.csv --output draft_rules.fin
 
 **Output:** Draft `.fin` rules like:
 
-```finlang
+```fin
 # SUGGESTED (freq=134, last=2025-08-21, sample_amt=-92.34)
 rule "SUGGEST: TESCO" {
   match:
@@ -175,10 +182,7 @@ rule "SUGGEST: TESCO" {
 **Usage:**
 
 ```bash
-python -m benchmarks.bench_finlang_harness --mode full-cli --run-fin "finlang --fastio --audit-mode none" \
-  --rules examples/rules.demo.fin --include-pack retail,transport,subs \
-  --rows 25000 50000 100000 200000 --cols 5 20 35 50 --runs 3 \
-  --final-rows 1000000 5000000 --outdir bench_out
+python -m benchmarks.bench_finlang_harness --mode full-cli --run-fin "finlang --fastio --audit-mode none"   --rules examples/rules.demo.fin --include-pack retail,transport,subs   --rows 25000 50000 100000 200000 --cols 5 20 35 50 --runs 3   --final-rows 1000000 5000000 --outdir bench_out
 ```
 
 **Flags:**
@@ -202,12 +206,10 @@ python -m benchmarks.bench_finlang_harness --mode full-cli --run-fin "finlang --
 **Usage:**
 
 ```bash
-python -m benchmarks.bench_finlang_rulesets --run-fin "finlang --fastio" \
-  --rules-set RETAIL:examples/rules.retail.fin --rules-set TRANSPORT:examples/rules.transport.fin \
-  --rows 50000 100000 --cols 10 20 --repeats 3 --outdir bench_out
+python -m benchmarks.bench_finlang_rulesets --run-fin "finlang --fastio"   --rules-set RETAIL:examples/rules.retail.fin --rules-set TRANSPORT:examples/rules.transport.fin   --rows 50000 100000 --cols 10 20 --repeats 3 --outdir bench_out
 ```
 
-- `--rules-set NAME:FILE` (repeatable)  
+- `--rules-set NAME:FILE` (repeatable).  
 - Other flags mirror single-ruleset harness.
 
 **Outputs:** comparison heatmaps and lines across rulesets.
@@ -247,28 +249,20 @@ python -m benchmarks.bench_finlang_rulesets --run-fin "finlang --fastio" \
 
 - **Daily run (fast + auditable):**  
   ```bash
-  finlang --input in.csv --output out.csv --rules my.fin \
-          --include-pack retail,sanity --fastio --audit audit.json --audit-mode lite
+  finlang --input in.csv --output out.csv --rules my.fin           --include-pack retail,sanity --fastio --audit audit.json --audit-mode lite
   ```
 
 - **Pure throughput benchmark:**  
   ```bash
-  python -m benchmarks.bench_finlang_harness --mode full-cli \
-    --run-fin "finlang --fastio --audit-mode none --headless" \
-    --rows 100000 500000 1000000 --cols 10 50 --runs 3 --outdir bench_out
+  python -m benchmarks.bench_finlang_harness --mode full-cli     --run-fin "finlang --fastio --audit-mode none --headless"     --rows 100000 500000 1000000 --cols 10 50 --runs 3 --outdir bench_out
   ```
 
 - **Coverage growth loop:**  
   ```bash
   finlang-discover --input categorized.csv --top-k 50 > suggestions.fin
-  python suggest.py --input suggestions.fin --output draft_rules.fin --rules my_rules.fin --category "Review"
+  finlang-suggest --input suggestions.fin --output draft_rules.fin --rules my_rules.fin --category "Review"
   finlang --input transactions.csv --output categorized.csv --rules my_rules.fin --include-pack retail,sanity --audit-mode full
   ```
-
----
-
-**Note:** Defaults such as `exclude = false` and `flags +=` (append-only) are enforced to guarantee auditability and prevent silent overrides.
-
 
 ---
 
@@ -278,10 +272,14 @@ python -m benchmarks.bench_finlang_rulesets --run-fin "finlang --fastio" \
 A: Flags are append-only. Use `flags += "X"` instead. This ensures no accidental overwrites.
 
 **Q: Why is audit mode slowing things down?**  
-A: `--audit-mode full` records every change, which adds overhead. Use `lite` for daily use, `none` for benchmarks.
+A: `--audit-mode full` records before/after for all evaluated cells. `lite` (default) records changed cells only. Use `none` for fastest benchmarks.
 
 **Q: My amounts look wrong. Why?**  
-A: If no `amount` column exists, FinLang synthesizes it from debit/credit. Check your bank map or source headers.
+A: If no `amount` column exists, FinLang synthesizes it with `abs(credit) - abs(debit)`. Check your bank map or source headers.
 
 **Q: Which rules take precedence?**  
-A: `--rules` always override `--include-pack`. Put your custom rules first.
+A: Rules are applied in the order they are loaded. Personal rules (`--rules`) are loaded first, then pack rules (`--include-pack`). Within each file, rules run top-to-bottom. For `category`, `memo`, and `exclude`, the last matching rule wins, but flags always accumulate.
+
+---
+
+© FinLang Ltd
