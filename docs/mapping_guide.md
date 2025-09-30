@@ -20,12 +20,22 @@ FinLang uses a JSON mapping file to normalize these variations into canonical fi
 
 FinLang ships with a **default `bank.map.json`** that covers a wide range of common English-language headers used by UK, US, and European banks. You can find this file in the distribution and override it with your own via the `--map` flag.
 
-**Default Canonical Fields:**
+**Core Required Fields (must exist after mapping):**
 
   - `date`
   - `counterparty`
-  - `memo`
-  - `amount` (which itself can be synthesized from `debit` and `credit`)
+  - `amount`  
+    (this may be present directly, or synthesized from `debit` + `credit`)
+
+Without these three, FinLang will abort with a schema error.
+
+**Optional Canonical Fields (understood if present):**
+
+  - `memo` → free text (notes, transaction type, etc.)
+  - `category` → assigned by rules
+  - `flags` → append-only tags (`flags += "Retail"`)
+  - `status` → can be set/used in rules
+  - `exclude` → marks rows to be dropped from further processing
 
 **Excerpt from the bundled `bank.map.json`:**
 
@@ -115,7 +125,7 @@ This will override the default `bank.map.json` with your custom logic.
   The mapping process is case-insensitive. A header of `Description` in your CSV will match the `description` key in your mapping file.
 
 - **Extra Columns**  
-  If your input file has **more columns than the canonical model**, they are simply passed through unchanged. FinLang only interprets the canonical fields (`counterparty`, `amount`/`debit`/`credit`, `memo`, `status`, `flags`). All other fields remain in the output CSV for your reference but are not affected by rules.
+  If your input file has **more columns than the canonical model**, they are simply passed through unchanged. FinLang only interprets the canonical fields listed above (required: `date`, `counterparty`, `amount`; optional: `memo`, `category`, `flags`, `status`, `exclude`). All other columns are passed through unchanged. All other fields remain in the output CSV for your reference but are not affected by rules.
 
 - **Limitations**  
   The mapping is a simple header-to-field translation. It does not perform complex data transformations or cell-level manipulations. That is the job of the rule engine.
