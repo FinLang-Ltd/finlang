@@ -10,9 +10,11 @@ def run(cmd):
     return r
 
 def test_cli_runs_on_onecol(tmp_path):
-    """Tests a basic run with a single-column CSV, rules, and audit."""
+    """Tests a basic run with a valid canonical CSV, rules, and audit."""
     data = tmp_path/"onecol.csv"
-    data.write_text("counterparty\nTESCO\n", encoding="utf-8")
+    # FIX: Provide all required columns: date, counterparty, and amount.
+    data.write_text("date,counterparty,amount\n2025-01-01,TESCO,-10.50\n", encoding="utf-8")
+    
     out = tmp_path/"out.csv"
     audit = tmp_path/"audit.json"
     rules = tmp_path/"rules.fin"
