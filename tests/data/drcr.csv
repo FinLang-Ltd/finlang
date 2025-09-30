@@ -1,0 +1,3 @@
+date,counterparty,credit,debit
+2025-01-02,TEST_CREDIT,10.00,
+2025-01-03,TEST_DEBIT,,5.50
