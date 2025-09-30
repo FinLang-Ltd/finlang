@@ -1,14 +1,16 @@
 import json, subprocess, sys, tempfile, os, csv, pathlib
 
-BIN = "finlang"  # entry point
+BIN = "finlang"  # Assumes installed entry point
 
 def run(cmd):
+    """Helper to run CLI commands and assert success."""
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if r.returncode != 0:
         raise AssertionError(f"cmd failed: {cmd}\n\nSTDOUT:\n{r.stdout}\n\nSTDERR:\n{r.stderr}")
     return r
 
 def test_cli_runs_on_onecol(tmp_path):
+    """Tests a basic run with a single-column CSV, rules, and audit."""
     data = tmp_path/"onecol.csv"
     data.write_text("counterparty\nTESCO\n", encoding="utf-8")
     out = tmp_path/"out.csv"
@@ -19,15 +21,16 @@ def test_cli_runs_on_onecol(tmp_path):
     cmd = f'{BIN} --input "{data}" --output "{out}" --rules "{rules}" --include-pack sanity --audit "{audit}" --audit-mode lite'
     run(cmd)
 
-    # output exists and has the same row count
+    # Output exists and has the same row count
     rows = list(csv.reader(out.read_text(encoding="utf-8").splitlines()))
     assert len(rows) == 2  # header + 1 row
 
-    # audit exists and is json
+    # Audit exists and is a JSON list
     audit_obj = json.loads(audit.read_text(encoding="utf-8"))
-    assert isinstance(audit_obj, dict)
+    assert isinstance(audit_obj, list)
 
 def test_drcr_synthesizes_amount(tmp_path):
+    """Tests that 'amount' is correctly synthesized from debit/credit columns."""
     data = tmp_path/"drcr.csv"
     data.write_text("date,counterparty,credit,debit\n2025-01-02,TEST_CREDIT,10.00,\n2025-01-03,TEST_DEBIT,,5.50\n", encoding="utf-8")
     out = tmp_path/"out.csv"
