@@ -140,7 +140,11 @@ python -m benchmarks.bench_finlang_harness   --mode full-cli   --run-fin "finlan
 ### Multi-Ruleset Comparator
 
 ```bash
-python -m benchmarks.bench_finlang_rulesets   --run-fin "finlang --fastio --audit-mode none"   --rules-set RETAIL:examples/rules.retail.fin   --rules-set TRANSPORT:examples/rules.transport.fin   --rows 50000 100000 --cols 10 20 --repeats 3 --outdir bench_out
+python -m benchmarks.bench_finlang_rulesets \
+  --run-fin "finlang --fastio --audit-mode none" \
+  --rules-set RETAIL:src/finlang/rulepacks/01-vendors-retail.fin \
+  --rules-set TRANSPORT:src/finlang/rulepacks/02-transport.fin \
+  --rows 50000 100000 --cols 10 20 --repeats 3 --outdir bench_out
 ```
 
 - Compare performance across multiple named rulesets.
