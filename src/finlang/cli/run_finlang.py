@@ -36,6 +36,10 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from importlib import resources
 
+# ---- PATCH START: Import version ----
+from finlang import __version__
+# ---- PATCH END ----------------------
+
 # Engine import (package layout only; installed or editable install)
 from finlang.engine.finlang_engine_v0_5_2 import run_audit
 
@@ -331,6 +335,16 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
 
 def main():
     ap = argparse.ArgumentParser(description="FinLang Mk6 CLI")
+    
+    # ---- PATCH START: Add --version flag ----
+    ap.add_argument(
+        "--version",
+        action="version",
+        version=f"FinLang {__version__}",
+        help="Show program's version number and exit."
+    )
+    # ---- PATCH END --------------------------
+    
     ap.add_argument("--rules", nargs="+", help="One or more .fin files (your rules). May be combined with --include-pack.")
     ap.add_argument("--include-pack", default="", help="Comma-separated starter packs to include (e.g. retail,transport,subs)")
     ap.add_argument("--input", required=True, help="Path to input CSV file")
