@@ -36,9 +36,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from importlib import resources
 
-# ---- PATCH START: Import version ----
 from finlang import __version__
-# ---- PATCH END ----------------------
 
 # Engine import (package layout only; installed or editable install)
 from finlang.engine.finlang_engine_v0_5_2 import run_audit
@@ -240,8 +238,8 @@ def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.D
                 break
 
     if not headless and used:
-        picks = ", ".join([f"{canon}←{alias}" for canon, alias in used.items()])
-        print(f"→ Normalized headers via map ({picks})")
+        picks = ", ".join([f"{canon}<-{alias}" for canon, alias in used.items()])
+        print(f"-> Normalized headers via map ({picks})")
     return df
 
 
@@ -285,7 +283,7 @@ def _normalize_canonical(df: pd.DataFrame, *, headless: bool) -> pd.DataFrame:
     bad_amt = df["amount"].isna()
     dropped = int((bad_date | bad_amt).sum())
     if dropped and not headless:
-        print(f"→ Dropped {dropped} row(s) with invalid date/amount")
+        print(f"-> Dropped {dropped} row(s) with invalid date/amount")
 
     df = df[~(bad_date | bad_amt)].copy()
     return df
@@ -310,8 +308,8 @@ def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool) -> str:
     except PermissionError:
         fb = _timestamped(path)
         if verbose:
-            print(f"❌ Cannot write to {path} — file is open in another program.")
-            print(f"   ➜ Saving to fallback: {fb}")
+            print(f"X Cannot write to {path} — file is open in another program.")
+            print(f"   -> Saving to fallback: {fb}")
         df.to_csv(fb, index=False)
         return fb
 
@@ -324,8 +322,8 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
     except PermissionError:
         fb = _timestamped(path)
         if verbose:
-            print(f"❌ Cannot write to {path} — file is open in another program.")
-            print(f"   ➜ Saving to fallback: {fb}")
+            print(f"X Cannot write to {path} — file is open in another program.")
+            print(f"   -> Saving to fallback: {fb}")
         with open(fb, "w", encoding="utf-8") as f:
             json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
         return fb
@@ -336,14 +334,12 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
 def main():
     ap = argparse.ArgumentParser(description="FinLang Mk6 CLI")
     
-    # ---- PATCH START: Add --version flag ----
     ap.add_argument(
         "--version",
         action="version",
         version=f"FinLang {__version__}",
         help="Show program's version number and exit."
     )
-    # ---- PATCH END --------------------------
     
     ap.add_argument("--rules", nargs="+", help="One or more .fin files (your rules). May be combined with --include-pack.")
     ap.add_argument("--include-pack", default="", help="Comma-separated starter packs to include (e.g. retail,transport,subs)")
@@ -379,7 +375,7 @@ def main():
         if not args.headless:
             names = [r.get("name", "<unnamed>") for r in rules]
             preview = ", ".join(names[:10]) + (f", ... (+{len(names)-10})" if len(names) > 10 else "")
-            print(f"→ Parsed {len(rules)} rule(s): {preview}")
+            print(f"-> Parsed {len(rules)} rule(s): {preview}")
         t_rules = time.perf_counter()
 
         # 2) Read CSV
@@ -411,7 +407,7 @@ def main():
             try:
                 header_map = json.loads(_load_default_bank_map_text())
                 if not args.headless:
-                    print(f"→ Loaded default mapping: bank.map.json")
+                    print(f"-> Loaded default mapping: bank.map.json")
             except Exception as e:
                 print(f"(Warning) Could not load default mapping file: {e}", file=sys.stderr)
                 header_map = {}
@@ -435,18 +431,18 @@ def main():
                     if have_debit and have_credit:
                         df["amount"] = credit_series - debit_series
                         if not args.headless:
-                            print("→ Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
+                            print("-> Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
                     elif have_debit:
                         df["amount"] = -debit_series
                         if not args.headless:
-                            print("→ Synthesized 'amount' from debit only (amount = -abs(debit))")
+                            print("-> Synthesized 'amount' from debit only (amount = -abs(debit))")
                     elif have_credit:
                         df["amount"] = credit_series
                         if not args.headless:
-                            print("→ Synthesized 'amount' from credit only (amount = abs(credit))")
+                            print("-> Synthesized 'amount' from credit only (amount = abs(credit))")
 
                 elif (have_debit or have_credit) and have_amount and not args.headless:
-                    print("→ Amount column already present; skipping debit/credit synthesis")
+                    print("-> Amount column already present; skipping debit/credit synthesis")
 
 
         # 4) Canonical normalization
@@ -480,7 +476,7 @@ def main():
         # 7) Timing
         elapsed = time.perf_counter() - t0
         log("-" * 20)
-        log("✅ Processing complete.")
+        log("OK. Processing complete.")
         if out_path != args.output:
             log(f"   Output written to fallback: {out_path}")
         if audit_path and audit_path != args.audit:
