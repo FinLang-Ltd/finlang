@@ -1,4 +1,10 @@
+# Ensure non-Python assets are present for consumers who build from sdist
 include LICENSE
 include README.md
 recursive-include src/finlang/mapping *.json
 recursive-include src/finlang/rulepacks *.fin
+
+# Keep the sdist lean and deterministic by removing test and CI files
+prune tests
+prune .github
+global-exclude *.py[cod] __pycache__ *.so .DS_Store

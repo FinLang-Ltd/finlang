@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "finlang"
 version = "0.6.1"
 description = "FinLang: a deterministic, auditable DSL for financial rules"
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
 license = { text = "AGPL-3.0-only" }
 requires-python = ">=3.10"
 dependencies = ["pandas>=2.0"]
@@ -26,7 +26,7 @@ finlang-discover = "finlang.tools.discover:main"
 finlang-suggest  = "finlang.tools.suggest:main"
 
 [project.optional-dependencies]
-dev   = ["pytest", "build", "twine"]
+dev   = ["pytest", "build", "twine", "check-manifest"]
 bench = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
 
@@ -36,6 +36,7 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = ["tests*"]
 
 [tool.setuptools.package-data]
 finlang = [
