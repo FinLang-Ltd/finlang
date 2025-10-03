@@ -7,7 +7,7 @@ This guide walks you through installing **FinLang** on Windows, macOS, and Linux
 
 ## Requirements
 
-- **Python**: 3.9 or newer (3.9–3.12 recommended)
+- **Python**: 3.10 or newer (3.10–3.12 recommended)
 - **OS**: Windows, macOS (Intel/Apple Silicon), or Linux
 - **RAM**: Scales with your CSV size (as a rough guide, 1–2× file size)
 
