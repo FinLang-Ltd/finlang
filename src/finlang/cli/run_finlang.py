@@ -29,6 +29,7 @@ import re
 import sys
 import time
 import tempfile
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -85,7 +86,8 @@ def _load_default_bank_map_text() -> str:
     fname = "bank.map.json"
     # Try packaged resource first
     try:
-        return resources.files("finlang.mapping").joinpath(fname).read_text(encoding="utf-8")
+        # Use a BOM-safe encoding to handle potential UTF-8 with BOM issues
+        return resources.files("finlang.mapping").joinpath(fname).read_text(encoding="utf-8-sig")
     except Exception:
         pass
 
@@ -98,7 +100,7 @@ def _load_default_bank_map_text() -> str:
     ]
     for p in candidates:
         if p.exists():
-            return p.read_text(encoding="utf-8")
+            return p.read_text(encoding="utf-8-sig")
     raise SystemExit("Could not find default bank.map.json (provide --map explicitly).")
 
 
@@ -112,7 +114,8 @@ def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
         p = Path(rf)
         if not p.exists():
             raise SystemExit(f"Rules file not found: {p}")
-        parts.append(f"# --- BEGIN {p.name} ---\n{p.read_text(encoding='utf-8')}\n# --- END ---")
+        # Use a BOM-safe encoding
+        parts.append(f"# --- BEGIN {p.name} ---\n{p.read_text(encoding='utf-8-sig')}\n# --- END ---")
 
     # 2) Then packs (lower precedence)
     for name in pack_list:
@@ -120,7 +123,8 @@ def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
         parts.append(f"# --- BEGIN PACK {name} ---\n{txt}\n# --- END PACK ---")
 
     if not parts:
-        raise SystemExit("No rules provided. Use --rules and/or --include-pack.")
+        print("FATAL: No rules provided. Use --rules and/or --include-pack.", file=sys.stderr)
+        sys.exit(2)
 
     tmp = tempfile.NamedTemporaryFile("w", delete=False, suffix=".fin", encoding="utf-8")
     tmp.write("\n\n".join(parts))
@@ -150,7 +154,8 @@ def _strip_inline_comment(line: str) -> str:
 
 def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
     try:
-        content = Path(path).read_text(encoding="utf-8")
+        # Use a BOM-safe encoding
+        content = Path(path).read_text(encoding="utf-8-sig")
     except FileNotFoundError:
         print(f"FATAL: Rules file not found at '{path}'", file=sys.stderr)
         sys.exit(1)
@@ -181,10 +186,41 @@ def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
     return rules
 
 
-# ---- Header mapping (hybrid amount support) ----------------------------------
+# ---- Data Hardening Functions ------------------------------------------------
+
+def _strip_control_chars(s: str) -> str:
+    """Removes invisible Unicode control characters from a string."""
+    return "".join(ch for ch in s if unicodedata.category(ch)[0] != "C")
+
+def _strip_controls_series(series: pd.Series) -> pd.Series:
+    """Applies control character stripping to a pandas Series."""
+    return series.astype(str).fillna("").apply(_strip_control_chars)
+
+def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.Series:
+    """A robust string-to-numeric converter for financial data."""
+    s = series.astype(str).str.strip()
+
+    # (123.45) -> -123.45
+    accounting_neg_mask = s.str.startswith('(') & s.str.endswith(')')
+    if accounting_neg_mask.any():
+        s.loc[accounting_neg_mask] = '-' + s.loc[accounting_neg_mask].str.slice(1, -1)
+
+    # Remove thousands separator (literal, not regex)
+    if thousands:
+        s = s.str.replace(thousands, "", regex=False)
+
+    # Remove currency symbols and NBSPs as substrings (literal)
+    for ch in ('£','€','$','¥','₹','\u00A0','\u202F'):
+        s = s.str.replace(ch, "", regex=False)
+
+    if decimal != ".":
+        s = s.str.replace(decimal, ".", regex=False)
+    return pd.to_numeric(s, errors="coerce")
+
 
 def load_header_map(path: str) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    # Use a BOM-safe encoding
+    with open(path, "r", encoding="utf-8-sig") as f:
         raw = json.load(f)
 
     mapping: dict[str, Any] = {}
@@ -211,17 +247,6 @@ def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.D
     used: dict[str, str] = {}
 
     for canon, spec in mapping.items():
-        # Special-case: amount aliases (hybrid dict form)
-        if canon == "amount" and isinstance(spec, dict):
-            aliases = spec.get("aliases")
-            if aliases and "amount" not in df.columns:
-                for alias in (aliases if isinstance(aliases, list) else [aliases]):
-                    if alias in df.columns:
-                        df.rename(columns={alias: "amount"}, inplace=True)
-                        used["amount"] = alias
-                        break
-            continue
-
         if canon in df.columns:
             continue
 
@@ -230,7 +255,13 @@ def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.D
             cand_list = [spec]
         elif isinstance(spec, list):
             cand_list = spec
-
+        # Handle amount separately for hybrid debit/credit logic
+        elif isinstance(spec, dict) and canon == "amount":
+            aliases = spec.get("aliases", [])
+            if isinstance(aliases, str):
+                aliases = [aliases]
+            cand_list = aliases
+        
         for alias in cand_list:
             if alias in df.columns:
                 df.rename(columns={alias: canon}, inplace=True)
@@ -247,13 +278,13 @@ def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.D
 
 REQUIRED_CANON = ("counterparty", "amount", "date")
 
-def _normalize_canonical(df: pd.DataFrame, *, headless: bool) -> pd.DataFrame:
+def _normalize_canonical(df: pd.DataFrame, *, headless: bool, dayfirst: bool, date_format: str | None) -> pd.DataFrame:
     """
     Convert columns to canonical types and ensure required columns exist.
-    Minimal but safe: amount numeric, date datetime, text fields str.
     """
     df = df.copy()
 
+    # Amount column should have been created and converted before this step
     # Enforce required columns
     missing = [c for c in REQUIRED_CANON if c not in df.columns]
     if missing:
@@ -261,24 +292,25 @@ def _normalize_canonical(df: pd.DataFrame, *, headless: bool) -> pd.DataFrame:
         print("       Provide a mapping JSON via --map or preprocess your CSV first.", file=sys.stderr)
         sys.exit(2)
 
-    # Amount -> numeric
-    df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
-    # Date -> datetime (coerce; keep original string if you want to debug in audit)
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    # Date -> datetime
+    if date_format:
+        df["date"] = pd.to_datetime(df["date"], format=date_format, errors="coerce")
+    else:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=dayfirst)
 
-    # Counterparty/memo/category to strings
+    # Counterparty/memo/category to strings (with sanitization)
     for col in ("counterparty", "memo", "category"):
         if col in df.columns:
-            df[col] = df[col].astype(str).fillna("").str.strip()
+            df[col] = _strip_controls_series(df[col]).str.strip()
         else:
-            if col != "counterparty":  # counterparty required already
+            if col != "counterparty":
                 df[col] = ""
 
     # Flags column optional; keep as string or empty
     if "flags" not in df.columns:
         df["flags"] = ""
 
-    # Drop rows with NaT date or NaN amount (engine expects valid)
+    # Drop rows with NaT date or NaN amount
     bad_date = df["date"].isna()
     bad_amt = df["amount"].isna()
     dropped = int((bad_date | bad_amt).sum())
@@ -291,6 +323,19 @@ def _normalize_canonical(df: pd.DataFrame, *, headless: bool) -> pd.DataFrame:
 
 # ---- Safe write helpers -------------------------------------------------------
 
+def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
+    """Escapes cells that could be interpreted as formulas in spreadsheet software."""
+    DANGER = ("=", "+", "-", "@", "\t")
+    obj_cols = [c for c in df.columns if df[c].dtype == "object"]
+    for c in obj_cols:
+        s = df[c].astype(str)
+        # Check for leading spaces, but preserve tabs as a danger signal
+        lead = s.str.lstrip(" ")
+        mask = lead.str.startswith(DANGER) & ~s.str.startswith("'")
+        if mask.any():
+            df.loc[mask, c] = "'" + s[mask]
+    return df
+
 def _timestamped(path: str) -> str:
     base, ext = os.path.splitext(path)
     return f"{base}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}{ext}"
@@ -300,17 +345,19 @@ def _ensure_parent_dir(path: str):
     if parent:
         os.makedirs(parent, exist_ok=True)
 
-def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool) -> str:
+def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) -> str:
     _ensure_parent_dir(path)
+    # Apply formula injection protection before writing
+    df = _csv_safe_text(df)
     try:
-        df.to_csv(path, index=False)
+        df.to_csv(path, index=False, encoding=encoding)
         return path
     except PermissionError:
         fb = _timestamped(path)
         if verbose:
             print(f"X Cannot write to {path} — file is open in another program.")
             print(f"   -> Saving to fallback: {fb}")
-        df.to_csv(fb, index=False)
+        df.to_csv(fb, index=False, encoding=encoding)
         return fb
 
 def safe_write_json(obj, path: str, verbose: bool) -> str:
@@ -328,6 +375,61 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
             json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
         return fb
 
+
+
+# ---- Hardened CSV reader with fallback --------------------------------------
+
+
+def _read_csv_hardened(
+    path: str, *, encoding: str = "utf-8", fastio: bool = False, decimal: str | None = None, thousands: str | None = None
+) -> pd.DataFrame:
+    """
+    Robust CSV loader that warns and skips malformed rows, with engine fallbacks.
+    Reads all data as strings to prevent premature type inference.
+    """
+    import warnings
+    import pandas.errors as pd_errors
+
+    # Read all data as string type to allow for robust custom parsing later
+    read_kwargs = dict(encoding=encoding, on_bad_lines="warn", dtype=str)
+    # Include locale hints (mostly for completeness; dtype=str means we coerce later)
+    if decimal and decimal != ".":
+        read_kwargs["decimal"] = decimal
+    if thousands:
+        read_kwargs["thousands"] = thousands
+
+    # Try fast path first if requested
+    if fastio:
+        try:
+            with warnings.catch_warnings(record=True) as w:
+                warnings.simplefilter("always", pd_errors.ParserWarning)
+                df = pd.read_csv(path, engine="pyarrow", **read_kwargs)
+                bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
+                if bad_lines:
+                    print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
+                return df
+        except Exception:
+            pass  # fall through
+
+    # Default engine (C parser) with graceful ParserWarning handling
+    try:
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always", pd_errors.ParserWarning)
+            df = pd.read_csv(path, **read_kwargs)
+            bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
+            if bad_lines:
+                print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
+            return df
+    except pd_errors.ParserError:
+        # Final fallback: Python engine tolerates ugly rows better with on_bad_lines='warn'
+        print("   (Info: C-engine parse failed; falling back to slower Python engine)")
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always", pd_errors.ParserWarning)
+            df = pd.read_csv(path, engine="python", **read_kwargs)
+            bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
+            if bad_lines:
+                print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
+            return df
 
 # ---- Main --------------------------------------------------------------------
 
@@ -353,7 +455,24 @@ def main():
     ap.add_argument("--headless", action="store_true", help="Suppress console status messages")
     ap.add_argument("--fastio", action="store_true", help="Use pyarrow engine for fast CSV IO")
     ap.add_argument("--timings", action="store_true", help="Print per-stage timing breakdown")
+    
+    # Add Internationalization Flags
+    ap.add_argument("--encoding", default="utf-8", help="Input CSV file encoding (e.g., 'utf-8', 'latin-1').")
+    ap.add_argument("--decimal", default=".", help="Decimal separator for numeric fields (e.g., '.').")
+    ap.add_argument("--thousands", default=None, help="Thousands separator for numeric fields (e.g., ',').")
+    ap.add_argument("--dayfirst", action="store_true", help="Parse ambiguous dates as DD/MM/YYYY (UK/EU style).")
+    ap.add_argument("--date-format", default=None, help="Explicit strftime format for date parsing.")
+    ap.add_argument("--output-encoding", default="utf-8", help="Encoding for output CSV (e.g., 'utf-8', 'utf-8-sig').")
+    
     args = ap.parse_args()
+    
+    # Final validation of separator arguments
+    if args.decimal is not None and len(args.decimal) != 1:
+        print("FATAL: --decimal must be a single character '.' or ','.", file=sys.stderr); sys.exit(2)
+    if args.thousands is not None and len(args.thousands) != 1:
+        print("FATAL: --thousands must be a single character (e.g., ',' or '.').", file=sys.stderr); sys.exit(2)
+    if args.decimal and args.thousands and args.decimal == args.thousands:
+        print("FATAL: --decimal and --thousands cannot be the same.", file=sys.stderr); sys.exit(2)
 
     def log(msg: str):
         if not args.headless:
@@ -365,6 +484,9 @@ def main():
     log("1. Parsing rules file(s)...")
     pack_list = [s.strip() for s in args.include_pack.split(",") if s.strip()] if args.include_pack else []
     rules_files = args.rules or []
+    if not rules_files and not pack_list:
+        print("FATAL: No rules provided. Use --rules and/or --include-pack.", file=sys.stderr)
+        sys.exit(2)
     combined_rules_path = _combine_rules(rules_files, pack_list)
 
     try:
@@ -380,15 +502,9 @@ def main():
 
         # 2) Read CSV
         log(f"2. Loading {os.path.basename(args.input)}...")
-        read_kwargs: Dict[str, Any] = {}
-        if args.fastio:
-            try:
-                import pyarrow  # noqa: F401
-                read_kwargs["engine"] = "pyarrow"
-            except ImportError:
-                log("   (Warning: --fastio requires 'pyarrow'. Falling back to default engine.)")
         try:
-            df = pd.read_csv(args.input, **read_kwargs)
+            df = _read_csv_hardened(args.input, encoding=args.encoding, fastio=args.fastio,
+                                    decimal=args.decimal, thousands=args.thousands)
         except FileNotFoundError:
             print(f"FATAL: Input CSV file not found at '{args.input}'", file=sys.stderr)
             sys.exit(1)
@@ -408,45 +524,36 @@ def main():
                 header_map = json.loads(_load_default_bank_map_text())
                 if not args.headless:
                     print(f"-> Loaded default mapping: bank.map.json")
-            except Exception as e:
-                print(f"(Warning) Could not load default mapping file: {e}", file=sys.stderr)
+            except Exception:
+                # Silently continue if no default map is found
                 header_map = {}
 
         if header_map:
             df = apply_header_map(df, header_map, headless=args.headless)
-            # Hybrid debit/credit synthesis if amount still missing
-            amt_map = header_map.get("amount")
-            if isinstance(amt_map, dict):
-                df.columns = [str(c).strip().lower() for c in df.columns]
-                have_amount = "amount" in df.columns
-                debit_name = amt_map.get("debit")
-                credit_name = amt_map.get("credit")
-                have_debit = bool(debit_name and debit_name in df.columns)
-                have_credit = bool(credit_name and credit_name in df.columns)
+        
+        # Convert numeric and synthesize amount *before* normalization
+        amt_map = header_map.get("amount", {}) if header_map else {}
+        df.columns = [str(c).strip().lower() for c in df.columns]
+        
+        debit_name = amt_map.get("debit")
+        credit_name = amt_map.get("credit")
+        have_debit = bool(debit_name and debit_name in df.columns)
+        have_credit = bool(credit_name and credit_name in df.columns)
 
-                if (have_debit or have_credit) and not have_amount:
-                    debit_series  = pd.to_numeric(df.get(debit_name, 0),  errors="coerce").fillna(0).abs()
-                    credit_series = pd.to_numeric(df.get(credit_name, 0), errors="coerce").fillna(0).abs()
-
-                    if have_debit and have_credit:
-                        df["amount"] = credit_series - debit_series
-                        if not args.headless:
-                            print("-> Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
-                    elif have_debit:
-                        df["amount"] = -debit_series
-                        if not args.headless:
-                            print("-> Synthesized 'amount' from debit only (amount = -abs(debit))")
-                    elif have_credit:
-                        df["amount"] = credit_series
-                        if not args.headless:
-                            print("-> Synthesized 'amount' from credit only (amount = abs(credit))")
-
-                elif (have_debit or have_credit) and have_amount and not args.headless:
-                    print("-> Amount column already present; skipping debit/credit synthesis")
+        # Synthesize amount from split debit/credit when present:
+        # amount = abs(credit) - abs(debit) (bank-agnostic sign)
+        if "amount" not in df.columns and (have_debit or have_credit):
+            debit_series  = _to_number(df.get(debit_name, "0"), decimal=args.decimal, thousands=args.thousands)
+            credit_series = _to_number(df.get(credit_name, "0"), decimal=args.decimal, thousands=args.thousands)
+            df["amount"] = credit_series.fillna(0).abs() - debit_series.fillna(0).abs()
+            if not args.headless:
+                print("-> Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
+        elif "amount" in df.columns:
+             df["amount"] = _to_number(df["amount"], decimal=args.decimal, thousands=args.thousands)
 
 
         # 4) Canonical normalization
-        df = _normalize_canonical(df, headless=args.headless)
+        df = _normalize_canonical(df, headless=args.headless, dayfirst=args.dayfirst, date_format=args.date_format)
         t_norm = time.perf_counter()
 
         # 5) Engine
@@ -465,7 +572,8 @@ def main():
 
         # 6) Writes
         log(f"4. Writing {len(processed_df)} rows to {os.path.basename(args.output)}...")
-        out_path = safe_write_csv(processed_df, args.output, verbose=not args.headless)
+        out_path = safe_write_csv(processed_df, args.output, verbose=not args.headless,
+                                  encoding=args.output_encoding)
 
         audit_path = None
         if args.audit and args.audit_mode != "none":

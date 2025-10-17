@@ -21,26 +21,22 @@
 
 
 """
-suggest.py — Generate draft .fin rules from discovery candidates
+suggest.py — Generate draft .fin rules from discovery candidates.
+
+This tool reads a candidates CSV file produced by discover.py and generates
+conservative, review-ready .fin rule blocks. It is designed to accelerate
+the rule-writing process by providing a safe starting point.
 
 Usage:
-  python suggest.py --input discovery/candidates.csv --output draft_rules.fin \
-    [--rules rules.fin] [--category "Review"] [--prefix "SUGGEST"] [--overwrite|--append]
+  python suggest.py --input candidates.csv --output draft_rules.fin \\
+    [--rules existing.fin] [--category "Review"] [--prefix "SUGGEST"]
 
 Behavior:
-  - Reads candidates.csv produced by discover.py (headers flexible; auto-detected).
-  - Emits conservative, review-first draft rules like:
-
-      # SUGGESTED (freq=134, last=2025-08-21, sample_amt=-92.34)
-      rule "SUGGEST: TESCO" {
-        match:
-          - counterparty ~ "*TESCO*"
-        set:
-          - category = "Review"
-      }
-
-  - De-duplicates against existing rules if --rules is provided (skips patterns already present).
-  - Appends to output by default; use --overwrite to replace.
+  - Reads a candidates CSV (headers are auto-detected).
+  - Generates rules based on the exact 'fingerprint' of a counterparty.
+  - Skips generating rules for fingerprints already covered in an
+    optional existing rules file.
+  - Emits review-ready rules with metadata in comments.
 """
 
 import argparse
@@ -48,151 +44,127 @@ import csv
 import os
 import re
 import sys
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
+
+# ---- Constants for flexible header detection ----
+CANDIDATE_FINGERPRINT_HEADERS = {"counterparty_fingerprint", "fingerprint"}
+CANDIDATE_EXAMPLE_HEADERS = {"example_counterparty_name", "example"}
+CANDIDATE_COUNT_HEADERS = {"count", "frequency"}
+CANDIDATE_DATE_HEADERS = {"sample_date", "last_seen_date"}
+CANDIDATE_AMOUNT_HEADERS = {"sample_amount", "sample_value"}
 
 
-# ----------------- CSV Reader (header-flexible) -----------------
-
-def _read_candidates(path: str) -> List[Dict[str, str]]:
+def _read_candidates(path: str) -> List[Dict[str, Any]]:
     """
-    Read a candidates CSV coming from discover.py.
-
-    Logical fields we try to map (case-insensitive):
-      - fingerprint: counterparty_fingerprint | fingerprint | vendor_key
-      - example name: example_counterparty_name | example | sample_name | counterparty | name
-      - count: count | freq | frequency
-      - last_seen: last_seen_date | last_seen | last_date | sample_date | date
-      - sample_amount: sample_amount | example_amount | sample_amt | amount
+    Safely reads a discovery candidates CSV into a list of dictionaries.
+    Handles potential file errors and normalizes headers.
     """
-    with open(path, newline="", encoding="utf-8") as f:
+    # This function is wrapped in a try/except block in main().
+    with open(path, "r", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        rows = list(reader)
+        # Normalize headers to lowercase for robust matching
+        fieldnames = [h.lower().strip() for h in reader.fieldnames] if reader.fieldnames else []
+        reader.fieldnames = fieldnames
+        return list(reader)
 
-    if not rows:
+
+def generate_rules(
+    candidates: List[Dict[str, Any]],
+    prefix: str,
+    category: str,
+    existing_rules_path: Optional[str] = None
+) -> List[str]:
+    """
+    Build conservative, review-first rule blocks from discovered candidates.
+
+    This function creates rule blocks that match on the exact counterparty
+    'fingerprint', ensuring no unintended side effects. It will skip any
+    candidates that appear to be covered by rules in the existing rules file.
+
+    Args:
+        candidates: A list of candidate dictionaries from the input CSV.
+        prefix: A string to prepend to the generated rule names.
+        category: The default category to assign in the 'set' block.
+        existing_rules_path: Optional path to a .fin file to check for duplicates.
+
+    Returns:
+        A list of strings, where each string is a complete .fin rule block.
+    """
+    # 1. Read existing rules to find patterns that are already covered.
+    existing_patterns = set()
+    if existing_rules_path:
+        try:
+            with open(existing_rules_path, "r", encoding="utf-8-sig") as f:
+                content = f.read()
+            # A simple regex to find `fingerprint == "..."` patterns.
+            # This prevents generating obvious duplicates.
+            existing_patterns.update(re.findall(r'fingerprint\s*==\s*"([^"]+)"', content))
+        except FileNotFoundError:
+            print(f"WARNING: Existing rules file not found at '{existing_rules_path}'. Continuing without it.", file=sys.stderr)
+        except OSError as e:
+            print(f"WARNING: Could not read existing rules file '{existing_rules_path}': {e}. Continuing without it.", file=sys.stderr)
+
+
+    # 2. Helper to find the correct header for a given field type from the CSV.
+    def _find_key(row: Dict[str, Any], headers: set) -> Optional[str]:
+        """Finds the first matching key from a set of possible headers."""
+        return next((k for k in row.keys() if k in headers), None)
+
+    # 3. Generate rule blocks for new, uncovered candidates.
+    rule_blocks = []
+    if not candidates:
         return []
 
-    cols = {c.lower(): c for c in (reader.fieldnames or [])}
+    # Auto-detect headers from the first candidate row for efficiency.
+    first_row = candidates[0]
+    fingerprint_key = _find_key(first_row, CANDIDATE_FINGERPRINT_HEADERS)
+    example_key = _find_key(first_row, CANDIDATE_EXAMPLE_HEADERS)
+    count_key = _find_key(first_row, CANDIDATE_COUNT_HEADERS)
+    date_key = _find_key(first_row, CANDIDATE_DATE_HEADERS)
+    amount_key = _find_key(first_row, CANDIDATE_AMOUNT_HEADERS)
 
-    def pick(*names):
-        for n in names:
-            if n in cols:
-                return cols[n]
-        return None
+    if not fingerprint_key:
+        print("FATAL: Could not find a 'counterparty_fingerprint' or 'fingerprint' column in candidates file.", file=sys.stderr)
+        sys.exit(1)
 
-    key_cols = {
-        "fingerprint":   pick("counterparty_fingerprint", "fingerprint", "vendor_key"),
-        "example_name":  pick("example_counterparty_name", "example", "sample_name", "counterparty", "name"),
-        "count":         pick("count", "freq", "frequency"),
-        "last_seen":     pick("last_seen_date", "last_seen", "last_date", "sample_date", "date"),
-        "sample_amount": pick("sample_amount", "example_amount", "sample_amt", "amount"),
-    }
-
-    missing = [k for k, v in key_cols.items() if v is None and k in ("fingerprint", "example_name", "count")]
-    if missing:
-        raise SystemExit(
-            f"FATAL: Missing required columns in {path}: {missing}. "
-            f"Present: {sorted(cols.keys())}"
-        )
-
-    out = []
-    for r in rows:
-        out.append({
-            "fingerprint":   (r.get(key_cols["fingerprint"], "") or "").strip(),
-            "example_name":  (r.get(key_cols["example_name"], "") or "").strip(),
-            "count":         (r.get(key_cols["count"], "") or "").strip(),
-            "last_seen":     (r.get(key_cols["last_seen"], "") or "").strip() if key_cols["last_seen"] else "",
-            "sample_amount": (r.get(key_cols["sample_amount"], "") or "").strip() if key_cols["sample_amount"] else "",
-        })
-    return out
-
-
-# ----------------- Pattern helpers -----------------
-
-def _tokenize_for_pattern(name: str) -> Optional[str]:
-    """
-    Pick a clean token from the example name to use in a wildcard pattern.
-    Strategy:
-      - Uppercase, keep alnum and '&'
-      - Split on non-alnum
-      - Prefer the longest token with >= 3 chars that's not purely digits
-    """
-    if not name:
-        return None
-    up = name.upper()
-    up = re.sub(r"[^A-Z0-9&]+", " ", up)
-    tokens = [t for t in up.split() if len(t) >= 3 and not t.isdigit()]
-    if not tokens:
-        return None
-    tokens.sort(key=len, reverse=True)
-    return tokens[0]
-
-
-def _load_existing_patterns(rules_path: Optional[str]) -> List[str]:
-    if not rules_path or not os.path.exists(rules_path):
-        return []
-    with open(rules_path, "r", encoding="utf-8") as f:
-        text = f.read()
-    # naive extract of counterparty ~ "PATTERN"
-    return re.findall(r'counterparty\s*~\s*"(.*?)"', text, flags=re.IGNORECASE)
-
-
-def _already_covered(pattern: str, existing: List[str]) -> bool:
-    if pattern in existing:
-        return True
-    # rough containment check to avoid near-duplicates
-    for p in existing:
-        p_s = p.strip("*")
-        pat_s = pattern.strip("*")
-        if p_s and (p_s in pattern or pat_s in p):
-            return True
-    return False
-
-
-# ----------------- Generation -----------------
-
-def generate_rules(cands: List[Dict[str, str]],
-                   prefix: str,
-                   default_category: str,
-                   existing_rules_file: Optional[str]) -> List[str]:
-    existing = _load_existing_patterns(existing_rules_file)
-    blocks: List[str] = []
-    for c in cands:
-        token = _tokenize_for_pattern(c.get("example_name", "")) or _tokenize_for_pattern(c.get("fingerprint", ""))
-        if not token:
-            continue
-        pattern = f"*{token}*"
-        if _already_covered(pattern, existing):
+    for cand in candidates:
+        fingerprint = cand.get(fingerprint_key, "")
+        if not fingerprint or fingerprint in existing_patterns:
             continue
 
-        freq = c.get("count", "")
-        last_seen = c.get("last_seen", "")
-        samp = c.get("sample_amount", "")
+        # Gather metadata for the comment block.
+        example = cand.get(example_key, "N/A")
+        count = cand.get(count_key, "N/A")
+        date = cand.get(date_key, "N/A")
+        amount = cand.get(amount_key, "N/A")
 
-        title = f'{prefix}: {token}'
-        meta_bits = []
-        if freq:      meta_bits.append(f"freq={freq}")
-        if last_seen: meta_bits.append(f"last={last_seen}")
-        if samp:      meta_bits.append(f"sample_amt={samp}")
-        meta = f"# SUGGESTED ({', '.join(meta_bits)})" if meta_bits else "# SUGGESTED"
+        # Sanitize the fingerprint to create a valid and readable rule name.
+        rule_name_suffix = re.sub(r'[^A-Z0-9_]+', '_', fingerprint).strip('_')
+        rule_name = f"{prefix}: {rule_name_suffix}"
+        
+        block = f"""
+# SUGGESTED (freq={count}, last={date}, sample_amt={amount})
+# Example: {example}
+rule "{rule_name}" {{
+  match:
+    - fingerprint == "{fingerprint}"
+  set:
+    category = "{category}"
+}}"""
+        rule_blocks.append(block)
 
-        block = [
-            meta,
-            f'rule "{title}" ' + "{",
-            "  match:",
-            f'    - counterparty ~ "{pattern}"',
-            "  set:",
-            f'    - category = "{default_category}"',
-            "}",
-            ""
-        ]
-        blocks.append("\n".join(block))
-    return blocks
+    return rule_blocks
 
 
-# ----------------- CLI -----------------
-
-def main() -> int:
-    ap = argparse.ArgumentParser(description="Generate draft .fin rules from discovery candidates")
+def main():
+    """CLI wrapper to generate draft rules."""
+    ap = argparse.ArgumentParser(
+        description="Generate draft .fin rules from discovery candidates.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""Example:
+  python suggest.py --input candidates.csv --output draft_rules.fin --rules existing.fin
+"""
+    )
     ap.add_argument("--input", required=True, help="Path to candidates.csv from discover.py")
     ap.add_argument("--output", required=True, help="Path to write/append draft_rules.fin")
     ap.add_argument("--rules", help="Existing rules.fin to avoid duplicate patterns")
@@ -203,26 +175,45 @@ def main() -> int:
     mode.add_argument("--overwrite", action="store_true", help="Overwrite output file")
     args = ap.parse_args()
 
-    cands = _read_candidates(args.input)
-    if not cands:
-        print("No candidates found. Nothing to write.")
-        return 0
+    print(f"1. Reading candidates from '{args.input}'...")
+    try:
+        cands = _read_candidates(args.input)
+    except FileNotFoundError:
+        print(f"FATAL: Input candidates file not found at '{args.input}'", file=sys.stderr)
+        sys.exit(1)
+    except (OSError, csv.Error) as e:
+        print(f"FATAL: Could not read candidates file '{args.input}'. Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
+    if not cands:
+        print("-> No candidates found. Nothing to write.")
+        sys.exit(0)
+
+    print(f"2. Generating rules (checking against '{args.rules}' if provided)...")
     blocks = generate_rules(cands, args.prefix, args.category, args.rules)
     if not blocks:
-        print("All candidates appear to be covered by existing rules. Nothing to write.")
-        return 0
+        print("-> All candidates appear to be covered by existing rules. Nothing to write.")
+        sys.exit(0)
 
-    # choose write mode
-    write_mode = "w" if args.overwrite or (not os.path.exists(args.output) and not args.append) else "a"
-    with open(args.output, write_mode, encoding="utf-8", newline="") as f:
-        if write_mode == "a":
-            f.write("\n")
-        f.write("\n".join(blocks))
+    # Choose write mode: default to append unless overwriting or file doesn't exist.
+    write_mode = "w" if args.overwrite or not os.path.exists(args.output) else "a"
+    
+    print(f"3. Writing {len(blocks)} new rule(s) to '{args.output}' (mode: {write_mode})...")
+    try:
+        with open(args.output, write_mode, encoding="utf-8", newline="") as f:
+            if write_mode == 'a' and f.tell() > 0:
+                # Add spacing if appending to a non-empty file.
+                f.write("\n\n")
+            f.write("\n\n".join(blocks))
+            f.write("\n") # Ensure final newline for clean formatting.
+    except IOError as e:
+        print(f"FATAL: Could not write to output file '{args.output}'. Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    print(f"✅ Wrote {len(blocks)} draft rule(s) to {args.output}")
-    return 0
+    print("-" * 20)
+    print("✅ Suggestion complete.")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
+
