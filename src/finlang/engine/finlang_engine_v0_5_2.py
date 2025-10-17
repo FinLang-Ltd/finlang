@@ -81,9 +81,11 @@ def _wildcard_to_regex(pattern: str) -> re.Pattern:
     return re.compile(escaped, re.IGNORECASE | re.DOTALL)
 
 def parse_condition(condition: str) -> Tuple[str, str, Any]:
+    """Parse a single condition into (field, operator, value).
+    Allowed operators: '==', '~' (wildcard), 'in' (numeric range 'low..high' on 'amount')."""
     m = CONDITION_PATTERN.match(condition)
     if not m:
-        raise ValueError(f"Invalid syntax: '{condition}'")
+        raise ValueError(f"Invalid syntax: '{condition}'. Allowed operators are ==, ~, in.")
     field = m.group("field").strip().lower()
     op    = m.group("op")
     raw   = m.group("value").strip()
@@ -158,6 +160,9 @@ def get_condition_mask(condition: str, df: pd.DataFrame, cache: Dict[str, pd.Ser
     return pd.Series(False, index=df.index)
 
 def apply_vectorized_actions(df: pd.DataFrame, actions: List[str], mask: pd.Series) -> pd.DataFrame:
+    """Apply rule 'set' actions to rows where mask==True in a vectorized, safe manner.
+    - Disallows 'flags = ...' to avoid overwriting; requires 'flags += ...'.
+    - For '+=' on flags, appends using space-separated format (backward compatible)."""
     for action in actions:
         try:
             if "+=" in action:
@@ -167,10 +172,7 @@ def apply_vectorized_actions(df: pd.DataFrame, actions: List[str], mask: pd.Seri
                     raise KeyError("'+=' only valid for 'flags'")
                 def add_flag(current_flags):
                     current = "" if pd.isna(current_flags) else str(current_flags)
-                    parts = [p.strip() for p in current.split(",") if p.strip()]
-                    if val not in parts:
-                        parts.append(val)
-                    return ", ".join(parts)
+                    return (current + (" " if current else "") + val).strip()
                 df.loc[mask, field] = df.loc[mask, field].apply(add_flag)
             elif "=" in action:
                 field, val = action.split("=", 1)
@@ -200,6 +202,10 @@ def run_audit(
     audit_mode: str | None = None,
     audit_row_cap: int | None = None,
 ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+    """Apply FinLang rules to df and emit a precise audit log of changes.
+    Behavior is deterministic; rows are modified only where all 'match' conditions hold.
+    Optional strict schema mode (FINLANG_STRICT_SCHEMA=1) pre-validates referenced columns.
+    """
     mode = (audit_mode or os.getenv("FINLANG_AUDIT_MODE", "full")).lower()
     cap  = int(os.getenv("FINLANG_AUDIT_MAX", "100000")) if audit_row_cap is None else int(audit_row_cap)
 
@@ -219,6 +225,21 @@ def run_audit(
             df["exclude"] = False
         else:
             df["exclude"] = s.astype("boolean", copy=False).fillna(False).astype(bool)
+
+    # Optional strict schema pre-check: ensure all rule-referenced columns exist (opt-in)
+    if str(os.getenv("FINLANG_STRICT_SCHEMA", "")).lower() in ("1", "true", "yes"):
+        referenced: set[str] = set()
+        for r in rules:
+            for cond in (r.get("match") or []):
+                try:
+                    f, _, _ = parse_condition(cond)
+                    referenced.add(f)
+                except Exception:
+                    # Leave syntax issues to condition-level warnings
+                    pass
+        missing = [c for c in referenced if c not in df.columns]
+        if missing:
+            raise ValueError(f"FATAL: Input DataFrame is missing required columns referenced by rules: {missing}")
 
     cache: Dict[str, pd.Series] = {}
 
