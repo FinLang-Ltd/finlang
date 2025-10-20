@@ -495,6 +495,65 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
         return path
 
 
+
+# --------------------------------------------------------------------------------------
+# Delimiter detection (EU-friendly)
+# --------------------------------------------------------------------------------------
+def _detect_delimiter(path: str, encoding: str = "utf-8", sample_bytes: int = 65536) -> Optional[str]:
+    """
+    Heuristic delimiter detector for CSVs.
+    Looks at a small sample and counts likely separators: ';', ',', '\t', '|'.
+
+    Priority logic:
+      - If ';' appears at least ~20% more than ',' -> use ';' (typical EU bank export with decimal ',')
+      - Else choose the char with the highest count among [';', ',', '\t', '|']
+      - If nothing stands out, return None (let pandas default to ',')
+    """
+    try:
+        with open(path, "r", encoding=encoding, errors="ignore") as f:
+            sample = f.read(sample_bytes)
+    except Exception:
+        return None
+
+    # Consider only the first ~50 non-empty lines for robustness
+    lines = [ln for ln in sample.splitlines() if ln.strip()][:50]
+    if not lines:
+        return None
+    sample_text = "\n".join(lines)
+
+    candidates = {
+        ";": sample_text.count(";"),
+        ",": sample_text.count(","),
+        "\t": sample_text.count("\t"),
+        "|": sample_text.count("|"),
+    }
+
+    semi = candidates[";"]
+    comma = candidates[","]
+    tab = candidates["\t"]
+    pipe = candidates["|"]
+
+    # Prefer semicolon when it's clearly present more than commas (helps EU: decimal comma)
+    if semi >= int(comma * 1.2) and semi > 0:
+        return ";"
+
+    # If tab dominates, choose it
+    if tab > semi and tab > comma and tab > pipe and tab > 0:
+        return "\t"
+
+    # If pipe dominates, choose it
+    if pipe > semi and pipe > comma and pipe > tab and pipe > 0:
+        return "|"
+
+    # Fall back to comma if it has any real signal
+    if comma > 0 and comma >= semi and comma >= tab and comma >= pipe:
+        return ","
+
+    # Otherwise, prefer semicolon if it had any signal
+    if semi > 0:
+        return ";"
+
+    return None
 # --------------------------------------------------------------------------------------
 # Hardened CSV reader with fast path
 # --------------------------------------------------------------------------------------
@@ -522,6 +581,13 @@ def _read_csv_hardened(
 
     is_standard_locale = (decimal in (".", None)) and (thousands is None)
     base_kwargs = dict(encoding=encoding, on_bad_lines="warn")
+    # Auto-detect delimiter (EU-friendly). If detected and not ',', pass explicit sep.
+    detected_sep = _detect_delimiter(path, encoding=encoding)
+    if detected_sep and detected_sep != ',':
+        if not headless:
+            print(f"-> Detected delimiter '{detected_sep}' (auto)")
+        base_kwargs["sep"] = detected_sep
+    
 
     # Fast path: let Arrow/C parse numbers and dates when safe
     if is_standard_locale:
@@ -547,6 +613,9 @@ def _read_csv_hardened(
                 break
 
     # Hardened path: force strings; we will coerce types later
+    
+    # Ensure detected delimiter carries into hardened path
+    # (base_kwargs may already include 'sep')
     hardened_kwargs = base_kwargs.copy()
     hardened_kwargs["dtype"] = str
     if decimal and decimal != ".":

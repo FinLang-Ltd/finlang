@@ -26,6 +26,38 @@ import argparse
 import sys
 from typing import Tuple, Optional, Any
 
+def _detect_delimiter(path: str, encoding: str = "utf-8", sample_bytes: int = 65536) -> Optional[str]:
+    """Heuristic delimiter detector for CSVs (EU-friendly)."""
+    try:
+        with open(path, "r", encoding=encoding, errors="ignore") as f:
+            sample = f.read(sample_bytes)
+    except Exception:
+        return None
+    # Look at the first ~50 non-empty lines
+    lines = [ln for ln in sample.splitlines() if ln.strip()][:50]
+    if not lines:
+        return None
+    sample_text = "\n".join(lines)
+    counts = {
+        ";": sample_text.count(";"),
+        ",": sample_text.count(","),
+        "\t": sample_text.count("\t"),
+        "|": sample_text.count("|"),
+    }
+    semi, comma, tab, pipe = counts[";"], counts[","], counts["\t"], counts["|"]
+    if semi >= int(comma * 1.2) and semi > 0:
+        return ";"
+    if tab > max(semi, comma, pipe) and tab > 0:
+        return "\t"
+    if pipe > max(semi, comma, tab) and pipe > 0:
+        return "|"
+    if comma >= max(semi, tab, pipe) and comma > 0:
+        return ","
+    if semi > 0:
+        return ";"
+    return None
+
+
 def _strip_control_chars(s: str) -> str:
     """Removes invisible Unicode control characters from a string."""
     if not isinstance(s, str):
@@ -56,7 +88,7 @@ def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def _read_csv_hardened(
-    path: str, *, encoding: str = "utf-8", fastio: bool = False
+    path: str, *, encoding: str = "utf-8", fastio: bool = False, headless: bool = False
 ) -> pd.DataFrame:
     """
     Robust CSV loader that warns and skips malformed rows, with engine fallbacks.
@@ -66,6 +98,12 @@ def _read_csv_hardened(
     import pandas.errors as pd_errors
 
     read_kwargs = dict(encoding=encoding, on_bad_lines="warn", dtype=str)
+    # EU-friendly delimiter detection
+    sep = _detect_delimiter(path, encoding=encoding)
+    if sep and sep != ",":
+        if not headless:
+            print(f"-> Detected delimiter '{sep}' (auto)")
+        read_kwargs["sep"] = sep
 
     # Try fast path first if requested
     if fastio:
