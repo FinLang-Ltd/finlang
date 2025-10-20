@@ -243,21 +243,46 @@ def _strip_controls_series(series: pd.Series) -> pd.Series:
 
 
 def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.Series:
-    """Optimized number conversion with fast paths and consolidated passes."""
-    # Already numeric → done
+    """Optimized number conversion with locale hardening (no perf regressions)."""
+    # Already numeric -> done
     if pd.api.types.is_numeric_dtype(series.dtype):
         return pd.to_numeric(series, errors="coerce")
 
     s = series.astype(str).str.strip()
 
-    # Fast-fast path: default locale and already clean numeric strings
+    # --- Sign normalization (always) ---
+    # Unicode minus (U+2212) -> '-'
+    s = s.str.replace('\u2212', '-', regex=False)
+
+    # Trailing minus: '123,45-' -> '-123,45'
+    trail_mask = s.str.endswith('-', na=False)
+    if trail_mask.any():
+        s = s.copy()
+        s.loc[trail_mask] = '-' + s.loc[trail_mask].str[:-1]
+
+    # Capture CR/DR indicators (case-insensitive) before stripping
+    s_upper = s.str.upper()
+    cr_mask = s_upper.str.contains(r'\b(CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
+    dr_mask = s_upper.str.contains(r'\b(DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
+
+    # Strip CR/DR tokens (case-insensitive)
+    s = s.str.replace(r'\s*(CR|CRED|CREDIT)\.?\s*$', '', regex=True, case=False)
+    s = s.str.replace(r'\s*(DR|DEB|DEBIT)\.?\s*$', '', regex=True, case=False)
+
+    # --- Fast path: default locale and already clean numeric strings ---
     if (decimal == "." or decimal is None) and not thousands:
-        # Optional sign, digits, optional single dot fractional
         maybe_clean = s.str.match(r"^[+-]?\d+(\.\d+)?$", na=False)
         if maybe_clean.all():
-            return pd.to_numeric(s, errors="coerce")
+            vals = pd.to_numeric(s, errors="coerce")
+            # Apply CR/DR semantics: DR => negative, CR => positive
+            if dr_mask.any():
+                vals.loc[dr_mask] = vals.loc[dr_mask].abs() * -1
+            if cr_mask.any():
+                vals.loc[cr_mask] = vals.loc[cr_mask].abs()
+            return vals
 
-    # Accounting negatives: (123.45) → -123.45 (NA-safe)
+    # --- Full canonicalization tail (baseline parity) ---
+    # Accounting negatives: (123.45) -> -123.45
     mask_accounting = s.str.startswith("(", na=False) & s.str.endswith(")", na=False)
     if mask_accounting.any():
         s.loc[mask_accounting] = "-" + s.loc[mask_accounting].str.slice(1, -1).str.strip()
@@ -266,14 +291,20 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     if thousands:
         s = s.str.replace(thousands, "", regex=False)
 
-    # Remove currency symbols and NBSPs in one pass
+    # Remove currency symbols and NBSPs (literal)
     s = s.str.replace(_CURRENCY_NBSP_RE, "", regex=True)
 
     # Decimal swap
     if decimal and decimal != ".":
         s = s.str.replace(decimal, ".", regex=False)
 
-    return pd.to_numeric(s, errors="coerce")
+    vals = pd.to_numeric(s, errors="coerce")
+    # Apply CR/DR semantics: DR => negative, CR => positive
+    if dr_mask.any():
+        vals.loc[dr_mask] = vals.loc[dr_mask].abs() * -1
+    if cr_mask.any():
+        vals.loc[cr_mask] = vals.loc[cr_mask].abs()
+    return vals
 
 
 def load_header_map(path: str) -> dict:
