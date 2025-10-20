@@ -30,7 +30,7 @@ def make_df(n_rows: int, n_cols: int, seed: int = 42) -> pd.DataFrame:
     base = {
         "counterparty": rng.choice(["TESCO","AMAZON","UBER","STARBUCKS","MCDONALDS","VODAFONE"], n_rows),
         "amount": rng.normal(0, 100, n_rows),
-        "date": pd.date_range("2025-01-01", periods=n_rows, freq="T").astype(str),
+        "date": pd.date_range("2025-01-01", periods=n_rows, freq="min").astype(str),
         "category": [""] * n_rows,
         "flags": [""] * n_rows,
     }

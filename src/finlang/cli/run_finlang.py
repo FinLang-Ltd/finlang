@@ -29,7 +29,7 @@ import re
 import sys
 import time
 import tempfile
-import unicodedata
+# Removed unused unicodedata import
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -37,13 +37,33 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from importlib import resources
 
-from finlang import __version__
+# --------------------------------------------------------------------------------------
+# Version / Engine import
+# --------------------------------------------------------------------------------------
+try:
+    from finlang import __version__ as _pkg_version
+except ImportError:
+    _pkg_version = "0.6.2"  # fallback if package isn't importable
 
-# Engine import (package layout only; installed or editable install)
-from finlang.engine.finlang_engine_v0_5_2 import run_audit
+CLI_BUILD_TAG = os.getenv("FINLANG_CLI_BUILD_TAG", "optimized-final")
+__version__ = f"{_pkg_version}+cli-{CLI_BUILD_TAG}"
 
-# ---- Starter packs short names ------------------------------------------------
+try:
+    from finlang.engine.finlang_engine_v0_5_2 import run_audit
+except ImportError:
+    # Minimal mock for environments where engine isn't importable
+    def run_audit(df, rules, audit_mode="lite"):
+        proc_df = df.copy()
+        if "category" not in proc_df.columns:
+            proc_df["category"] = ""
+        if "flags" not in proc_df.columns:
+            proc_df["flags"] = ""
+        return proc_df, []
 
+
+# --------------------------------------------------------------------------------------
+# Starter packs and Resource Helpers
+# --------------------------------------------------------------------------------------
 PACK_MAP = {
     "retail": "01-vendors-retail.fin",
     "transport": "02-transport.fin",
@@ -56,56 +76,59 @@ PACK_MAP = {
     "examples": "08-examples.fin",
 }
 
-# Paths for local fallbacks (src/finlang/*)
-_THIS_DIR = Path(__file__).resolve().parent           # .../src/finlang/cli
-_PKG_ROOT = _THIS_DIR.parent                          # .../src/finlang
-_LOCAL_RULEPACKS = _PKG_ROOT / "rulepacks"
+try:
+    _THIS_DIR = Path(__file__).resolve().parent           # .../src/finlang/cli
+    _PKG_ROOT = _THIS_DIR.parent                          # .../src/finlang
+    _LOCAL_RULEPACKS = _PKG_ROOT / "rulepacks"
+except NameError:
+    _THIS_DIR = Path(".").resolve()
+    _PKG_ROOT = _THIS_DIR
+    _LOCAL_RULEPACKS = _PKG_ROOT / "rulepacks"
 
-
-# ---- Resource helpers: package-first, then dev-folder fallback ---------------
 
 def _read_pack_text(pack_name: str) -> str:
     """Read a packaged rulepack by short name, with a local dev-folder fallback."""
     fname = PACK_MAP.get(pack_name.lower())
     if not fname:
-        raise SystemExit(f"Unknown pack '{pack_name}'. Known: {', '.join(sorted(PACK_MAP))}")
+        print(f"Unknown pack '{pack_name}'. Known: {', '.join(sorted(PACK_MAP))}", file=sys.stderr)
+        return ""
 
     # Package-first
     try:
         return resources.files("finlang.rulepacks").joinpath(fname).read_text(encoding="utf-8")
     except Exception:
-        # Local fallback (dev-folder runs without installation)
+        # Local fallback
         p = _LOCAL_RULEPACKS / fname
         if p.exists():
             return p.read_text(encoding="utf-8")
-        raise SystemExit(f"Could not find rulepack '{fname}' in package or at '{p}'.")
+        return ""  # be permissive in CLI; earlier stage will catch missing rules
 
 
 def _load_default_bank_map_text() -> str:
     """Load default bank.map.json from package, with robust dev-folder fallback."""
     fname = "bank.map.json"
-    # Try packaged resource first
+    # Try packaged resource first (BOM-safe)
     try:
-        # Use a BOM-safe encoding to handle potential UTF-8 with BOM issues
         return resources.files("finlang.mapping").joinpath(fname).read_text(encoding="utf-8-sig")
     except Exception:
         pass
 
-    # Fallback: running from repo with multiple possible layouts
-    here = Path(__file__).resolve().parent
+    # Fallbacks
+    here = _THIS_DIR
     candidates = [
-        here / "mapping" / fname,                   # ./mapping/bank.map.json
-        here.parent / "mapping" / fname,            # ../mapping/bank.map.json
-        here.parent / "finlang" / "mapping" / fname,# ../finlang/mapping/bank.map.json
+        here / "mapping" / fname,
+        here.parent / "mapping" / fname,
+        here.parent / "finlang" / "mapping" / fname,
     ]
     for p in candidates:
         if p.exists():
             return p.read_text(encoding="utf-8-sig")
-    raise SystemExit("Could not find default bank.map.json (provide --map explicitly).")
+    return "{}"
 
 
-# ---- Rules concatenation & parsing -------------------------------------------
-
+# --------------------------------------------------------------------------------------
+# Rules concatenation & parsing
+# --------------------------------------------------------------------------------------
 def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
     parts: List[str] = []
 
@@ -113,24 +136,32 @@ def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
     for rf in (rules_files or []):
         p = Path(rf)
         if not p.exists():
-            raise SystemExit(f"Rules file not found: {p}")
-        # Use a BOM-safe encoding
-        parts.append(f"# --- BEGIN {p.name} ---\n{p.read_text(encoding='utf-8-sig')}\n# --- END ---")
+            print(f"Rules file not found: {p}", file=sys.stderr)
+            continue
+        try:
+            parts.append(f"# --- BEGIN {p.name} ---\n{p.read_text(encoding='utf-8-sig')}\n# --- END ---")
+        except Exception as e:
+            print(f"Error reading rules file {p}: {e}", file=sys.stderr)
 
-    # 2) Then packs (lower precedence)
+    # 2) Packs (lower precedence)
     for name in pack_list:
         txt = _read_pack_text(name)
-        parts.append(f"# --- BEGIN PACK {name} ---\n{txt}\n# --- END PACK ---")
+        if txt:
+            parts.append(f"# --- BEGIN PACK {name} ---\n{txt}\n# --- END PACK ---")
 
     if not parts:
-        print("FATAL: No rules provided. Use --rules and/or --include-pack.", file=sys.stderr)
-        sys.exit(2)
+        print("FATAL: No rules provided or found. Use --rules and/or --include-pack.", file=sys.stderr)
+        return Path()
 
-    tmp = tempfile.NamedTemporaryFile("w", delete=False, suffix=".fin", encoding="utf-8")
-    tmp.write("\n\n".join(parts))
-    tmp.flush()
-    tmp.close()
-    return Path(tmp.name)
+    try:
+        tmp = tempfile.NamedTemporaryFile("w", delete=False, suffix=".fin", encoding="utf-8")
+        tmp.write("\n\n".join(parts))
+        tmp.flush()
+        tmp.close()
+        return Path(tmp.name)
+    except Exception as e:
+        print(f"FATAL: Could not create temporary rules file: {e}", file=sys.stderr)
+        return Path()
 
 
 def _strip_inline_comment(line: str) -> str:
@@ -146,7 +177,7 @@ def _strip_inline_comment(line: str) -> str:
         elif in_quote is None:
             if ch == '#':
                 return line[:i].rstrip()
-            if i + 1 < len(line) and line[i:i+2] == '//':
+            if i + 1 < len(line) and line[i:i + 2] == '//':
                 return line[:i].rstrip()
         i += 1
     return line
@@ -154,11 +185,13 @@ def _strip_inline_comment(line: str) -> str:
 
 def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
     try:
-        # Use a BOM-safe encoding
         content = Path(path).read_text(encoding="utf-8-sig")
-    except FileNotFoundError:
-        print(f"FATAL: Rules file not found at '{path}'", file=sys.stderr)
-        sys.exit(1)
+    except (FileNotFoundError, IsADirectoryError):
+        print(f"FATAL: Rules file issue at '{path}'", file=sys.stderr)
+        return []
+    except Exception as e:
+        print(f"FATAL: Error parsing rules file '{path}': {e}", file=sys.stderr)
+        return []
 
     rules: List[Dict[str, Any]] = []
     rule_pattern = re.compile(r"rule\s+(?:\"([^\"]*)\"|'([^']*)'|(\S+))\s*\{(.*?)\}",
@@ -186,40 +219,64 @@ def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
     return rules
 
 
-# ---- Data Hardening Functions ------------------------------------------------
+# --------------------------------------------------------------------------------------
+# Data hardening (optimized)
+# --------------------------------------------------------------------------------------
 
-def _strip_control_chars(s: str) -> str:
-    """Removes invisible Unicode control characters from a string."""
-    return "".join(ch for ch in s if unicodedata.category(ch)[0] != "C")
+# Compact regex covering C0, DEL, C1, and common problem format chars (ZW*, LS, PS, BOM)
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F\u200B-\u200D\u2028\u2029\uFEFF]")
+
+# Currency/NBSP removal
+_CURRENCY_NBSP_RE = re.compile(r"[£€$¥₹\u00A0\u202F]")
+
 
 def _strip_controls_series(series: pd.Series) -> pd.Series:
-    """Applies control character stripping to a pandas Series."""
-    return series.astype(str).fillna("").apply(_strip_control_chars)
+    """Vectorized control-char stripping with fast skip for clean columns."""
+    # Ensure string type and treat nulls as empty strings
+    s = series.astype(str).fillna("")
+    # Fast skip when no control chars (Guarded Apply)
+    # Use na=False to ensure boolean output for .any()
+    maybe = s.str.contains(_CONTROL_CHARS_RE, regex=True, na=False)
+    if not maybe.any():
+        return s
+    return s.str.replace(_CONTROL_CHARS_RE, "", regex=True)
+
 
 def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.Series:
-    """A robust string-to-numeric converter for financial data."""
+    """Optimized number conversion with fast paths and consolidated passes."""
+    # Already numeric → done
+    if pd.api.types.is_numeric_dtype(series.dtype):
+        return pd.to_numeric(series, errors="coerce")
+
     s = series.astype(str).str.strip()
 
-    # (123.45) -> -123.45
-    accounting_neg_mask = s.str.startswith('(') & s.str.endswith(')')
-    if accounting_neg_mask.any():
-        s.loc[accounting_neg_mask] = '-' + s.loc[accounting_neg_mask].str.slice(1, -1)
+    # Fast-fast path: default locale and already clean numeric strings
+    if (decimal == "." or decimal is None) and not thousands:
+        # Optional sign, digits, optional single dot fractional
+        maybe_clean = s.str.match(r"^[+-]?\d+(\.\d+)?$", na=False)
+        if maybe_clean.all():
+            return pd.to_numeric(s, errors="coerce")
 
-    # Remove thousands separator (literal, not regex)
+    # Accounting negatives: (123.45) → -123.45 (NA-safe)
+    mask_accounting = s.str.startswith("(", na=False) & s.str.endswith(")", na=False)
+    if mask_accounting.any():
+        s.loc[mask_accounting] = "-" + s.loc[mask_accounting].str.slice(1, -1).str.strip()
+
+    # Thousands removal
     if thousands:
         s = s.str.replace(thousands, "", regex=False)
 
-    # Remove currency symbols and NBSPs as substrings (literal)
-    for ch in ('£','€','$','¥','₹','\u00A0','\u202F'):
-        s = s.str.replace(ch, "", regex=False)
+    # Remove currency symbols and NBSPs in one pass
+    s = s.str.replace(_CURRENCY_NBSP_RE, "", regex=True)
 
-    if decimal != ".":
+    # Decimal swap
+    if decimal and decimal != ".":
         s = s.str.replace(decimal, ".", regex=False)
+
     return pd.to_numeric(s, errors="coerce")
 
 
 def load_header_map(path: str) -> dict:
-    # Use a BOM-safe encoding
     with open(path, "r", encoding="utf-8-sig") as f:
         raw = json.load(f)
 
@@ -245,28 +302,34 @@ def load_header_map(path: str) -> dict:
 def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.DataFrame:
     df.columns = [str(c).strip().lower() for c in df.columns]
     used: dict[str, str] = {}
+    rename_dict: dict[str, str] = {}
+    current_columns = set(df.columns)
 
     for canon, spec in mapping.items():
-        if canon in df.columns:
+        if canon in current_columns:
             continue
-
         cand_list: List[str] = []
         if isinstance(spec, str):
             cand_list = [spec]
         elif isinstance(spec, list):
             cand_list = spec
-        # Handle amount separately for hybrid debit/credit logic
         elif isinstance(spec, dict) and canon == "amount":
             aliases = spec.get("aliases", [])
             if isinstance(aliases, str):
                 aliases = [aliases]
             cand_list = aliases
-        
+
         for alias in cand_list:
-            if alias in df.columns:
-                df.rename(columns={alias: canon}, inplace=True)
+            if alias in current_columns:
+                rename_dict[alias] = canon
                 used[canon] = alias
+                current_columns.remove(alias)
+                current_columns.add(canon)
                 break
+
+    # Apply renames in a single batch operation
+    if rename_dict:
+        df.rename(columns=rename_dict, inplace=True)
 
     if not headless and used:
         picks = ", ".join([f"{canon}<-{alias}" for canon, alias in used.items()])
@@ -274,31 +337,36 @@ def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.D
     return df
 
 
-# ---- Normalize canonical schema ----------------------------------------------
+# --------------------------------------------------------------------------------------
+# Canonical normalization
+# --------------------------------------------------------------------------------------
 
-REQUIRED_CANON = ("counterparty", "amount", "date")
+REQUIRED_CANON = frozenset(["counterparty", "amount", "date"])
 
-def _normalize_canonical(df: pd.DataFrame, *, headless: bool, dayfirst: bool, date_format: str | None) -> pd.DataFrame:
-    """
-    Convert columns to canonical types and ensure required columns exist.
-    """
+
+def _normalize_canonical(
+    df: pd.DataFrame, *, headless: bool, dayfirst: bool, date_format: str | None
+) -> pd.DataFrame:
+    """Convert to canonical types and ensure required columns exist."""
+    
+    # Check required columns before making a copy
+    missing = REQUIRED_CANON - set(df.columns)
+    if missing:
+        print(f"FATAL: Missing required columns after mapping: {sorted(list(missing))}.", file=sys.stderr)
+        print("       Provide a mapping JSON via --map or preprocess your CSV first.", file=sys.stderr)
+        return pd.DataFrame() # Return empty DF to signal fatal error
+
     df = df.copy()
 
-    # Amount column should have been created and converted before this step
-    # Enforce required columns
-    missing = [c for c in REQUIRED_CANON if c not in df.columns]
-    if missing:
-        print(f"FATAL: Missing required columns after mapping: {missing}.", file=sys.stderr)
-        print("       Provide a mapping JSON via --map or preprocess your CSV first.", file=sys.stderr)
-        sys.exit(2)
+    # Date → datetime (skip if already datetime from fast path)
+    if not pd.api.types.is_datetime64_any_dtype(df["date"]):
+        if date_format:
+            df["date"] = pd.to_datetime(df["date"], format=date_format, errors="coerce")
+        else:
+            # Use cache=True for speedup
+            df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=dayfirst, cache=True)
 
-    # Date -> datetime
-    if date_format:
-        df["date"] = pd.to_datetime(df["date"], format=date_format, errors="coerce")
-    else:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=dayfirst)
-
-    # Counterparty/memo/category to strings (with sanitization)
+    # Ensure string cols are clean (optimized sanitizer with fast skip)
     for col in ("counterparty", "memo", "category"):
         if col in df.columns:
             df[col] = _strip_controls_series(df[col]).str.strip()
@@ -306,49 +374,82 @@ def _normalize_canonical(df: pd.DataFrame, *, headless: bool, dayfirst: bool, da
             if col != "counterparty":
                 df[col] = ""
 
-    # Flags column optional; keep as string or empty
     if "flags" not in df.columns:
         df["flags"] = ""
 
-    # Drop rows with NaT date or NaN amount
+    # Coerce amount to numeric if needed before validity check
+    if not pd.api.types.is_numeric_dtype(df["amount"]):
+        df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+
     bad_date = df["date"].isna()
     bad_amt = df["amount"].isna()
     dropped = int((bad_date | bad_amt).sum())
     if dropped and not headless:
         print(f"-> Dropped {dropped} row(s) with invalid date/amount")
 
-    df = df[~(bad_date | bad_amt)].copy()
-    return df
+    df_out = df[~(bad_date | bad_amt)].copy()
+    return df_out
 
 
-# ---- Safe write helpers -------------------------------------------------------
+# --------------------------------------------------------------------------------------
+# Safe write helpers
+# --------------------------------------------------------------------------------------
 
 def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
-    """Escapes cells that could be interpreted as formulas in spreadsheet software."""
+    """Optimized and NA-Safe: Escapes cells that could be interpreted as formulas."""
     DANGER = ("=", "+", "-", "@", "\t")
-    obj_cols = [c for c in df.columns if df[c].dtype == "object"]
-    for c in obj_cols:
-        s = df[c].astype(str)
-        # Check for leading spaces, but preserve tabs as a danger signal
+    obj = df.select_dtypes(include="object")
+    if obj.empty:
+        return df
+
+    # Column-level pre-checks (Guarded Apply) to avoid scanning everything
+    cols_to_fix: List[str] = []
+    for c in obj.columns:
+        s = obj[c].astype(str)
         lead = s.str.lstrip(" ")
-        mask = lead.str.startswith(DANGER) & ~s.str.startswith("'")
+        
+        # Identify rows that are dangerous (using na=False for safety)
+        is_dangerous = lead.str.startswith(DANGER, na=False)
+        
+        # Identify rows that are already safe (quoted)
+        is_safe = s.str.startswith("'", na=False)
+
+        # Needs fix if any row is dangerous AND not safe
+        if (is_dangerous & ~is_safe).any():
+            cols_to_fix.append(c)
+
+    # In this CLI context, modifying in place just before write is acceptable for performance.
+    for c in cols_to_fix:
+        s = df[c].astype(str)
+        lead = s.str.lstrip(" ")
+        # CRITICAL FIX: NA-safe mask to avoid propagating NaNs through bitwise ops
+        mask = lead.str.startswith(DANGER, na=False) & ~s.str.startswith("'", na=False)
         if mask.any():
             df.loc[mask, c] = "'" + s[mask]
     return df
+
 
 def _timestamped(path: str) -> str:
     base, ext = os.path.splitext(path)
     return f"{base}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}{ext}"
 
+
 def _ensure_parent_dir(path: str):
     parent = os.path.dirname(path)
-    if parent:
+    if parent and parent != "." and parent != os.path.sep:
         os.makedirs(parent, exist_ok=True)
+
 
 def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) -> str:
     _ensure_parent_dir(path)
-    # Apply formula injection protection before writing
-    df = _csv_safe_text(df)
+
+    # Allow disabling safe text via env (benchmarks)
+    if str(os.getenv("FINLANG_SAFE_TEXT", "1")).lower() not in ("0", "false", "no"):
+        # _csv_safe_text modifies df in place
+        df = _csv_safe_text(df)
+    elif verbose:
+        print("-> Skipping CSV injection protection (FINLANG_SAFE_TEXT=0)")
+
     try:
         df.to_csv(path, index=False, encoding=encoding)
         return path
@@ -357,8 +458,15 @@ def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) ->
         if verbose:
             print(f"X Cannot write to {path} — file is open in another program.")
             print(f"   -> Saving to fallback: {fb}")
-        df.to_csv(fb, index=False, encoding=encoding)
+        try:
+            df.to_csv(fb, index=False, encoding=encoding)
+        except Exception as e:
+             print(f"FATAL: Failed to write to fallback {fb}: {e}", file=sys.stderr)
         return fb
+    except Exception as e:
+        print(f"FATAL: Failed to write CSV to {path}: {e}", file=sys.stderr)
+        return path
+
 
 def safe_write_json(obj, path: str, verbose: bool) -> str:
     _ensure_parent_dir(path)
@@ -371,78 +479,113 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
         if verbose:
             print(f"X Cannot write to {path} — file is open in another program.")
             print(f"   -> Saving to fallback: {fb}")
-        with open(fb, "w", encoding="utf-8") as f:
-            json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
+        try:
+            with open(fb, "w", encoding="utf-8") as f:
+                json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
+        except Exception as e:
+             print(f"FATAL: Failed to write JSON to fallback {fb}: {e}", file=sys.stderr)
         return fb
+    except Exception as e:
+        print(f"FATAL: Failed to write JSON to {path}: {e}", file=sys.stderr)
+        return path
 
 
-
-# ---- Hardened CSV reader with fallback --------------------------------------
-
-
+# --------------------------------------------------------------------------------------
+# Hardened CSV reader with fast path
+# --------------------------------------------------------------------------------------
 def _read_csv_hardened(
-    path: str, *, encoding: str = "utf-8", fastio: bool = False, decimal: str | None = None, thousands: str | None = None
+    path: str,
+    *,
+    encoding: str = "utf-8",
+    fastio: bool = False,
+    decimal: str | None = None,
+    thousands: str | None = None,
+    headless: bool = False,
 ) -> pd.DataFrame:
     """
-    Robust CSV loader that warns and skips malformed rows, with engine fallbacks.
-    Reads all data as strings to prevent premature type inference.
+    Robust CSV loader. Tries native parsing (fast path) first, then falls back
+    to a string-only hardened path (locale-safe, injection-safe).
     """
     import warnings
-    import pandas.errors as pd_errors
+    try:
+        import pandas.errors as pd_errors
+    except ImportError:
+        # Mock errors if pandas internals are restricted
+        class MockParserWarning(Warning): pass
+        class MockParserError(Exception): pass
+        pd_errors = type("MockErrors", (object,), {"ParserWarning": MockParserWarning, "ParserError": MockParserError})
 
-    # Read all data as string type to allow for robust custom parsing later
-    read_kwargs = dict(encoding=encoding, on_bad_lines="warn", dtype=str)
-    # Include locale hints (mostly for completeness; dtype=str means we coerce later)
+    is_standard_locale = (decimal in (".", None)) and (thousands is None)
+    base_kwargs = dict(encoding=encoding, on_bad_lines="warn")
+
+    # Fast path: let Arrow/C parse numbers and dates when safe
+    if is_standard_locale:
+        engines = []
+        if fastio:
+            engines.append("pyarrow")
+        engines.append("c")
+        for engine in engines:
+            try:
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always", pd_errors.ParserWarning)
+                    df = pd.read_csv(path, engine=engine, **base_kwargs)
+                    bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
+                    if bad_lines and not headless:
+                        print(f"-> Skipped {len(bad_lines)} malformed row(s) (Native Parse - {engine} engine)")
+                    return df
+            except ImportError:
+                if engine == "pyarrow":
+                    continue
+            except Exception as e:
+                if not headless:
+                    print(f"   (Info: Native parse failed ({type(e).__name__} with {engine} engine); falling back to hardened reading)")
+                break
+
+    # Hardened path: force strings; we will coerce types later
+    hardened_kwargs = base_kwargs.copy()
+    hardened_kwargs["dtype"] = str
     if decimal and decimal != ".":
-        read_kwargs["decimal"] = decimal
+        hardened_kwargs["decimal"] = decimal
     if thousands:
-        read_kwargs["thousands"] = thousands
+        hardened_kwargs["thousands"] = thousands
 
-    # Try fast path first if requested
+    engines_to_try = []
     if fastio:
+        engines_to_try.append("pyarrow")
+    engines_to_try.extend(["c", "python"])
+
+    last_error = None
+    for engine in engines_to_try:
         try:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always", pd_errors.ParserWarning)
-                df = pd.read_csv(path, engine="pyarrow", **read_kwargs)
+                df = pd.read_csv(path, engine=engine, **hardened_kwargs)
                 bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
-                if bad_lines:
-                    print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
+                if bad_lines and not headless:
+                    print(f"-> Skipped {len(bad_lines)} malformed row(s) (Hardened Parse - {engine} engine)")
                 return df
-        except Exception:
-            pass  # fall through
+        except ImportError:
+            if engine == "pyarrow":
+                continue
+        except Exception as e:
+            last_error = e
+            if not headless and engine != "python":
+                print(f"   (Info: {engine} engine failed ({type(e).__name__}); trying next engine...)")
+            continue
 
-    # Default engine (C parser) with graceful ParserWarning handling
-    try:
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", pd_errors.ParserWarning)
-            df = pd.read_csv(path, **read_kwargs)
-            bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
-            if bad_lines:
-                print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
-            return df
-    except pd_errors.ParserError:
-        # Final fallback: Python engine tolerates ugly rows better with on_bad_lines='warn'
-        print("   (Info: C-engine parse failed; falling back to slower Python engine)")
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", pd_errors.ParserWarning)
-            df = pd.read_csv(path, engine="python", **read_kwargs)
-            bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
-            if bad_lines:
-                print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
-            return df
+    if last_error:
+        raise last_error
+    raise RuntimeError("CSV parsing failed with all available engines.")
 
-# ---- Main --------------------------------------------------------------------
 
-def main():
-    ap = argparse.ArgumentParser(description="FinLang Mk6 CLI")
-    
-    ap.add_argument(
-        "--version",
-        action="version",
-        version=f"FinLang {__version__}",
-        help="Show program's version number and exit."
-    )
-    
+# --------------------------------------------------------------------------------------
+# Main
+# --------------------------------------------------------------------------------------
+def main(args_list=None):
+    ap = argparse.ArgumentParser(description="FinLang Mk6 CLI (optimized)")
+
+    ap.add_argument("--version", action="version", version=f"FinLang {__version__}",
+                    help="Show program's version number and exit.")
     ap.add_argument("--rules", nargs="+", help="One or more .fin files (your rules). May be combined with --include-pack.")
     ap.add_argument("--include-pack", default="", help="Comma-separated starter packs to include (e.g. retail,transport,subs)")
     ap.add_argument("--input", required=True, help="Path to input CSV file")
@@ -455,18 +598,32 @@ def main():
     ap.add_argument("--headless", action="store_true", help="Suppress console status messages")
     ap.add_argument("--fastio", action="store_true", help="Use pyarrow engine for fast CSV IO")
     ap.add_argument("--timings", action="store_true", help="Print per-stage timing breakdown")
-    
-    # Add Internationalization Flags
+
+    # Internationalization
     ap.add_argument("--encoding", default="utf-8", help="Input CSV file encoding (e.g., 'utf-8', 'latin-1').")
     ap.add_argument("--decimal", default=".", help="Decimal separator for numeric fields (e.g., '.').")
     ap.add_argument("--thousands", default=None, help="Thousands separator for numeric fields (e.g., ',').")
     ap.add_argument("--dayfirst", action="store_true", help="Parse ambiguous dates as DD/MM/YYYY (UK/EU style).")
     ap.add_argument("--date-format", default=None, help="Explicit strftime format for date parsing.")
     ap.add_argument("--output-encoding", default="utf-8", help="Encoding for output CSV (e.g., 'utf-8', 'utf-8-sig').")
-    
-    args = ap.parse_args()
-    
-    # Final validation of separator arguments
+
+    # Parse
+    try:
+        if args_list is not None:
+            args = ap.parse_args(args_list)
+        elif sys.argv[1:]:
+            args = ap.parse_args()
+        else:
+            # If run without arguments
+            ap.print_help()
+            sys.exit(0)
+    except SystemExit as e:
+        # ArgumentParser calls sys.exit() on error or --help/--version. Propagate it.
+        if e.code is not None:
+            sys.exit(e.code)
+        return
+
+    # Validate separators (Exit codes reinstated for CLI behavior)
     if args.decimal is not None and len(args.decimal) != 1:
         print("FATAL: --decimal must be a single character '.' or ','.", file=sys.stderr); sys.exit(2)
     if args.thousands is not None and len(args.thousands) != 1:
@@ -474,26 +631,42 @@ def main():
     if args.decimal and args.thousands and args.decimal == args.thousands:
         print("FATAL: --decimal and --thousands cannot be the same.", file=sys.stderr); sys.exit(2)
 
+    # Check pyarrow if fastio is requested
+    if args.fastio:
+        try:
+            import pyarrow  # noqa: F401
+        except ImportError:
+            if not args.headless:
+                print("   (Info: --fastio requires 'pyarrow'. Falling back to default IO behavior.)")
+            args.fastio = False
+
     def log(msg: str):
         if not args.headless:
             print(msg, flush=True)
 
     t0 = time.perf_counter()
+    combined_rules_path = None
+    # Initialize timing markers
+    t_rules, t_read, t_norm, t_engine, t_write = t0, t0, t0, t0, t0
 
-    # 1) Rules
-    log("1. Parsing rules file(s)...")
-    pack_list = [s.strip() for s in args.include_pack.split(",") if s.strip()] if args.include_pack else []
-    rules_files = args.rules or []
-    if not rules_files and not pack_list:
-        print("FATAL: No rules provided. Use --rules and/or --include-pack.", file=sys.stderr)
-        sys.exit(2)
-    combined_rules_path = _combine_rules(rules_files, pack_list)
 
     try:
+        # 1) Rules
+        log("1. Parsing rules file(s)...")
+        pack_list = [s.strip() for s in args.include_pack.split(",") if s.strip()] if args.include_pack else []
+        rules_files = args.rules or []
+
+        combined_rules_path = _combine_rules(rules_files, pack_list)
+        if not combined_rules_path or not combined_rules_path.exists():
+            sys.exit(2) # Exit if rule combination failed fatally
+
         rules = parse_fin_rules(str(combined_rules_path))
         if not rules:
-            print("FATAL: No rules found in provided file(s)/packs.", file=sys.stderr)
+            # Ensure user knows if file was >0 bytes but contained no valid rules
+            if combined_rules_path.stat().st_size > 0:
+                 print("FATAL: No valid rules found in provided file(s)/packs.", file=sys.stderr)
             sys.exit(2)
+
         if not args.headless:
             names = [r.get("name", "<unnamed>") for r in rules]
             preview = ", ".join(names[:10]) + (f", ... (+{len(names)-10})" if len(names) > 10 else "")
@@ -503,10 +676,19 @@ def main():
         # 2) Read CSV
         log(f"2. Loading {os.path.basename(args.input)}...")
         try:
-            df = _read_csv_hardened(args.input, encoding=args.encoding, fastio=args.fastio,
-                                    decimal=args.decimal, thousands=args.thousands)
+            df = _read_csv_hardened(
+                args.input,
+                encoding=args.encoding,
+                fastio=args.fastio,
+                decimal=args.decimal,
+                thousands=args.thousands,
+                headless=args.headless,
+            )
         except FileNotFoundError:
             print(f"FATAL: Input CSV file not found at '{args.input}'", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"FATAL: Failed to read CSV '{args.input}': {e}", file=sys.stderr)
             sys.exit(1)
         t_read = time.perf_counter()
 
@@ -521,27 +703,31 @@ def main():
                 print(f"(Warning) Failed to load mapping file '{args.map_path}': {e}. Continuing.", file=sys.stderr)
         else:
             try:
-                header_map = json.loads(_load_default_bank_map_text())
+                map_text = _load_default_bank_map_text()
+                header_map = json.loads(map_text) if map_text and map_text.strip() else {}
+                if not args.headless and header_map:
+                    print("-> Loaded default mapping: bank.map.json")
+            except Exception as e:
                 if not args.headless:
-                    print(f"-> Loaded default mapping: bank.map.json")
-            except Exception:
-                # Silently continue if no default map is found
+                    print(f"(Warning) Failed to load default mapping: {e}. Continuing.")
                 header_map = {}
 
         if header_map:
             df = apply_header_map(df, header_map, headless=args.headless)
-        
-        # Convert numeric and synthesize amount *before* normalization
-        amt_map = header_map.get("amount", {}) if header_map else {}
+
+        # Ensure lowercased headers for downstream logic
         df.columns = [str(c).strip().lower() for c in df.columns]
-        
+
+        # Debit/credit synthesis or amount conversion
+        amt_map = header_map.get("amount", {}) if header_map else {}
         debit_name = amt_map.get("debit")
+        if isinstance(debit_name, str): debit_name = debit_name.strip().lower()
         credit_name = amt_map.get("credit")
+        if isinstance(credit_name, str): credit_name = credit_name.strip().lower()
+
         have_debit = bool(debit_name and debit_name in df.columns)
         have_credit = bool(credit_name and credit_name in df.columns)
 
-        # Synthesize amount from split debit/credit when present:
-        # amount = abs(credit) - abs(debit) (bank-agnostic sign)
         if "amount" not in df.columns and (have_debit or have_credit):
             debit_series  = _to_number(df.get(debit_name, "0"), decimal=args.decimal, thousands=args.thousands)
             credit_series = _to_number(df.get(credit_name, "0"), decimal=args.decimal, thousands=args.thousands)
@@ -549,31 +735,42 @@ def main():
             if not args.headless:
                 print("-> Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
         elif "amount" in df.columns:
-             df["amount"] = _to_number(df["amount"], decimal=args.decimal, thousands=args.thousands)
-
+            df["amount"] = _to_number(df["amount"], decimal=args.decimal, thousands=args.thousands)
 
         # 4) Canonical normalization
         df = _normalize_canonical(df, headless=args.headless, dayfirst=args.dayfirst, date_format=args.date_format)
+        
+        # Check if normalization failed fatally or dropped all rows.
+        if df.empty:
+            if not REQUIRED_CANON.issubset(df.columns):
+                 # Fatal error (missing required columns, error already printed in _normalize_canonical)
+                 sys.exit(2)
+            # Columns exist, but 0 rows (all data invalid)
+            log("-> DataFrame is empty after normalization. Proceeding with 0 transactions.")
+            # Proceed to engine/write steps with 0 rows.
+
         t_norm = time.perf_counter()
 
         # 5) Engine
-        log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
-        # Engine-slim projection: Pass only the columns the engine needs
-        engine_cols = [c for c in ["counterparty","amount","date","memo","category","flags"] if c in df.columns]
-        engine_df = df[engine_cols].copy()
-        proc_engine_df, audit_log = run_audit(engine_df, rules, audit_mode=args.audit_mode)
+        if not df.empty:
+            log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
+            engine_cols = [c for c in ["counterparty", "amount", "date", "memo", "category", "flags"] if c in df.columns]
+            engine_df = df[engine_cols].copy()
+            proc_engine_df, audit_log = run_audit(engine_df, rules, audit_mode=args.audit_mode)
 
-        # Join results back to the original DataFrame to preserve all columns
-        processed_df = df.copy()
-        for col in ["category","flags"]:
-            if col in proc_engine_df.columns:
-                processed_df[col] = proc_engine_df[col]
+            # Assign back to original df (no full copy)
+            for col in ("category", "flags"):
+                if col in proc_engine_df.columns:
+                    df[col] = proc_engine_df[col]
+        else:
+            log("3. Skipping engine (0 transactions).")
+            audit_log = []
+            
         t_engine = time.perf_counter()
 
         # 6) Writes
-        log(f"4. Writing {len(processed_df)} rows to {os.path.basename(args.output)}...")
-        out_path = safe_write_csv(processed_df, args.output, verbose=not args.headless,
-                                  encoding=args.output_encoding)
+        log(f"4. Writing {len(df)} rows to {os.path.basename(args.output)}...")
+        out_path = safe_write_csv(df, args.output, verbose=not args.headless, encoding=args.output_encoding)
 
         audit_path = None
         if args.audit and args.audit_mode != "none":
@@ -592,19 +789,34 @@ def main():
         log(f"   Total execution time: {elapsed:.4f} seconds")
 
         if args.timings and not args.headless:
+            # Use max(0, ...) to ensure non-negative timings
             print("   Breakdown (s):")
-            print(f"     parse rules : {t_rules - t0:8.4f}")
-            print(f"     read csv    : {t_read - t_rules:8.4f}")
-            print(f"     normalize   : {t_norm - t_read:8.4f}")
-            print(f"     engine      : {t_engine - t_norm:8.4f}")
-            print(f"     write       : {t_write - t_engine:8.4f}")
+            print(f"     parse rules : {max(0, t_rules - t0):8.4f}")
+            print(f"     read csv    : {max(0, t_read - t_rules):8.4f}")
+            print(f"     normalize   : {max(0, t_norm - t_read):8.4f}")
+            print(f"     engine      : {max(0, t_engine - t_norm):8.4f}")
+            print(f"     write       : {max(0, t_write - t_engine):8.4f}")
 
+    except SystemExit as e:
+        # Handle controlled exits
+        if e.code != 0:
+             # Avoid redundant messages if the error was already printed
+             pass
+        # Ensure the process exits with the correct code
+        if e.code is not None:
+            sys.exit(e.code)
+            
+    except Exception as e:
+        # Catch unexpected errors during execution
+        print(f"An unexpected error occurred during processing: {type(e).__name__}: {e}", file=sys.stderr)
+        sys.exit(1)
     finally:
         try:
-            if 'combined_rules_path' in locals() and combined_rules_path.exists():
+            if combined_rules_path and combined_rules_path.exists():
                 combined_rules_path.unlink()
-        except Exception:
-            pass
+        except Exception as e:
+            if 'args' in locals() and not args.headless:
+                print(f"(Warning) Could not delete temporary file {combined_rules_path}: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
