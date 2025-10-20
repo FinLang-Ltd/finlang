@@ -439,6 +439,11 @@ def _ensure_parent_dir(path: str):
     if parent and parent != "." and parent != os.path.sep:
         os.makedirs(parent, exist_ok=True)
 
+"""
+Note:
+  Set environment variable FINLANG_SAFE_TEXT=0 to skip spreadsheet formula
+  injection protection during CSV output. Useful for benchmarks or CI runs.
+"""
 
 def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) -> str:
     _ensure_parent_dir(path)
@@ -598,6 +603,11 @@ def main(args_list=None):
     ap.add_argument("--headless", action="store_true", help="Suppress console status messages")
     ap.add_argument("--fastio", action="store_true", help="Use pyarrow engine for fast CSV IO")
     ap.add_argument("--timings", action="store_true", help="Print per-stage timing breakdown")
+    ap.epilog = (
+    "Environment Variables:\n"
+    "  FINLANG_SAFE_TEXT=0   Disable CSV injection protection (for benchmarking)\n"
+    "  FINLANG_AUDIT_MODE    Default audit mode (none|lite|full)\n"
+)
 
     # Internationalization
     ap.add_argument("--encoding", default="utf-8", help="Input CSV file encoding (e.g., 'utf-8', 'latin-1').")
