@@ -262,8 +262,8 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
 
     # Capture CR/DR indicators (case-insensitive) before stripping
     s_upper = s.str.upper()
-    cr_mask = s_upper.str.contains(r'\b(CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
-    dr_mask = s_upper.str.contains(r'\b(DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
+    cr_mask = s_upper.str.contains(r'\b(?:CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
+    dr_mask = s_upper.str.contains(r'\b(?:DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
 
     # Strip CR/DR tokens (case-insensitive)
     s = s.str.replace(r'\s*(CR|CRED|CREDIT)\.?\s*$', '', regex=True, case=False)
