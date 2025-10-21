@@ -324,8 +324,10 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
             vals = pd.to_numeric(s, errors="coerce")
             # Apply CR/DR semantics: DR => negative, CR => positive
             if dr_mask.any():
+                vals = vals.copy()  # defensive copy
                 vals.loc[dr_mask] = vals.loc[dr_mask].abs() * -1
             if cr_mask.any():
+                vals = vals.copy()  # defensive copy
                 vals.loc[cr_mask] = vals.loc[cr_mask].abs()
             return vals
 
@@ -333,10 +335,9 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     # Accounting negatives: (123.45) -> -123.45
     mask_accounting = s.str.startswith("(", na=False) & s.str.endswith(")", na=False)
     if mask_accounting.any():
-        s = s.copy()
-        # Ensure s is a copy if modifications are made in multiple branches
+        # Copy only if we didn't already copy for trailing minus
         if not trail_mask.any():
-             s = s.copy()
+            s = s.copy()
         s.loc[mask_accounting] = "-" + s.loc[mask_accounting].str.slice(1, -1).str.strip()
 
     # Thousands removal
@@ -353,17 +354,13 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     vals = pd.to_numeric(s, errors="coerce")
     # Apply CR/DR semantics: DR => negative, CR => positive
     if dr_mask.any():
-        vals = vals.copy() # Ensure copy before modification
+        vals = vals.copy()  # Ensure copy before modification
         vals.loc[dr_mask] = vals.loc[dr_mask].abs() * -1
     if cr_mask.any():
-        vals = vals.copy() # Ensure copy before modification
+        vals = vals.copy()  # Ensure copy before modification
         vals.loc[cr_mask] = vals.loc[cr_mask].abs()
     return vals
 
-
-# --------------------------------------------------------------------------------------
-# CLI Entrypoint
-# --------------------------------------------------------------------------------------
 
 def main(args_list=None):
     """CLI wrapper for the discover_candidates function."""
