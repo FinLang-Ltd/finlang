@@ -1,3 +1,4 @@
+# discover_v0_6_4_rc1a.py
 # FinLang — Financial Rules DSL
 # Copyright (C) 2025 FinLang Ltd
 #
@@ -21,6 +22,9 @@
 
 
 import pandas as pd
+# Removed unused Decimal imports as pipeline relies on float64
+# from decimal import Decimal, ROUND_HALF_UP
+# from dataclasses import dataclass
 import re
 import unicodedata
 import argparse
@@ -29,7 +33,7 @@ import os
 from typing import Tuple, Optional, Any, List
 
 # --------------------------------------------------------------------------------------
-# Data Hardening Utilities (Synchronized with run_finlang_locale_v2_1.py)
+# Data Hardening Utilities (Synchronized with run_finlang_v0_6_4_rc1a.py)
 # --------------------------------------------------------------------------------------
 
 # Compact regex covering C0, DEL, C1, and common problem format chars (ZW*, LS, PS, BOM)
@@ -39,21 +43,41 @@ _CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F\u200B-\u200D\u2028\u2029\uF
 _CURRENCY_NBSP_RE = re.compile(r"[£€$¥₹\u00A0\u202F]")
 
 def _strip_controls_series(series: pd.Series) -> pd.Series:
-    """Vectorized control-char stripping with fast skip for clean columns."""
-    # Ensure string type and treat nulls as empty strings
-    s = series.astype(str).fillna("")
-    # Fast skip when no control chars (Guarded Apply)
-    # Use na=False to ensure boolean output for .any()
+    s = series.fillna("").astype(str)     # ✅ fill first, then cast
     maybe = s.str.contains(_CONTROL_CHARS_RE, regex=True, na=False)
     if not maybe.any():
         return s
     return s.str.replace(_CONTROL_CHARS_RE, "", regex=True)
 
-# Removed the slow _strip_control_chars function.
+def _auto_pick_encoding(path: str, headless: bool = False) -> str:
+    """Detect encoding with sensible fallbacks."""
+    # utf-8-sig handles BOM correctly and is the safest default if detection fails.
+    default = "utf-8-sig"
+    # Try common encodings in order of preference
+    for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            with open(path, "r", encoding=enc, errors="strict") as f:
+                f.read(4096) # Read a chunk to verify
+            if not headless:
+                print(f"-> Auto-detected encoding: {enc}")
+            return enc
+        except UnicodeDecodeError:
+            continue
+        except FileNotFoundError:
+            # If file not found, we can't detect, return default before main raises error
+            return default
+        except Exception:
+            # Other file access error, fall back to default
+            return default
+    if not headless:
+        print(f"-> Encoding auto-detection failed. Falling back to {default}.")
+    return default
 
-def _detect_delimiter(path: str, encoding: str = "utf-8", sample_bytes: int = 65536) -> Optional[str]:
+
+def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int = 65536) -> Optional[str]:
     """Heuristic delimiter detector for CSVs (EU-friendly)."""
     try:
+        # Use errors="ignore" during detection phase to handle potential mixed encodings in sample
         with open(path, "r", encoding=encoding, errors="ignore") as f:
             sample = f.read(sample_bytes)
     except Exception:
@@ -83,6 +107,58 @@ def _detect_delimiter(path: str, encoding: str = "utf-8", sample_bytes: int = 65
     return None
 
 
+def _assert_delimiter_consistency(path: str, encoding: str, sep: str, sample_bytes: int = 131072) -> None:
+    """Verify that the detected delimiter is dominant across a representative sample."""
+    try:
+        # Use errors="ignore" for robustness during consistency check
+        with open(path, "r", encoding=encoding, errors="ignore") as f:
+            sample = f.read(sample_bytes)
+    except Exception:
+        return
+    lines = [ln for ln in sample.splitlines() if ln.strip()][:200]
+    if not lines:
+        return
+    seps = [",", ";", "\t", "|"]
+    winners = []
+    for ln in lines:
+        counts = [(s, ln.count(s)) for s in seps]
+        # Ensure max returns a valid result even if counts are zero
+        winner = max(counts, key=lambda x: x[1])
+        if winner[1] > 0:
+             winners.append(winner[0])
+
+    if not winners:
+        return
+
+    if winners.count(sep) < int(0.9 * len(winners)):
+        raise ValueError(f"Strict parse: mixed delimiters detected (expected '{sep}').")
+
+
+def _validate_headers(df: pd.DataFrame, *, strict: bool, headless: bool) -> None:
+    """Validate DataFrame headers for emptiness and duplicates."""
+    cols = list(df.columns)
+    # Check for empty or whitespace-only headers
+    if any((c is None) or (str(c).strip() == "") for c in cols):
+        if strict:
+            raise ValueError("Strict parse: empty/missing header detected.")
+        elif not headless:
+            print("WARN: empty/missing header detected.", flush=True)
+    
+    # Check for duplicate headers
+    # Use a manual count to handle potential non-string headers correctly
+    counts: dict[str, int] = {}
+    for c in cols:
+        s = str(c)
+        counts[s] = counts.get(s, 0) + 1
+    
+    dups = {c for c, count in counts.items() if count > 1}
+    if dups:
+        if strict:
+            raise ValueError(f"Strict parse: duplicate headers: {sorted(dups)}")
+        elif not headless:
+            print(f"WARN: duplicate headers: {sorted(dups)}", flush=True)
+
+
 def _clean_counterparty(s: pd.Series) -> pd.Series:
     """Normalizes a series of strings to create a fingerprint."""
     # Use the optimized, vectorized control stripping
@@ -105,7 +181,8 @@ def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
     # Column-level pre-checks (Guarded Apply) to avoid scanning everything
     cols_to_fix: List[str] = []
     for c in obj.columns:
-        s = obj[c].astype(str)
+        # Ensure NA safety during string operations
+        s = obj[c].astype(str).fillna("")
         lead = s.str.lstrip(" ")
         
         # Identify rows that are dangerous (using na=False for safety)
@@ -118,18 +195,24 @@ def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
         if (is_dangerous & ~is_safe).any():
             cols_to_fix.append(c)
 
-    # Modifying in place is acceptable here as the DF is not reused after write.
+    # Modifying a copy of the DF to avoid side effects, as this function might be reused.
+    df_out = df.copy()
     for c in cols_to_fix:
-        s = df[c].astype(str)
+        s = df_out[c].astype(str).fillna("")
         lead = s.str.lstrip(" ")
         # CRITICAL FIX: NA-safe mask to avoid propagating NaNs through bitwise ops
         mask = lead.str.startswith(DANGER, na=False) & ~s.str.startswith("'", na=False)
         if mask.any():
-            df.loc[mask, c] = "'" + s[mask]
-    return df
+            df_out.loc[mask, c] = "'" + s[mask]
+    return df_out
 
 def _read_csv_hardened(
-    path: str, *, encoding: str = "utf-8", fastio: bool = False, headless: bool = False
+    path: str,
+    *,
+    encoding: str = "utf-8-sig", # Ensure default is BOM-safe
+    fastio: bool = False,
+    headless: bool = False,
+    strict_parse: bool = False, # Explicitly pass strict configuration
 ) -> pd.DataFrame:
     """
     Robust CSV loader that warns and skips malformed rows, with engine fallbacks.
@@ -145,47 +228,66 @@ def _read_csv_hardened(
         class MockParserError(Exception): pass
         pd_errors = type("MockErrors", (object,), {"ParserWarning": MockParserWarning, "ParserError": MockParserError})
 
-    read_kwargs = dict(encoding=encoding, on_bad_lines="warn", dtype=str)
+    # Ensure on_bad_lines="skip" for robustness
+    read_kwargs = dict(encoding=encoding, on_bad_lines="skip", dtype=str)
+    
     # EU-friendly delimiter detection
     sep = _detect_delimiter(path, encoding=encoding)
-    if sep and sep != ",":
-        if not headless:
-            print(f"-> Detected delimiter '{sep}' (auto)")
+    if sep:
+        # Always use the detected separator
         read_kwargs["sep"] = sep
+        if not headless and sep != ",":
+            print(f"-> Detected delimiter '{sep}' (auto)")
+        
+        # Strict check: Delimiter consistency
+        if strict_parse:
+            _assert_delimiter_consistency(path, encoding, sep)
 
-    # Try fast path first if requested
+    # --- Engine execution loop ---
+    engines_to_try = []
     if fastio:
+        engines_to_try.append("pyarrow")
+    engines_to_try.extend(["c", "python"])
+
+    last_error = None
+    for engine in engines_to_try:
         try:
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always", pd_errors.ParserWarning)
-                df = pd.read_csv(path, engine="pyarrow", **read_kwargs)
+                df = pd.read_csv(path, engine=engine, **read_kwargs)
+                
+                # Strict check: Header validation
+                _validate_headers(df, strict=strict_parse, headless=headless)
+
                 bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
                 if bad_lines and not headless:
-                    print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
+                    print(f"-> Skipped {len(bad_lines)} malformed row(s) ({engine} engine)")
                 return df
-        except Exception:
-            pass  # fall through
+        except ImportError:
+            if engine == "pyarrow":
+                continue
+        except (pd_errors.ParserError, ValueError) as e:
+            # Catch ParserError (e.g. C engine failure) and ValueError (e.g. strict checks)
+            last_error = e
+            if strict_parse:
+                # If strict mode fails (e.g. mixed delimiters), fail fast
+                raise e
+            if not headless and engine != "python":
+                 print(f"   (Info: {engine} engine failed ({type(e).__name__}); trying next engine...)")
+            continue
+        except Exception as e:
+            last_error = e
+            if not headless and engine != "python":
+                 print(f"   (Info: Unexpected error with {engine} engine ({type(e).__name__}); trying next engine...)")
+            continue
 
-    # Default engine (C parser) with graceful ParserWarning handling
-    try:
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", pd_errors.ParserWarning)
-            df = pd.read_csv(path, **read_kwargs)
-            bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
-            if bad_lines and not headless:
-                print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
-            return df
-    except pd_errors.ParserError:
-        # Final fallback: Python engine
-        if not headless:
-            print("   (Info: C-engine parse failed; falling back to slower Python engine)")
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always", pd_errors.ParserWarning)
-            df = pd.read_csv(path, engine="python", **read_kwargs)
-            bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
-            if bad_lines and not headless:
-                print(f"-> Skipped {len(bad_lines)} malformed row(s) (extra columns or bad structure)")
-            return df
+    if last_error:
+        # If all engines failed, re-raise the last error
+        raise last_error
+    
+    # Should be unreachable if engines are available, but as a safeguard:
+    raise RuntimeError("CSV parsing failed with all available engines.")
+
 
 def discover_candidates(
     df: pd.DataFrame,
@@ -204,6 +306,7 @@ def discover_candidates(
     df = df.copy()
     
     # 1. Isolate uncategorized transactions for analysis.
+    # Ensure NA/None handling robustness (v0.6.4)
     uncategorized_mask = df[category_col].isna() | (df[category_col].astype(str).str.strip() == '')
     work_df = df[uncategorized_mask].copy()
 
@@ -211,15 +314,20 @@ def discover_candidates(
         since_dt = pd.to_datetime(since_date, errors='coerce')
         if pd.notna(since_dt):
             # Ensure date column is datetime before comparison
+            # Assumes dates are already normalized (timezone-naive) by main()
             if not pd.api.types.is_datetime64_any_dtype(work_df[date_col]):
                  work_df[date_col] = pd.to_datetime(work_df[date_col], errors='coerce')
             work_df = work_df[work_df[date_col] >= since_dt].copy()
 
+    # Define empty DF structures for early exit
+    cols_all = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'last_seen_date', 'max_abs_amount', 'total_value']
+    cols_cand = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'sample_amount', 'sample_date']
+    empty_cand = pd.DataFrame(columns=cols_cand)
+    empty_all = pd.DataFrame(columns=cols_all)
+
     # Early exit if there are no uncategorized rows to process.
     if work_df.empty:
-        cols_all = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'last_seen_date', 'max_abs_amount', 'total_value']
-        cols_cand = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'sample_amount', 'sample_date']
-        return pd.DataFrame(columns=cols_cand), pd.DataFrame(columns=cols_all)
+        return empty_cand, empty_all
 
     # 2. Create fingerprints and helper columns for aggregation.
     work_df['counterparty_fingerprint'] = _clean_counterparty(work_df[counterparty_col])
@@ -227,14 +335,13 @@ def discover_candidates(
     work_df = work_df[work_df['counterparty_fingerprint'] != '']
 
     if work_df.empty:
-        cols_all = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'last_seen_date', 'max_abs_amount', 'total_value']
-        cols_cand = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'sample_amount', 'sample_date']
-        return pd.DataFrame(columns=cols_cand), pd.DataFrame(columns=cols_all)
+        return empty_cand, empty_all
 
     # 3. Build the full frequency table ('all_candidates_df').
     # First, find a deterministic example name for each fingerprint (latest, then largest amount).
+    # Use kind='mergesort' for stable sorting
     example_indices = work_df.sort_values(
-        by=[date_col, 'abs_amount'], ascending=[False, False]
+        by=[date_col, 'abs_amount'], ascending=[False, False], kind='mergesort'
     ).drop_duplicates(subset=['counterparty_fingerprint'], keep='first').index
     example_map = work_df.loc[example_indices].set_index('counterparty_fingerprint')[counterparty_col]
     
@@ -263,12 +370,14 @@ def discover_candidates(
         candidates_df = pd.DataFrame(columns=final_candidate_cols)
     else:
         # 5. If candidates were found, enrich them with sample details.
-        candidates_df.sort_values(by='count', ascending=False, inplace=True)
+        # Remove inplace=True (Pandas compatibility)
+        candidates_df = candidates_df.sort_values(by='count', ascending=False, kind='mergesort')
         if top_k is not None:
             candidates_df = candidates_df.head(top_k)
 
         # Get sample details (amount/date) for the final candidates.
-        sample_indices = (work_df.sort_values(by=[date_col, 'abs_amount'], ascending=[False, False])
+        # Use kind='mergesort' for stable sorting
+        sample_indices = (work_df.sort_values(by=[date_col, 'abs_amount'], ascending=[False, False], kind='mergesort')
                         .drop_duplicates(subset=['counterparty_fingerprint'], keep='first').index)
         sample_details = work_df.loc[sample_indices, ['counterparty_fingerprint', amount_col, date_col]]\
             .rename(columns={amount_col: 'sample_amount', date_col: 'sample_date'})
@@ -280,13 +389,17 @@ def discover_candidates(
     final_all_cols = ['counterparty_fingerprint', 'example_counterparty_name', 'count', 'last_seen_date', 'max_abs_amount', 'total_value']
     all_candidates_df = all_candidates_df[final_all_cols]
     
+    # Format dates for output (assumes datetime objects from normalization)
     if not candidates_df.empty:
-        candidates_df['sample_date'] = pd.to_datetime(candidates_df['sample_date']).dt.strftime('%Y-%m-%d')
+        # Ensure conversion handles potential mixed types if normalization was imperfect
+        candidates_df['sample_date'] = pd.to_datetime(candidates_df['sample_date'], errors='coerce').dt.strftime('%Y-%m-%d')
     if not all_candidates_df.empty:
-        all_candidates_df['last_seen_date'] = pd.to_datetime(all_candidates_df['last_seen_date']).dt.strftime('%Y-%m-%d')
+        all_candidates_df['last_seen_date'] = pd.to_datetime(all_candidates_df['last_seen_date'], errors='coerce').dt.strftime('%Y-%m-%d')
     
+    # Final deterministic sort
     if not candidates_df.empty:
-        candidates_df.sort_values(by='count', ascending=False, inplace=True, kind='mergesort')
+        # Remove inplace=True (Pandas compatibility)
+        candidates_df = candidates_df.sort_values(by='count', ascending=False, kind='mergesort')
     
     return candidates_df, all_candidates_df
 
@@ -309,17 +422,21 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
         s.loc[trail_mask] = '-' + s.loc[trail_mask].str[:-1]
 
     # Capture CR/DR indicators (case-insensitive) before stripping
+    # Ensure non-capturing groups (?:...) for compatibility/performance
     s_upper = s.str.upper()
     cr_mask = s_upper.str.contains(r'\b(?:CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
     dr_mask = s_upper.str.contains(r'\b(?:DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
 
     # Strip CR/DR tokens (case-insensitive)
-    s = s.str.replace(r'\s*(CR|CRED|CREDIT)\.?\s*$', '', regex=True, case=False)
-    s = s.str.replace(r'\s*(DR|DEB|DEBIT)\.?\s*$', '', regex=True, case=False)
+    # Ensure non-capturing groups (?:...)
+    # Strip CR/DR tokens (true case-insensitive; non-capturing groups)
+    s = s.str.replace(r'\s*(?:CR|CRED|CREDIT)\.?\s*$', '', regex=True, flags=re.IGNORECASE)
+    s = s.str.replace(r'\s*(?:DR|DEB|DEBIT)\.?\s*$', '', regex=True, flags=re.IGNORECASE)
 
     # --- Fast path: default locale and already clean numeric strings ---
     if (decimal == "." or decimal is None) and not thousands:
-        maybe_clean = s.str.match(r"^[+-]?\d+(\.\d+)?$", na=False)
+        # Updated regex to include optional scientific notation: ^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$
+        maybe_clean = s.str.match(r"^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$", na=False)
         if maybe_clean.all():
             vals = pd.to_numeric(s, errors="coerce")
             # Apply CR/DR semantics: DR => negative, CR => positive
@@ -336,8 +453,9 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     mask_accounting = s.str.startswith("(", na=False) & s.str.endswith(")", na=False)
     if mask_accounting.any():
         # Copy only if we didn't already copy for trailing minus
-        if not trail_mask.any():
-            s = s.copy()
+        # Check if s is potentially a view of the original series
+        if not trail_mask.any(): # Simplified check based on previous operations
+             s = s.copy()
         s.loc[mask_accounting] = "-" + s.loc[mask_accounting].str.slice(1, -1).str.strip()
 
     # Thousands removal
@@ -347,11 +465,13 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     # Remove currency symbols and NBSPs (Optimized Regex)
     s = s.str.replace(_CURRENCY_NBSP_RE, "", regex=True)
 
-    # Decimal swap
+    # Decimal swap (Handles localized scientific notation conversion)
     if decimal and decimal != ".":
         s = s.str.replace(decimal, ".", regex=False)
 
+    # pd.to_numeric handles standard scientific notation (e.g. 1.23E+5)
     vals = pd.to_numeric(s, errors="coerce")
+    
     # Apply CR/DR semantics: DR => negative, CR => positive
     if dr_mask.any():
         vals = vals.copy()  # Ensure copy before modification
@@ -382,8 +502,13 @@ def main(args_list=None):
     parser.add_argument("--fastio", action="store_true", help="Use pyarrow engine for fast CSV IO (if installed).")
     parser.add_argument("--headless", action="store_true", help="Suppress console status messages.")
 
+    # Strict Parsing Flags (RC1 Requirement)
+    parser.add_argument("--strict-parse", action="store_true", help="Fail fast on mixed delimiters, bad headers, or excessive drops.")
+    parser.add_argument("--fail-threshold", type=float, default=0.01, help="Max allowed fraction of dropped rows after normalization (0 in strict).")
+
     # Internationalization Flags
-    parser.add_argument("--encoding", type=str, default="utf-8", help="CSV file encoding (e.g. 'utf-8', 'latin-1').")
+    # Updated default and help text to include 'auto'
+    parser.add_argument("--encoding", type=str, default="utf-8-sig", help="CSV file encoding (e.g. 'utf-8', 'latin-1', 'auto'). Default: utf-8-sig.")
     parser.add_argument("--decimal", type=str, default=".", help="Decimal separator for numeric fields ('.' or ',').")
     parser.add_argument("--thousands", type=str, default=None, help="Thousands separator for numeric fields (e.g. ',', '.').")
     parser.add_argument("--dayfirst", action="store_true", help="Parse ambiguous dates as DD/MM/YYYY (UK/EU style).")
@@ -423,7 +548,20 @@ def main(args_list=None):
     try:
         # 1. Load the data robustly.
         log(f"1. Loading and normalizing {os.path.basename(args.input)}...")
-        df = _read_csv_hardened(args.input, encoding=args.encoding, fastio=args.fastio, headless=args.headless)
+        
+        # Handle auto encoding detection
+        input_encoding = args.encoding
+        if input_encoding.lower() == "auto":
+            input_encoding = _auto_pick_encoding(args.input, headless=args.headless)
+
+        # Pass configuration explicitly to _read_csv_hardened
+        df = _read_csv_hardened(
+            args.input,
+            encoding=input_encoding,
+            fastio=args.fastio,
+            headless=args.headless,
+            strict_parse=args.strict_parse
+        )
 
         # Standardize column names (lowercase, strip whitespace).
         df.columns = [str(c).strip().lower() for c in df.columns]
@@ -444,13 +582,33 @@ def main(args_list=None):
         if args.date_format:
             df["date"] = pd.to_datetime(df["date"], format=args.date_format, errors="coerce")
         else:
+            # Use cache=True for performance
             df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=args.dayfirst, cache=True)
 
-        # Drop rows where normalization failed (invalid amounts or dates).
+        # Ensure deterministic, timezone-naive dates (RC1 Regression Fix)
+        if pd.api.types.is_datetime64tz_dtype(df["date"].dtype):
+            df["date"] = df["date"].dt.tz_localize(None)
+
+        # Drop rows where normalization failed and apply drop-rate guard (RC1 Requirement)
+        total_rows = len(df)
         valid_mask = df["amount"].notna() & df["date"].notna()
-        if not valid_mask.all():
-             dropped_count = len(df) - valid_mask.sum()
+        dropped_count = total_rows - valid_mask.sum()
+        
+        if dropped_count and not args.headless:
              log(f"-> Dropped {dropped_count} rows with invalid amount/date.")
+
+        # Apply drop rate guard logic
+        # Threshold is 0 if strict_parse is True, otherwise use the specified fail_threshold
+        thresh = 0.0 if args.strict_parse else args.fail_threshold
+        
+        if total_rows > 0 and (dropped_count / total_rows) > thresh:
+            msg = f"FATAL: Dropped {dropped_count}/{total_rows} rows during normalization (> {thresh:.2%})."
+            if args.strict_parse:
+                # In strict mode, any drop is a failure (thresh=0.0)
+                msg = f"Strict parse: {msg}"
+            print(msg, file=sys.stderr)
+            sys.exit(2)
+
         df = df[valid_mask].copy()
 
         if df.empty:
@@ -476,18 +634,21 @@ def main(args_list=None):
         # Apply CSV injection protection before writing (using optimized version)
         # Allow disabling via environment variable for consistency with main CLI
         if str(os.getenv("FINLANG_SAFE_TEXT", "1")).lower() not in ("0", "false", "no"):
+            # _csv_safe_text returns a modified copy
             candidates_df = _csv_safe_text(candidates_df)
             all_candidates_df = _csv_safe_text(all_candidates_df)
         elif not args.headless:
             log("-> Skipping CSV injection protection (FINLANG_SAFE_TEXT=0)")
 
 
+        # Write outputs using utf-8 encoding
         candidates_df.to_csv(args.candidates, index=False, encoding="utf-8")
         all_candidates_df.to_csv(args.all_candidates, index=False, encoding="utf-8")
 
         log("-" * 20)
         log("OK. Discovery complete.")
-        log(f"   Found {len(candidates_df)} prioritized candidates (>= {args.min_count} txns).")
+        # Use the configured min_count in the summary message
+        log(f"   Found {len(candidates_df)} prioritized candidates (>= {args.min_count} txns or >= amount threshold).")
         log(f"   Total unique uncategorized counterparties: {len(all_candidates_df)}.")
         log(f"   Prioritized output: {args.candidates}")
         log(f"   Full output: {args.all_candidates}")
@@ -495,9 +656,19 @@ def main(args_list=None):
     except FileNotFoundError:
         print(f"FATAL: Input file not found at '{args.input}'", file=sys.stderr)
         sys.exit(1)
+    except ValueError as e:
+        # Catch specific errors from strict checks or normalization
+        print(f"FATAL: Data processing error: {e}", file=sys.stderr)
+        sys.exit(2)
     except Exception as e:
         print(f"An unexpected error occurred: {type(e).__name__}: {e}", file=sys.stderr)
+        # Optionally print traceback for debugging
+        # import traceback; traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":
+    # Ensure compatibility with PYTHONWARNINGS=error policy
+    if not sys.warnoptions:
+        import warnings
+        warnings.simplefilter("default")
     main()
