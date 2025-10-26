@@ -1,4 +1,5 @@
-# FinLang — Financial Rules DSL
+# suggest_v0_6_4_rc1.py
+# FinLang — Financial Rules DSL (v0.6.4-rc1)
 # Copyright (C) 2025 FinLang Ltd
 #
 # This file is part of FinLang.
@@ -20,13 +21,9 @@
 # FinLang™ is a trademark of FinLang Ltd.
 
 
-# FinLang — Financial Rules DSL
 # suggest.py — Generate draft .fin rules from discovery candidates
 #
-# v0.6.2 stable: engine-compatible, deterministic, and comment-rich.
-# - Default: emits fuzzy rules (counterparty ~ "*TOKEN*")
-# - Optional: --emit-match exact  -> emits exact rules (counterparty == "NAME")
-# - BOM-safe CSV reader, flexible header mapping, tidy output, de-dupe.
+# v0.6.4-rc1: Deterministic, comment-rich, and regression-fixed de-duplication.
 #
 # Usage:
 #   python -m finlang.tools.suggest --input candidates.csv --output draft_rules.fin \
@@ -55,14 +52,21 @@ def _read_candidates(path: str) -> List[Dict[str, str]]:
       - last_seen: last_seen_date | last_seen | last_date | sample_date | date
       - sample_amount: sample_amount | example_amount | sample_amt | amount
     """
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
-        fieldnames = reader.fieldnames or []
+    try:
+        # Ensure BOM-safe reading
+        with open(path, newline="", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            fieldnames = reader.fieldnames or []
+    except FileNotFoundError:
+        raise SystemExit(f"FATAL: Input file not found at {path}")
+    except Exception as e:
+        raise SystemExit(f"FATAL: Error reading CSV {path}: {e}")
 
     if not rows:
         return []
 
+    # Normalize column names to lowercase
     cols = {c.lower(): c for c in fieldnames}
 
     def pick(*names: str) -> Optional[str]:
@@ -89,12 +93,13 @@ def _read_candidates(path: str) -> List[Dict[str, str]]:
 
     out: List[Dict[str, str]] = []
     for r in rows:
+        # Safely access data using the original column names identified in key_cols
         out.append({
-            "fingerprint":   (r.get(key_cols["fingerprint"], "") or "").strip(),
-            "example_name":  (r.get(key_cols["example_name"], "") or "").strip(),
-            "count":         (r.get(key_cols["count"], "") or "").strip(),
-            "last_seen":     (r.get(key_cols["last_seen"], "") or "").strip() if key_cols["last_seen"] else "",
-            "sample_amount": (r.get(key_cols["sample_amount"], "") or "").strip() if key_cols["sample_amount"] else "",
+            "fingerprint":   (r.get(key_cols["fingerprint"]) or "").strip(),
+            "example_name":  (r.get(key_cols["example_name"]) or "").strip(),
+            "count":         (r.get(key_cols["count"]) or "").strip(),
+            "last_seen":     (r.get(key_cols["last_seen"]) or "").strip() if key_cols["last_seen"] else "",
+            "sample_amount": (r.get(key_cols["sample_amount"]) or "").strip() if key_cols["sample_amount"] else "",
         })
     return out
 
@@ -102,42 +107,58 @@ def _read_candidates(path: str) -> List[Dict[str, str]]:
 # Pattern helpers (stable tokenization; avoid over-broad patterns)
 # ---------------------------------------------------------------------
 
+# Keep A-Z, 0-9 and '&'
 _ALNUM_AMP = re.compile(r"[^A-Z0-9&]+")
+# (RC1a Polish): Check for at least one alphanumeric character
+_HAS_ALNUM = re.compile(r"[A-Z0-9]")
 
 def _tokenize_for_pattern(name: str) -> Optional[str]:
     """
     Pick a clean token from the example name to use in a wildcard pattern.
-      - Uppercase, keep A–Z, 0–9 and '&'
+      - Uppercase, keep A-Z, 0-9 and '&'
       - Split on non-alnum
-      - Prefer the longest token with >= 3 chars and not purely digits
+      - Prefer the longest token with >= 3 chars, not purely digits, and containing at least one alphanumeric char.
     """
     if not name:
         return None
     up = name.upper()
     up = _ALNUM_AMP.sub(" ", up)
-    tokens = [t for t in up.split() if len(t) >= 3 and not t.isdigit()]
+    
+    # (RC1a Patch): Added _HAS_ALNUM.search(t) to reject symbol-only tokens (e.g., "&&&")
+    tokens = [t for t in up.split() if len(t) >= 3 and not t.isdigit() and _HAS_ALNUM.search(t)]
+    
     if not tokens:
         return None
-    tokens.sort(key=len, reverse=True)
+    # Deterministic sorting: primary key length (desc), secondary key alphabetical (asc)
+    tokens.sort(key=lambda x: (-len(x), x))
     return tokens[0]
 
-def _escape_quotes(s: str) -> str:
-    return s.replace('"', '\\"')
+def _escape_quotes(s: str, quote_char: str = '"') -> str:
+    """Escape the specific quote character used for enclosing the string."""
+    return s.replace(quote_char, f'\\{quote_char}')
 
 # ---------------------------------------------------------------------
 # Existing rules de-dupe (supports fuzzy and exact styles)
 # ---------------------------------------------------------------------
 
-_FUZZY_RE = re.compile(r'counterparty\s*~\s*"(.*?)"', re.IGNORECASE)
-_EXACT_RE = re.compile(r'counterparty\s*==\s*"(.*?)"', re.IGNORECASE)
+# Regression Fix (RC1): Ensure regexes support both single (') and double (") quotes.
+_FUZZY_RE = re.compile(r'counterparty\s*~\s*[\'"](.*?)[\'"]', re.IGNORECASE)
+_EXACT_RE = re.compile(r'counterparty\s*==\s*[\'"](.*?)[\'"]', re.IGNORECASE)
 # Accept legacy/broken patterns to avoid duplicates if present in user rules
-_FINGERPRINT_RE = re.compile(r'fingerprint\s*==\s*"(.*?)"', re.IGNORECASE)
+_FINGERPRINT_RE = re.compile(r'fingerprint\s*==\s*[\'"](.*?)[\'"]', re.IGNORECASE)
 
 def _load_existing_patterns(rules_path: Optional[str]) -> Tuple[List[str], List[str], List[str]]:
     if not rules_path or not os.path.exists(rules_path):
         return [], [], []
-    with open(rules_path, "r", encoding="utf-8") as f:
-        text = f.read()
+    try:
+        # Ensure BOM-safe reading
+        with open(rules_path, "r", encoding="utf-8-sig") as f:
+            text = f.read()
+    except Exception as e:
+        print(f"Warning: Could not read existing rules file {rules_path}: {e}", file=sys.stderr)
+        return [], [], []
+        
+    # Extract patterns using the updated regexes
     return (
         _FUZZY_RE.findall(text),
         _EXACT_RE.findall(text),
@@ -145,9 +166,10 @@ def _load_existing_patterns(rules_path: Optional[str]) -> Tuple[List[str], List[
     )
 
 def _already_covered_fuzzy(pattern: str, existing_fuzzy: List[str]) -> bool:
+    """Check if the proposed fuzzy pattern is already covered."""
     if pattern in existing_fuzzy:
         return True
-    # rough containment to avoid near-duplicates
+    # Rough containment check to avoid near-duplicates
     p_core = pattern.strip("*")
     if not p_core:
         return False
@@ -158,9 +180,10 @@ def _already_covered_fuzzy(pattern: str, existing_fuzzy: List[str]) -> bool:
     return False
 
 def _already_covered_exact(name: str, existing_exact: List[str], existing_fuzzy: List[str]) -> bool:
+    """Check if the proposed exact name is already covered by exact or fuzzy rules."""
     if name in existing_exact:
         return True
-    # also consider fuzzy patterns that already cover this exact name
+    # Also consider fuzzy patterns that already cover this exact name
     return _already_covered_fuzzy(f"*{name}*", existing_fuzzy)
 
 # ---------------------------------------------------------------------
@@ -180,6 +203,7 @@ def generate_rules(
     default_category: str,
     existing_rules_file: Optional[str],
     emit_match: str = "fuzzy",  # "fuzzy" | "exact"
+    quote_char: str = '"', # Default to double quotes for output
 ) -> List[str]:
     exist_fuzzy, exist_exact, exist_fingerprint = _load_existing_patterns(existing_rules_file)
     blocks: List[str] = []
@@ -191,40 +215,51 @@ def generate_rules(
         last    = c.get("last_seen", "")
         samp    = c.get("sample_amount", "")
 
+        # Determine the best token for the rule name and pattern
         token = _tokenize_for_pattern(example) or _tokenize_for_pattern(fp)
         if not token:
             continue
 
         meta  = _build_meta(count, last, samp)
-        title = f'{prefix}: {token}'
-        example_escaped = _escape_quotes(example or fp or token)
+        # Escape title and category for safe output
+        title_escaped = _escape_quotes(f'{prefix}: {token}', quote_char)
+        category_escaped = _escape_quotes(default_category, quote_char)
+        
+        # Prepare example comment (no escaping needed for comments)
+        example_comment = example or fp or token
 
         if emit_match == "exact":
-            exact_name = _escape_quotes((fp or example).upper())
+            # Use fingerprint if available, otherwise uppercase example name
+            exact_name = (fp or example).upper()
             if _already_covered_exact(exact_name, exist_exact, exist_fuzzy) or exact_name in exist_fingerprint:
                 continue
+            
+            exact_name_escaped = _escape_quotes(exact_name, quote_char)
             block = [
                 meta,
-                f'rule "{title}" ' + "{",
+                f'# Example: {example_comment}',
+                f'rule {quote_char}{title_escaped}{quote_char} ' + "{",
                 "  match:",
-                f'    - counterparty == "{exact_name}"',
+                f'    - counterparty == {quote_char}{exact_name_escaped}{quote_char}',
                 "  set:",
-                f'    - category = "{default_category}"',
+                f'    - category = {quote_char}{category_escaped}{quote_char}',
                 "}",
                 ""
             ]
         else:  # fuzzy (default)
-            pattern = f'*{_escape_quotes(token)}*'
+            pattern = f'*{token}*'
             if _already_covered_fuzzy(pattern, exist_fuzzy):
                 continue
+            
+            pattern_escaped = _escape_quotes(pattern, quote_char)
             block = [
                 meta,
-                f"# Example: {example_escaped}",
-                f'rule "{title}" ' + "{",
+                f"# Example: {example_comment}",
+                f'rule {quote_char}{title_escaped}{quote_char} ' + "{",
                 "  match:",
-                f'    - counterparty ~ "{pattern}"',
+                f'    - counterparty ~ {quote_char}{pattern_escaped}{quote_char}',
                 "  set:",
-                f'    - category = "{default_category}"',
+                f'    - category = {quote_char}{category_escaped}{quote_char}',
                 "}",
                 ""
             ]
@@ -247,14 +282,31 @@ def main() -> int:
     ap.add_argument("--emit-match", choices=["fuzzy", "exact"], default="fuzzy",
                     help='Matching style: "fuzzy" (counterparty ~ "*TOKEN*") or '
                          '"exact" (counterparty == "NAME"). Default: fuzzy.')
-    mode = ap.add_mutually_exclusive_group()
-    mode.add_argument("--append", action="store_true", help="Append to output file (default)")
-    mode.add_argument("--overwrite", action="store_true", help="Overwrite output file")
-    args = ap.parse_args()
+    ap.add_argument("--quote-style", choices=['"', "'"], default='"',
+                    help='Preferred quote style for output rules (default: double quotes ").')
 
-    cands = _read_candidates(args.input)
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument("--append", action="store_true", help="Append to output file (default behavior if file exists)")
+    mode.add_argument("--overwrite", action="store_true", help="Overwrite output file")
+    
+    # Handle CLI invocation robustly
+    try:
+        if len(sys.argv) == 1:
+            ap.print_help(sys.stderr)
+            return 1
+        args = ap.parse_args()
+    except SystemExit:
+        # Argparse handles --help/errors internally
+        return 0 if '--help' in sys.argv else 1
+
+    try:
+        cands = _read_candidates(args.input)
+    except SystemExit as e:
+        print(e, file=sys.stderr)
+        return 1
+
     if not cands:
-        print("No candidates found. Nothing to write.")
+        print("No candidates found in input file. Nothing to write.")
         return 0
 
     blocks = generate_rules(
@@ -263,19 +315,40 @@ def main() -> int:
         default_category=args.category,
         existing_rules_file=args.rules,
         emit_match=args.emit_match,
+        quote_char=args.quote_style,
     )
 
     if not blocks:
-        print("All candidates appear to be covered by existing rules. Nothing to write.")
+        print("All candidates appear to be covered by existing rules or were skipped. Nothing new to write.")
         return 0
 
-    write_mode = "w" if args.overwrite or (not os.path.exists(args.output) and not args.append) else "a"
-    with open(args.output, write_mode, encoding="utf-8", newline="") as f:
-        if write_mode == "a":
-            f.write("\n")
-        f.write("\n".join(blocks))
+    # Determine write mode: overwrite if specified, otherwise append if file exists or append specified, else write new.
+    if args.overwrite:
+        write_mode = "w"
+    elif args.append or os.path.exists(args.output):
+        write_mode = "a"
+    else:
+        write_mode = "w"
 
-    print(f"✅ Wrote {len(blocks)} draft rule(s) to {args.output}")
+    try:
+        # Write output using standard utf-8
+        with open(args.output, write_mode, encoding="utf-8", newline="") as f:
+            # Add a newline separator if appending to a non-empty file
+            # Check file size only if we know the file exists, otherwise f.tell() might fail or be misleading
+            if write_mode == "a":
+                try:
+                    # Attempt to check if the file is non-empty before appending separator
+                    if os.path.getsize(args.output) > 0:
+                         f.write("\n\n# --- Appended by suggest.py ---\n\n")
+                except OSError:
+                    pass # File might not exist yet depending on 'a' mode behavior specifics
+                
+            f.write("\n".join(blocks))
+    except Exception as e:
+        print(f"FATAL: Failed to write to output file {args.output}: {e}", file=sys.stderr)
+        return 1
+
+    print(f"✅ {'Appended' if write_mode == 'a' else 'Wrote'} {len(blocks)} draft rule(s) to {args.output}")
     return 0
 
 if __name__ == "__main__":

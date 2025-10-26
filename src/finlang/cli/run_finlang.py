@@ -1,3 +1,4 @@
+# run_finlang_v0_6_4_rc1.py
 # FinLang — Financial Rules DSL
 # Copyright (C) 2025 FinLang Ltd
 #
@@ -29,37 +30,104 @@ import re
 import sys
 import time
 import tempfile
-# Removed unused unicodedata import
+# Removed unused unicodedata and Decimal imports
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
+# from dataclasses import dataclass
 from importlib import resources
 
+
 # --------------------------------------------------------------------------------------
-# Version / Engine import
+# Data Input/Hygiene Utilities (Synchronized with discover_v0_6_4_rc1.py)
+# --------------------------------------------------------------------------------------
+
+def _auto_pick_encoding(path: str, headless: bool = False) -> str:
+    """Detect encoding with sensible fallbacks."""
+    # utf-8-sig handles BOM correctly and is the safest default if detection fails.
+    default = "utf-8-sig"
+    # Try common encodings in order of preference
+    for enc in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            with open(path, "r", encoding=enc, errors="strict") as f:
+                f.read(4096) # Read a chunk to verify
+            if not headless:
+                print(f"-> Auto-detected encoding: {enc}")
+            return enc
+        except UnicodeDecodeError:
+            continue
+        except FileNotFoundError:
+             # If file not found, we can't detect, return default before main raises error
+            return default
+        except Exception:
+            # Other file access error, fall back to default
+            return default
+    if not headless:
+        print(f"-> Encoding auto-detection failed. Falling back to {default}.")
+    return default
+
+
+def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int = 65536) -> Optional[str]:
+    """Heuristic delimiter detector for CSVs (EU-friendly)."""
+    try:
+        # Use errors="ignore" during detection phase to handle potential mixed encodings in sample
+        with open(path, "r", encoding=encoding, errors="ignore") as f:
+            sample = f.read(sample_bytes)
+    except Exception:
+        return None
+    # Look at the first ~50 non-empty lines
+    lines = [ln for ln in sample.splitlines() if ln.strip()][:50]
+    if not lines:
+        return None
+    sample_text = "\n".join(lines)
+    counts = {
+        ";": sample_text.count(";"),
+        ",": sample_text.count(","),
+        "\t": sample_text.count("\t"),
+        "|": sample_text.count("|"),
+    }
+    semi, comma, tab, pipe = counts[";"], counts[","], counts["\t"], counts["|"]
+    if semi >= int(comma * 1.2) and semi > 0:
+        return ";"
+    if tab > max(semi, comma, pipe) and tab > 0:
+        return "\t"
+    if pipe > max(semi, comma, tab) and pipe > 0:
+        return "|"
+    if comma >= max(semi, tab, pipe) and comma > 0:
+        return ","
+    if semi > 0:
+        return ";"
+    return None
+
+
+# --------------------------------------------------------------------------------------
+# Version / Engine import (hardened)
 # --------------------------------------------------------------------------------------
 try:
     from finlang import __version__ as _pkg_version
 except ImportError:
-    _pkg_version = "0.6.2"  # fallback if package isn't importable
+    _pkg_version = "0.6.4-rc1"  # fallback for local/dev trees
 
-CLI_BUILD_TAG = os.getenv("FINLANG_CLI_BUILD_TAG", "optimized-final")
+CLI_BUILD_TAG = os.getenv("FINLANG_CLI_BUILD_TAG", "optimized-hardened")
 __version__ = f"{_pkg_version}+cli-{CLI_BUILD_TAG}"
 
+# Prefer packaged engine; then local rc1 module; else fail fast (no silent mock)
 try:
-    from finlang.engine.finlang_engine_v0_5_2 import run_audit
-except ImportError:
-    # Minimal mock for environments where engine isn't importable
-    def run_audit(df, rules, audit_mode="lite"):
-        proc_df = df.copy()
-        if "category" not in proc_df.columns:
-            proc_df["category"] = ""
-        if "flags" not in proc_df.columns:
-            proc_df["flags"] = ""
-        return proc_df, []
-
+    from finlang.engine.finlang_engine_v0_6_4 import run_audit  # packaged install
+except Exception:
+    try:
+        # Local development filename variant
+        from finlang_engine_v0_6_4_rc1 import run_audit
+    except Exception:
+        print(
+            "FATAL: FinLang engine not found. Ensure either the packaged engine "
+            "(finlang.engine.finlang_engine_v0_6_4) or local finlang_engine_v0_6_4_rc1.py "
+            "is importable.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
 # --------------------------------------------------------------------------------------
 # Starter packs and Resource Helpers
@@ -93,14 +161,14 @@ def _read_pack_text(pack_name: str) -> str:
         print(f"Unknown pack '{pack_name}'. Known: {', '.join(sorted(PACK_MAP))}", file=sys.stderr)
         return ""
 
-    # Package-first
+    # Package-first (BOM-safe read)
     try:
-        return resources.files("finlang.rulepacks").joinpath(fname).read_text(encoding="utf-8")
+        return resources.files("finlang.rulepacks").joinpath(fname).read_text(encoding="utf-8-sig")
     except Exception:
-        # Local fallback
+        # Local fallback (BOM-safe read)
         p = _LOCAL_RULEPACKS / fname
         if p.exists():
-            return p.read_text(encoding="utf-8")
+            return p.read_text(encoding="utf-8-sig")
         return ""  # be permissive in CLI; earlier stage will catch missing rules
 
 
@@ -139,6 +207,7 @@ def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
             print(f"Rules file not found: {p}", file=sys.stderr)
             continue
         try:
+            # Ensure BOM-safe reading
             parts.append(f"# --- BEGIN {p.name} ---\n{p.read_text(encoding='utf-8-sig')}\n# --- END ---")
         except Exception as e:
             print(f"Error reading rules file {p}: {e}", file=sys.stderr)
@@ -154,6 +223,7 @@ def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
         return Path()
 
     try:
+        # Write combined rules using standard utf-8
         tmp = tempfile.NamedTemporaryFile("w", delete=False, suffix=".fin", encoding="utf-8")
         tmp.write("\n\n".join(parts))
         tmp.flush()
@@ -185,6 +255,7 @@ def _strip_inline_comment(line: str) -> str:
 
 def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
     try:
+        # Ensure BOM-safe reading
         content = Path(path).read_text(encoding="utf-8-sig")
     except (FileNotFoundError, IsADirectoryError):
         print(f"FATAL: Rules file issue at '{path}'", file=sys.stderr)
@@ -194,10 +265,12 @@ def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
         return []
 
     rules: List[Dict[str, Any]] = []
+    # Regex supports double quotes, single quotes, or unquoted names
     rule_pattern = re.compile(r"rule\s+(?:\"([^\"]*)\"|'([^']*)'|(\S+))\s*\{(.*?)\}",
                               re.DOTALL | re.IGNORECASE)
 
     for match in rule_pattern.finditer(content):
+        # Find the captured name (group 1, 2, or 3)
         name = next(g for g in match.groups()[:3] if g is not None)
         block = match.group(4)
         rule: Dict[str, Any] = {"name": name, "match": [], "set": []}
@@ -218,7 +291,6 @@ def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
         rules.append(rule)
     return rules
 
-
 # --------------------------------------------------------------------------------------
 # Data hardening (optimized)
 # --------------------------------------------------------------------------------------
@@ -231,16 +303,11 @@ _CURRENCY_NBSP_RE = re.compile(r"[£€$¥₹\u00A0\u202F]")
 
 
 def _strip_controls_series(series: pd.Series) -> pd.Series:
-    """Vectorized control-char stripping with fast skip for clean columns."""
-    # Ensure string type and treat nulls as empty strings
-    s = series.astype(str).fillna("")
-    # Fast skip when no control chars (Guarded Apply)
-    # Use na=False to ensure boolean output for .any()
+    s = series.fillna("").astype(str)     # ✅ fill first, then cast
     maybe = s.str.contains(_CONTROL_CHARS_RE, regex=True, na=False)
     if not maybe.any():
         return s
     return s.str.replace(_CONTROL_CHARS_RE, "", regex=True)
-
 
 def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.Series:
     """Optimized number conversion with locale hardening (Synchronized)."""
@@ -261,17 +328,20 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
         s.loc[trail_mask] = '-' + s.loc[trail_mask].str[:-1]
 
     # Capture CR/DR indicators (case-insensitive) before stripping
+    # Ensure non-capturing groups (?:...) for compatibility/performance
     s_upper = s.str.upper()
     cr_mask = s_upper.str.contains(r'\b(?:CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
     dr_mask = s_upper.str.contains(r'\b(?:DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
 
     # Strip CR/DR tokens (case-insensitive)
-    s = s.str.replace(r'\s*(CR|CRED|CREDIT)\.?\s*$', '', regex=True, case=False)
-    s = s.str.replace(r'\s*(DR|DEB|DEBIT)\.?\s*$', '', regex=True, case=False)
+    # Ensure non-capturing groups (?:...)
+    s = s.str.replace(r'\s*(?:CR|CRED|CREDIT)\.?\s*$', '', regex=True, flags=re.IGNORECASE)
+    s = s.str.replace(r'\s*(?:DR|DEB|DEBIT)\.?\s*$', '', regex=True, flags=re.IGNORECASE)
 
     # --- Fast path: default locale and already clean numeric strings ---
     if (decimal == "." or decimal is None) and not thousands:
-        maybe_clean = s.str.match(r"^[+-]?\d+(\.\d+)?$", na=False)
+        # Updated regex to include optional scientific notation: ^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$
+        maybe_clean = s.str.match(r"^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$", na=False)
         if maybe_clean.all():
             vals = pd.to_numeric(s, errors="coerce")
             # Apply CR/DR semantics: DR => negative, CR => positive
@@ -288,7 +358,8 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     mask_accounting = s.str.startswith("(", na=False) & s.str.endswith(")", na=False)
     if mask_accounting.any():
         # Copy only if we didn't already copy for trailing minus
-        if not trail_mask.any():
+        # Check if s is potentially a view of the original series
+        if not trail_mask.any(): # Simplified check based on previous operations
             s = s.copy()
         s.loc[mask_accounting] = "-" + s.loc[mask_accounting].str.slice(1, -1).str.strip()
 
@@ -299,11 +370,13 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     # Remove currency symbols and NBSPs (Optimized Regex)
     s = s.str.replace(_CURRENCY_NBSP_RE, "", regex=True)
 
-    # Decimal swap
+    # Decimal swap (Handles localized scientific notation conversion)
     if decimal and decimal != ".":
         s = s.str.replace(decimal, ".", regex=False)
 
+    # pd.to_numeric handles standard scientific notation (e.g. 1.23E+5)
     vals = pd.to_numeric(s, errors="coerce")
+
     # Apply CR/DR semantics: DR => negative, CR => positive
     if dr_mask.any():
         vals = vals.copy()  # Ensure copy before modification
@@ -315,10 +388,12 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
 
 
 def load_header_map(path: str) -> dict:
+    # Ensure BOM-safe reading
     with open(path, "r", encoding="utf-8-sig") as f:
         raw = json.load(f)
 
     mapping: dict[str, Any] = {}
+    # (RC1a Patch): Normalize the entire map structure (keys and values) to lowercase and strip whitespace.
     for canon, aliases in raw.items():
         canon_l = str(canon).strip().lower()
         if isinstance(aliases, dict):
@@ -326,8 +401,10 @@ def load_header_map(path: str) -> dict:
             for k, v in aliases.items():
                 k_l = str(k).strip().lower()
                 if isinstance(v, list):
+                    # Ensure list items (aliases) are normalized
                     norm[k_l] = [str(a).strip().lower() for a in v if str(a).strip()]
                 else:
+                    # Ensure values (explicit names for debit/credit) are also normalized
                     norm[k_l] = str(v).strip().lower()
             mapping[canon_l] = norm
         elif isinstance(aliases, str):
@@ -338,39 +415,80 @@ def load_header_map(path: str) -> dict:
 
 
 def apply_header_map(df: pd.DataFrame, mapping: dict, *, headless: bool) -> pd.DataFrame:
+    """
+    Normalize DataFrame headers using the mapping file.
+    Handles standard aliases and specialized debit/credit normalization for synthesis.
+    (RC1a Watertightness Patch: Enhanced debit/credit alias support)
+    """
     df.columns = [str(c).strip().lower() for c in df.columns]
     used: dict[str, str] = {}
     rename_dict: dict[str, str] = {}
     current_columns = set(df.columns)
 
+    # Helper to manage renaming and tracking usage
+    def map_alias(canon, alias):
+        if alias in current_columns:
+            rename_dict[alias] = canon
+            used[canon] = alias
+            current_columns.remove(alias)
+            current_columns.add(canon)
+            return True
+        return False
+
+    # Phase 1: Standard aliases (including 'amount' aliases)
     for canon, spec in mapping.items():
+        # Check if the canonical name already exists
         if canon in current_columns:
             continue
+            
         cand_list: List[str] = []
         if isinstance(spec, str):
             cand_list = [spec]
         elif isinstance(spec, list):
             cand_list = spec
         elif isinstance(spec, dict) and canon == "amount":
+            # Handle 'amount' aliases specifically
             aliases = spec.get("aliases", [])
-            if isinstance(aliases, str):
-                aliases = [aliases]
-            cand_list = aliases
+            if isinstance(aliases, str): aliases = [aliases]
+            if isinstance(aliases, list): cand_list = aliases
 
         for alias in cand_list:
-            if alias in current_columns:
-                rename_dict[alias] = canon
-                used[canon] = alias
-                current_columns.remove(alias)
-                current_columns.add(canon)
+            if map_alias(canon, alias):
                 break
+
+    # Phase 2: Debit/Credit specific handling (Surgical Patch)
+    # This relies on the 'amount' specification in the map to find and normalize debit/credit columns.
+    amt_spec = mapping.get("amount")
+    if isinstance(amt_spec, dict):
+        for leg in ("debit", "credit"):
+            # If the canonical leg name already exists, skip.
+            if leg in current_columns:
+                continue
+
+            # Check configuration (normalized by load_header_map)
+            explicit_name = amt_spec.get(leg)
+            leg_aliases = amt_spec.get(f"{leg}_aliases", [])
+
+            # 1. Check if the exact name specified in the map exists in the CSV and map it
+            if isinstance(explicit_name, str) and map_alias(leg, explicit_name):
+                 continue 
+
+            # 2. If exact name didn't match or wasn't specified, check aliases.
+            if isinstance(leg_aliases, str): leg_aliases = [leg_aliases]
+            
+            if isinstance(leg_aliases, list):
+                for alias in leg_aliases:
+                    if map_alias(leg, alias):
+                        break
 
     # Apply renames in a single batch operation
     if rename_dict:
-        df.rename(columns=rename_dict, inplace=True)
+        # Remove inplace=True (Pandas compatibility regression fix)
+        df = df.rename(columns=rename_dict)
 
     if not headless and used:
-        picks = ", ".join([f"{canon}<-{alias}" for canon, alias in used.items()])
+        # Sort for deterministic output
+        picks = ", ".join([f"{canon}<-{alias}" for canon, alias in sorted(used.items())])
         print(f"-> Normalized headers via map ({picks})")
     return df
 
@@ -383,7 +501,13 @@ REQUIRED_CANON = frozenset(["counterparty", "amount", "date"])
 
 
 def _normalize_canonical(
-    df: pd.DataFrame, *, headless: bool, dayfirst: bool, date_format: str | None
+    df: pd.DataFrame,
+    *,
+    headless: bool,
+    dayfirst: bool,
+    date_format: str | None,
+    strict_parse: bool,      # Explicitly pass strict configuration
+    fail_threshold: float,   # Explicitly pass threshold
 ) -> pd.DataFrame:
     """Convert to canonical types and ensure required columns exist."""
     
@@ -404,11 +528,16 @@ def _normalize_canonical(
             # Use cache=True for speedup
             df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=dayfirst, cache=True)
 
+    # Ensure deterministic, timezone-naive dates (RC1 Regression Fix)
+    if pd.api.types.is_datetime64tz_dtype(df["date"].dtype):
+        df["date"] = df["date"].dt.tz_localize(None)
+
     # Ensure string cols are clean (optimized sanitizer with fast skip)
     for col in ("counterparty", "memo", "category"):
         if col in df.columns:
             df[col] = _strip_controls_series(df[col]).str.strip()
         else:
+            # Ensure required 'counterparty' exists (checked earlier), initialize optional cols
             if col != "counterparty":
                 df[col] = ""
 
@@ -416,16 +545,37 @@ def _normalize_canonical(
         df["flags"] = ""
 
     # Coerce amount to numeric if needed before validity check
+    # This assumes _to_number was already called if locale required it, 
+    # or native parsing handled it. This is a final safety coercion.
     if not pd.api.types.is_numeric_dtype(df["amount"]):
         df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
 
+    # Validity check and Drop-Rate Guard (RC1 Requirement)
     bad_date = df["date"].isna()
     bad_amt = df["amount"].isna()
-    dropped = int((bad_date | bad_amt).sum())
+    invalid_mask = bad_date | bad_amt
+    
+    df_out = df[~invalid_mask].copy()
+
+    total = len(df)
+    dropped = int(invalid_mask.sum())
+
     if dropped and not headless:
         print(f"-> Dropped {dropped} row(s) with invalid date/amount")
 
-    df_out = df[~(bad_date | bad_amt)].copy()
+    # Apply drop rate guard logic
+    # Threshold is 0 if strict_parse is True, otherwise use the specified fail_threshold
+    thresh = 0.0 if strict_parse else fail_threshold
+    
+    if total > 0 and (dropped / total) > thresh:
+        msg = f"FATAL: Dropped {dropped}/{total} rows during normalization (> {thresh:.2%})."
+        if strict_parse:
+            # In strict mode, any drop is a failure (thresh=0.0)
+            msg = f"Strict parse: {msg}"
+        print(msg, file=sys.stderr)
+        # Return an empty DataFrame with columns to signify fatal normalization failure
+        return pd.DataFrame(columns=df.columns)
+
     return df_out
 
 
@@ -443,7 +593,8 @@ def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
     # Column-level pre-checks (Guarded Apply) to avoid scanning everything
     cols_to_fix: List[str] = []
     for c in obj.columns:
-        s = obj[c].astype(str)
+        # Ensure NA safety during string operations
+        s = obj[c].astype(str).fillna("")
         lead = s.str.lstrip(" ")
         
         # Identify rows that are dangerous (using na=False for safety)
@@ -456,15 +607,16 @@ def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
         if (is_dangerous & ~is_safe).any():
             cols_to_fix.append(c)
 
-    # In this CLI context, modifying in place just before write is acceptable for performance.
+    # Modifying a copy of the DF to maintain function purity
+    df_out = df.copy()
     for c in cols_to_fix:
-        s = df[c].astype(str)
+        s = df_out[c].astype(str).fillna("")
         lead = s.str.lstrip(" ")
-        # CRITICAL FIX: NA-safe mask to avoid propagating NaNs through bitwise ops
+        # CRITICAL FIX: NA-safe mask
         mask = lead.str.startswith(DANGER, na=False) & ~s.str.startswith("'", na=False)
         if mask.any():
-            df.loc[mask, c] = "'" + s[mask]
-    return df
+            df_out.loc[mask, c] = "'" + s[mask]
+    return df_out
 
 
 def _timestamped(path: str) -> str:
@@ -488,7 +640,7 @@ def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) ->
 
     # Allow disabling safe text via env (benchmarks)
     if str(os.getenv("FINLANG_SAFE_TEXT", "1")).lower() not in ("0", "false", "no"):
-        # _csv_safe_text modifies df in place
+        # _csv_safe_text returns a modified copy
         df = _csv_safe_text(df)
     elif verbose:
         print("-> Skipping CSV injection protection (FINLANG_SAFE_TEXT=0)")
@@ -514,6 +666,7 @@ def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) ->
 def safe_write_json(obj, path: str, verbose: bool) -> str:
     _ensure_parent_dir(path)
     try:
+        # Write JSON using standard utf-8
         with open(path, "w", encoding="utf-8") as f:
             json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
         return path
@@ -534,16 +687,72 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
 
 
 # --------------------------------------------------------------------------------------
+# Strict Parsing Utilities (Synchronized with discover_v0_6_4_rc1.py)
+# --------------------------------------------------------------------------------------
+
+def _assert_delimiter_consistency(path: str, encoding: str, sep: str, sample_bytes: int = 131072) -> None:
+    """Verify that the detected delimiter is dominant across a representative sample."""
+    try:
+        # Use errors="ignore" for robustness during consistency check
+        with open(path, "r", encoding=encoding, errors="ignore") as f:
+            sample = f.read(sample_bytes)
+    except Exception:
+        return
+    lines = [ln for ln in sample.splitlines() if ln.strip()][:200]
+    if not lines:
+        return
+    seps = [",", ";", "\t", "|"]
+    winners = []
+    for ln in lines:
+        counts = [(s, ln.count(s)) for s in seps]
+        # Ensure max returns a valid result even if counts are zero
+        winner = max(counts, key=lambda x: x[1])
+        if winner[1] > 0:
+            winners.append(winner[0])
+
+    if not winners:
+        return
+
+    # 90% consensus threshold
+    if winners.count(sep) < int(0.9 * len(winners)):
+        raise ValueError(f"Strict parse: mixed delimiters detected (expected '{sep}').")
+
+def _validate_headers(df: pd.DataFrame, *, strict: bool, headless: bool) -> None:
+    """Validate DataFrame headers for emptiness and duplicates."""
+    cols = list(df.columns)
+    # Check for empty or whitespace-only headers
+    if any(c is None or str(c).strip() == "" for c in cols):
+        if strict:
+            raise ValueError("Strict parse: empty/missing header detected.")
+        elif not headless:
+            print("WARN: empty/missing header detected.", flush=True)
+    
+    # Check for duplicate headers
+    # Use a manual count to handle potential non-string headers correctly
+    counts: dict[str, int] = {}
+    for c in cols:
+        s = str(c)
+        counts[s] = counts.get(s, 0) + 1
+        
+    dups = {c for c, count in counts.items() if count > 1}
+    if dups:
+        if strict:
+            raise ValueError(f"Strict parse: duplicate headers: {sorted(dups)}")
+        elif not headless:
+            print(f"WARN: duplicate headers: {sorted(dups)}", flush=True)
+
+# --------------------------------------------------------------------------------------
 # Hardened CSV reader with fast path
 # --------------------------------------------------------------------------------------
 def _read_csv_hardened(
     path: str,
     *,
-    encoding: str = "utf-8",
+    encoding: str = "utf-8-sig", # Ensure default is BOM-safe
     fastio: bool = False,
     decimal: str | None = None,
     thousands: str | None = None,
     headless: bool = False,
+    strict_parse: bool = False, # Explicitly pass strict configuration
 ) -> pd.DataFrame:
     """
     Robust CSV loader. Tries native parsing (fast path) first, then falls back
@@ -559,38 +768,60 @@ def _read_csv_hardened(
         pd_errors = type("MockErrors", (object,), {"ParserWarning": MockParserWarning, "ParserError": MockParserError})
 
     is_standard_locale = (decimal in (".", None)) and (thousands is None)
-    base_kwargs = dict(encoding=encoding, on_bad_lines="warn")
+    # Ensure on_bad_lines="skip" for robustness
+    base_kwargs = dict(encoding=encoding, on_bad_lines="skip")
 
-    # Fast path: let Arrow/C parse numbers and dates when safe
+    # EU-friendly delimiter detection (Required for strict checks)
+    sep = _detect_delimiter(path, encoding=encoding)
+    if sep:
+        base_kwargs["sep"] = sep
+        if not headless and sep != ",":
+             print(f"-> Detected delimiter '{sep}' (auto)")
+        
+        # Strict check: Delimiter consistency
+        if strict_parse:
+            _assert_delimiter_consistency(path, encoding, sep)
+
+    # --- Fast path: Native parsing (Arrow/C) when locale is standard ---
     if is_standard_locale:
         engines = []
         if fastio:
             engines.append("pyarrow")
         engines.append("c")
+        
         for engine in engines:
             try:
                 with warnings.catch_warnings(record=True) as w:
                     warnings.simplefilter("always", pd_errors.ParserWarning)
+                    # Attempt native parse (numbers/dates inferred)
                     df = pd.read_csv(path, engine=engine, **base_kwargs)
-                    bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
-                    if bad_lines and not headless:
-                        print(f"-> Skipped {len(bad_lines)} malformed row(s) (Native Parse - {engine} engine)")
-                    return df
+                
+                # Strict check: Header validation
+                _validate_headers(df, strict=strict_parse, headless=headless)
+
+                bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
+                if bad_lines and not headless:
+                    print(f"-> Skipped {len(bad_lines)} malformed row(s) (Native Parse - {engine} engine)")
+                return df
             except ImportError:
                 if engine == "pyarrow":
                     continue
-            except Exception as e:
+            except (ValueError, pd_errors.ParserError) as e:
+                # Catch strict check failures or parser errors
+                if strict_parse:
+                    raise e
                 if not headless:
                     print(f"   (Info: Native parse failed ({type(e).__name__} with {engine} engine); falling back to hardened reading)")
+                break # Fallback to hardened path
+            except Exception as e:
+                if not headless:
+                    print(f"   (Info: Unexpected error during native parse ({type(e).__name__} with {engine} engine); falling back)")
                 break
 
-    # Hardened path: force strings; we will coerce types later
+    # --- Hardened path: Force string read (locale-safe) ---
     hardened_kwargs = base_kwargs.copy()
     hardened_kwargs["dtype"] = str
-    if decimal and decimal != ".":
-        hardened_kwargs["decimal"] = decimal
-    if thousands:
-        hardened_kwargs["thousands"] = thousands
+    # Do not pass decimal/thousands args when dtype=str, as they affect native parsing behavior which we bypass here.
 
     engines_to_try = []
     if fastio:
@@ -603,6 +834,10 @@ def _read_csv_hardened(
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always", pd_errors.ParserWarning)
                 df = pd.read_csv(path, engine=engine, **hardened_kwargs)
+                
+                # Strict check: Header validation
+                _validate_headers(df, strict=strict_parse, headless=headless)
+
                 bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
                 if bad_lines and not headless:
                     print(f"-> Skipped {len(bad_lines)} malformed row(s) (Hardened Parse - {engine} engine)")
@@ -610,10 +845,18 @@ def _read_csv_hardened(
         except ImportError:
             if engine == "pyarrow":
                 continue
+        except (ValueError, pd_errors.ParserError) as e:
+            # Catch strict check failures or parser errors
+            last_error = e
+            if strict_parse:
+                raise e
+            if not headless and engine != "python":
+                print(f"   (Info: {engine} engine failed ({type(e).__name__}); trying next engine...)")
+            continue
         except Exception as e:
             last_error = e
             if not headless and engine != "python":
-                print(f"   (Info: {engine} engine failed ({type(e).__name__}); trying next engine...)")
+                 print(f"   (Info: Unexpected error with {engine} engine ({type(e).__name__}); trying next engine...)")
             continue
 
     if last_error:
@@ -625,7 +868,7 @@ def _read_csv_hardened(
 # Main
 # --------------------------------------------------------------------------------------
 def main(args_list=None):
-    ap = argparse.ArgumentParser(description="FinLang Mk6 CLI (optimized)")
+    ap = argparse.ArgumentParser(description=f"FinLang Mk6 CLI ({__version__})")
 
     ap.add_argument("--version", action="version", version=f"FinLang {__version__}",
                     help="Show program's version number and exit.")
@@ -641,19 +884,24 @@ def main(args_list=None):
     ap.add_argument("--headless", action="store_true", help="Suppress console status messages")
     ap.add_argument("--fastio", action="store_true", help="Use pyarrow engine for fast CSV IO")
     ap.add_argument("--timings", action="store_true", help="Print per-stage timing breakdown")
-    ap.epilog = (
-    "Environment Variables:\n"
-    "  FINLANG_SAFE_TEXT=0   Disable CSV injection protection (for benchmarking)\n"
-    "  FINLANG_AUDIT_MODE    Default audit mode (none|lite|full)\n"
-)
+    
 
-    # Internationalization
-    ap.add_argument("--encoding", default="utf-8", help="Input CSV file encoding (e.g., 'utf-8', 'latin-1').")
+    # Internationalization and Strictness (RC1 Requirements)
+    ap.add_argument("--strict-parse", action="store_true", help="Fail fast on mixed delimiters, bad headers, or excessive drops.")
+    ap.add_argument("--fail-threshold", type=float, default=0.01, help="Max allowed fraction of dropped rows after normalization (0 in strict).")
+    # Updated default and help text to include 'auto'
+    ap.add_argument("--encoding", default="utf-8-sig", help="Input file encoding (e.g. 'utf-8', 'latin-1', 'auto'). Default: utf-8-sig.")
     ap.add_argument("--decimal", default=".", help="Decimal separator for numeric fields (e.g., '.').")
     ap.add_argument("--thousands", default=None, help="Thousands separator for numeric fields (e.g., ',').")
     ap.add_argument("--dayfirst", action="store_true", help="Parse ambiguous dates as DD/MM/YYYY (UK/EU style).")
     ap.add_argument("--date-format", default=None, help="Explicit strftime format for date parsing.")
     ap.add_argument("--output-encoding", default="utf-8", help="Encoding for output CSV (e.g., 'utf-8', 'utf-8-sig').")
+
+    ap.epilog = (
+    "Environment Variables:\n"
+    "  FINLANG_SAFE_TEXT=0   Disable CSV injection protection (for benchmarking)\n"
+    "  FINLANG_AUDIT_MODE    Default audit mode (none|lite|full)\n"
+    )
 
     # Parse
     try:
@@ -661,6 +909,8 @@ def main(args_list=None):
             args = ap.parse_args(args_list)
         elif sys.argv[1:]:
             args = ap.parse_args()
+        # Global state variables (GLOBAL_STRICT_PARSE, etc.) are removed entirely.
+        # Configuration is passed explicitly via arguments.
         else:
             # If run without arguments
             ap.print_help()
@@ -723,20 +973,32 @@ def main(args_list=None):
 
         # 2) Read CSV
         log(f"2. Loading {os.path.basename(args.input)}...")
+        
+        # Handle auto encoding detection
+        input_encoding = args.encoding
+        if input_encoding.lower() == "auto":
+            input_encoding = _auto_pick_encoding(args.input, headless=args.headless)
+
         try:
+            # Pass configuration explicitly to _read_csv_hardened
             df = _read_csv_hardened(
                 args.input,
-                encoding=args.encoding,
+                encoding=input_encoding,
                 fastio=args.fastio,
                 decimal=args.decimal,
                 thousands=args.thousands,
                 headless=args.headless,
+                strict_parse=args.strict_parse,
             )
         except FileNotFoundError:
             print(f"FATAL: Input CSV file not found at '{args.input}'", file=sys.stderr)
             sys.exit(1)
-        except Exception as e:
+        except ValueError as e:
+            # Catch specific errors from strict checks
             print(f"FATAL: Failed to read CSV '{args.input}': {e}", file=sys.stderr)
+            sys.exit(2)
+        except Exception as e:
+            print(f"FATAL: Failed to read CSV '{args.input}': {type(e).__name__}: {e}", file=sys.stderr)
             sys.exit(1)
         t_read = time.perf_counter()
 
@@ -750,50 +1012,91 @@ def main(args_list=None):
             except Exception as e:
                 print(f"(Warning) Failed to load mapping file '{args.map_path}': {e}. Continuing.", file=sys.stderr)
         else:
+            # (RC1a Patch): Ensure default map loading uses the robust, normalizing loader logic.
             try:
                 map_text = _load_default_bank_map_text()
-                header_map = json.loads(map_text) if map_text and map_text.strip() else {}
+                if map_text and map_text.strip():
+                     # Use a temporary file to utilize the normalization logic in load_header_map
+                     # Use utf-8-sig for writing the temp file to match load_header_map expectation
+                     tmpf_path = None
+                     try:
+                         with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json", encoding="utf-8-sig") as tmpf:
+                            tmpf.write(map_text)
+                            tmpf_path = tmpf.name
+                         header_map = load_header_map(tmpf_path)
+                     finally:
+                        # Ensure cleanup of temp file
+                        if tmpf_path and os.path.exists(tmpf_path):
+                             os.remove(tmpf_path)
+                else:
+                     header_map = {}
+                     
                 if not args.headless and header_map:
                     print("-> Loaded default mapping: bank.map.json")
             except Exception as e:
                 if not args.headless:
-                    print(f"(Warning) Failed to load default mapping: {e}. Continuing.")
+                    print(f"(Warning) Failed to load or normalize default mapping: {e}. Continuing.")
                 header_map = {}
 
         if header_map:
+            # apply_header_map returns the modified dataframe and handles normalization
             df = apply_header_map(df, header_map, headless=args.headless)
 
-        # Ensure lowercased headers for downstream logic
+        # Ensure lowercased headers for downstream logic (redundant if apply_header_map called, but safe)
         df.columns = [str(c).strip().lower() for c in df.columns]
 
-        # Debit/credit synthesis or amount conversion
-        amt_map = header_map.get("amount", {}) if header_map else {}
-        debit_name = amt_map.get("debit")
-        if isinstance(debit_name, str): debit_name = debit_name.strip().lower()
-        credit_name = amt_map.get("credit")
-        if isinstance(credit_name, str): credit_name = credit_name.strip().lower()
+        # Debit/credit synthesis or amount conversion (if not handled by native parse)
+        
+        # (RC1a Patch): Since apply_header_map normalizes aliases to 'debit' and 'credit', 
+        # we check for these canonical names directly.
+        have_debit = "debit" in df.columns
+        have_credit = "credit" in df.columns
 
-        have_debit = bool(debit_name and debit_name in df.columns)
-        have_credit = bool(credit_name and credit_name in df.columns)
-
+        # Synthesis logic
         if "amount" not in df.columns and (have_debit or have_credit):
-            debit_series  = _to_number(df.get(debit_name, "0"), decimal=args.decimal, thousands=args.thousands)
-            credit_series = _to_number(df.get(credit_name, "0"), decimal=args.decimal, thousands=args.thousands)
+            # If amount is missing but debit/credit exist, synthesize it.
+            # We must use _to_number here as the data might be strings if read via hardened path.
+            # Use canonical names 'debit'/'credit' and .get() for safety if only one exists.
+            # ✅  Fixed — index-aligned zero Series fallback
+            debit_series  = _to_number(
+                df["debit"] if "debit" in df.columns else pd.Series(0, index=df.index),
+                decimal=args.decimal, thousands=args.thousands
+            )
+            credit_series = _to_number(
+                df["credit"] if "credit" in df.columns else pd.Series(0, index=df.index),
+                decimal=args.decimal, thousands=args.thousands
+            )
+            
+            # Calculate amount: Credit - Debit (using absolute values for safety)
             df["amount"] = credit_series.fillna(0).abs() - debit_series.fillna(0).abs()
             if not args.headless:
+                # Logging here confirms synthesis occurred; specific column picks logged in apply_header_map
                 print("-> Synthesized 'amount' from debit/credit columns (credit - debit, abs-safe)")
-        elif "amount" in df.columns:
+        
+        elif "amount" in df.columns and not pd.api.types.is_numeric_dtype(df["amount"]):
+            # If amount exists but is not numeric (hardened path), convert it.
             df["amount"] = _to_number(df["amount"], decimal=args.decimal, thousands=args.thousands)
+        # If amount exists and is numeric (native path), it's already handled.
 
         # 4) Canonical normalization
-        df = _normalize_canonical(df, headless=args.headless, dayfirst=args.dayfirst, date_format=args.date_format)
+        # Pass configuration explicitly to _normalize_canonical
+        df = _normalize_canonical(
+            df,
+            headless=args.headless,
+            dayfirst=args.dayfirst,
+            date_format=args.date_format,
+            strict_parse=args.strict_parse,
+            fail_threshold=args.fail_threshold
+        )
         
         # Check if normalization failed fatally or dropped all rows.
         if df.empty:
+            # If the returned DF does not have the required columns, it indicates a fatal error (missing columns or drop rate exceeded).
+            # The specific error message was already printed in _normalize_canonical.
             if not REQUIRED_CANON.issubset(df.columns):
-                 # Fatal error (missing required columns, error already printed in _normalize_canonical)
                  sys.exit(2)
-            # Columns exist, but 0 rows (all data invalid)
+            
+            # Columns exist, but 0 rows (e.g. input file was empty or all data invalid but format OK)
             log("-> DataFrame is empty after normalization. Proceeding with 0 transactions.")
             # Proceed to engine/write steps with 0 rows.
 
@@ -802,11 +1105,14 @@ def main(args_list=None):
         # 5) Engine
         if not df.empty:
             log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
+            # Prepare DF for engine (select relevant columns)
             engine_cols = [c for c in ["counterparty", "amount", "date", "memo", "category", "flags"] if c in df.columns]
             engine_df = df[engine_cols].copy()
+            
+            # Execute engine
             proc_engine_df, audit_log = run_audit(engine_df, rules, audit_mode=args.audit_mode)
 
-            # Assign back to original df (no full copy)
+            # Assign results back to original df (efficient update)
             for col in ("category", "flags"):
                 if col in proc_engine_df.columns:
                     df[col] = proc_engine_df[col]
@@ -857,6 +1163,8 @@ def main(args_list=None):
     except Exception as e:
         # Catch unexpected errors during execution
         print(f"An unexpected error occurred during processing: {type(e).__name__}: {e}", file=sys.stderr)
+        # Optionally print traceback for debugging
+        # import traceback; traceback.print_exc(file=sys.stderr)
         sys.exit(1)
     finally:
         try:
@@ -868,4 +1176,8 @@ def main(args_list=None):
 
 
 if __name__ == "__main__":
+    # Ensure compatibility with PYTHONWARNINGS=error policy
+    if not sys.warnoptions:
+        import warnings
+        warnings.simplefilter("default")
     main()
