@@ -39,9 +39,14 @@ import pandas as pd
 # from dataclasses import dataclass
 from importlib import resources
 
+# Type checking imports
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from finlang.engine.finlang_engine_v0_6_4 import run_audit
+    __version__: str = ""
 
 # --------------------------------------------------------------------------------------
-# Data Input/Hygiene Utilities (Synchronized with discover_v0_6_4_rc1.py)
+# Data Input/Hygiene Utilities (Synchronized with discover.py)
 # --------------------------------------------------------------------------------------
 
 def _auto_pick_encoding(path: str, headless: bool = False) -> str:
@@ -101,33 +106,29 @@ def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int 
         return ";"
     return None
 
-
 # --------------------------------------------------------------------------------------
 # Version / Engine import (hardened)
 # --------------------------------------------------------------------------------------
+# Prefer packaged engine; then local (editable) package; then legacy flat file
 try:
-    from finlang import __version__ as _pkg_version
+    # installed package path
+    from finlang.engine.finlang_engine_v0_6_4 import run_audit
 except ImportError:
-    _pkg_version = "0.6.4-rc1"  # fallback for local/dev trees
-
-CLI_BUILD_TAG = os.getenv("FINLANG_CLI_BUILD_TAG", "optimized-hardened")
-__version__ = f"{_pkg_version}+cli-{CLI_BUILD_TAG}"
-
-# Prefer packaged engine; then local rc1 module; else fail fast (no silent mock)
-try:
-    from finlang.engine.finlang_engine_v0_6_4 import run_audit  # packaged install
-except Exception:
     try:
-        # Local development filename variant
-        from finlang_engine_v0_6_4_rc1 import run_audit
-    except Exception:
-        print(
-            "FATAL: FinLang engine not found. Ensure either the packaged engine "
-            "(finlang.engine.finlang_engine_v0_6_4) or local finlang_engine_v0_6_4_rc1.py "
-            "is importable.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
+        # editable dev path when running as "python -m finlang.cli.run_finlang"
+        from ..engine.finlang_engine_v0_6_4 import run_audit
+    except ImportError:
+        try:
+            # very old local file fallback (same dir as script/project root)
+            from finlang_engine_v0_6_4 import run_audit
+        except Exception:
+            print(
+                "FATAL: FinLang engine not found. Ensure either the packaged engine "
+                "(finlang.engine.finlang_engine_v0_6_4) or local finlang_engine_v0_6_4.py "
+                "is importable.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
 
 # --------------------------------------------------------------------------------------
 # Starter packs and Resource Helpers
