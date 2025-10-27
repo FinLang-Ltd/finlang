@@ -430,8 +430,8 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     # Strip CR/DR tokens (case-insensitive)
     # Ensure non-capturing groups (?:...)
     # Strip CR/DR tokens (true case-insensitive; non-capturing groups)
-    s = s.str.replace(r'\s*(?:CR|CRED|CREDIT)\.?\s*$', '', regex=True, flags=re.IGNORECASE)
-    s = s.str.replace(r'\s*(?:DR|DEB|DEBIT)\.?\s*$', '', regex=True, flags=re.IGNORECASE)
+    s = s.str.replace(r'(?i)\s*(?:CR|CRED|CREDIT)\.?\s*$', '', regex=True)
+    s = s.str.replace(r'(?i)\s*(?:DR|DEB|DEBIT)\.?\s*$', '', regex=True)
 
     # --- Fast path: default locale and already clean numeric strings ---
     if (decimal == "." or decimal is None) and not thousands:
@@ -586,7 +586,15 @@ def main(args_list=None):
             df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=args.dayfirst, cache=True)
 
         # Ensure deterministic, timezone-naive dates (RC1 Regression Fix)
-        if pd.api.types.is_datetime64tz_dtype(df["date"].dtype):
+        dtype = df["date"].dtype
+        try:
+            from pandas import DatetimeTZDtype  # pandas >=1.0
+            is_tzaware = isinstance(dtype, DatetimeTZDtype) or (getattr(dtype, "tz", None) is not None)
+        except Exception:
+            # very old pandas fallback
+            is_tzaware = getattr(dtype, "tz", None) is not None
+
+        if is_tzaware:
             df["date"] = df["date"].dt.tz_localize(None)
 
         # Drop rows where normalization failed and apply drop-rate guard (RC1 Requirement)
