@@ -111,21 +111,22 @@ except ImportError:
 CLI_BUILD_TAG = os.getenv("FINLANG_CLI_BUILD_TAG", "optimized-hardened")
 __version__ = f"{_pkg_version}+cli-{CLI_BUILD_TAG}"
 
-# Prefer packaged engine; then local rc1 module; else fail fast (no silent mock)
+# Prefer packaged engine; then editable (relative) module; else fail fast (no silent mock)
 try:
     from finlang.engine.finlang_engine_v0_6_4 import run_audit  # packaged install
-except Exception:
+except ImportError:
     try:
-        # Local development filename variant
-        from finlang_engine_v0_6_4 import run_audit
-    except Exception:
+        # Editable dev path when running as "python -m finlang.cli.run_finlang"
+        from ..engine.finlang_engine_v0_6_4 import run_audit
+    except (ImportError, ValueError):
         print(
             "FATAL: FinLang engine not found. Ensure either the packaged engine "
-            "(finlang.engine.finlang_engine_v0_6_4) or local finlang_engine_v0_6_4_rc1.py "
-            "is importable.",
+            "(finlang.engine.finlang_engine_v0_6_4) or a local engine file "
+            "(src/finlang/engine/finlang_engine_v0_6_4.py) is importable.",
             file=sys.stderr,
         )
         sys.exit(2)
+
 # --------------------------------------------------------------------------------------
 # Starter packs and Resource Helpers
 # --------------------------------------------------------------------------------------
