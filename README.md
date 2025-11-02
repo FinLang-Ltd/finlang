@@ -1,4 +1,4 @@
-# 🧮 FinLang — The Financial Rules Engine
+# FinLang — The Financial Rules Engine
 
 **Deterministic. Auditable. Global.**  
 Built for **EU AI Act compliance**. Ready for **August 2026**.
