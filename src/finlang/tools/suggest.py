@@ -1,5 +1,5 @@
-# suggest_v0_6_4_rc1.py
-# FinLang — Financial Rules DSL (v0.6.4-rc1)
+# suggest_v0_6_4_rc1a_patched.py
+# FinLang — Financial Rules DSL (v0.6.4-rc1a)
 # Copyright (C) 2025 FinLang Ltd
 #
 # This file is part of FinLang.
@@ -23,7 +23,8 @@
 
 # suggest.py — Generate draft .fin rules from discovery candidates
 #
-# v0.6.4-rc1: Deterministic, comment-rich, and regression-fixed de-duplication.
+# v0.6.4-rc1a: Deterministic, comment-rich, regression-fixed de-duplication.
+#              (RC1a Patch): Added exact-mode fallback for short names (CO-OP, BP).
 #
 # Usage:
 #   python -m finlang.tools.suggest --input candidates.csv --output draft_rules.fin \
@@ -35,6 +36,7 @@ import csv
 import os
 import re
 import sys
+import unicodedata # (RC1a Patch): Added for normalization fallback
 from typing import Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------
@@ -111,6 +113,8 @@ def _read_candidates(path: str) -> List[Dict[str, str]]:
 _ALNUM_AMP = re.compile(r"[^A-Z0-9&]+")
 # (RC1a Polish): Check for at least one alphanumeric character
 _HAS_ALNUM = re.compile(r"[A-Z0-9]")
+# (RC1a Patch): Fallback title sanitizer (consistent with _ALNUM_AMP)
+_TITLE_SAFE_RE = re.compile(r"[^A-Z0-9&]+")
 
 def _tokenize_for_pattern(name: str) -> Optional[str]:
     """
@@ -217,8 +221,26 @@ def generate_rules(
 
         # Determine the best token for the rule name and pattern
         token = _tokenize_for_pattern(example) or _tokenize_for_pattern(fp)
+        
         if not token:
-            continue
+            # --- BEGIN RC1a PATCH SECTION ---
+            if emit_match == "exact":
+                # Fallback (RC1a Patch): create a safe title token if all tokens are <3 chars (e.g. CO-OP, BP, M&S).
+                base = (fp or example or "").upper().strip()
+                if not base:
+                    continue
+                
+                # 1. Normalize accents (e.g., CAFÉ -> CAFE) for robustness (matches discover.py fingerprinting)
+                base = unicodedata.normalize('NFKD', base).encode('ascii', 'ignore').decode('ascii')
+                
+                # 2. Normalize to TITLE_SAFE: A-Z/0-9/&/underscore; cap length.
+                # Use strip('_') to prevent leading/trailing underscores.
+                # We must keep the "CANDIDATE" fallback because normalization can result in an empty string.
+                token = _TITLE_SAFE_RE.sub('_', base)[:32].strip('_') or "CANDIDATE"
+            else:
+                # For fuzzy emit, still require >=3-char token to avoid over-broad patterns (until v0.6.5)
+                continue
+            # --- END RC1a PATCH SECTION ---
 
         meta  = _build_meta(count, last, samp)
         # Escape title and category for safe output
