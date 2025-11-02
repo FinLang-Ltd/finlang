@@ -6,7 +6,7 @@ Built for **EU AI Act compliance**. Ready for **August 2026**.
 [![PyPI version](https://badge.fury.io/py/finlang.svg)](https://badge.fury.io/py/finlang)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/FinLang-Ltd/finlang)
-[![Python versions](https://img.shields.io/pypi/pyversions/finlang.svg)](https://pypi.org/project/finlang/)https://pypi.org/project/finlang/)
+[![Python versions](https://img.shields.io/pypi/pyversions/finlang.svg)](https://pypi.org/project/finlang/)
 
 ---
 
