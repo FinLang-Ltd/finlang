@@ -1,5 +1,5 @@
-# suggest_v0_6_4_rc1a_patched.py
-# FinLang — Financial Rules DSL (v0.6.4-rc1a)
+# suggest_v0_6_4_rc1a_final_v3.py
+# FinLang — Financial Rules DSL (v0.6.4-rc1a Final v3)
 # Copyright (C) 2025 FinLang Ltd
 #
 # This file is part of FinLang.
@@ -23,21 +23,18 @@
 
 # suggest.py — Generate draft .fin rules from discovery candidates
 #
-# v0.6.4-rc1a: Deterministic, comment-rich, regression-fixed de-duplication.
-#              (RC1a Patch): Added exact-mode fallback for short names (CO-OP, BP).
-#
-# Usage:
-#   python -m finlang.tools.suggest --input candidates.csv --output draft_rules.fin \
-#     [--rules existing_rules.fin] [--category "Review"] [--prefix "SUGGEST"] \
-#     [--emit-match fuzzy|exact] [--overwrite|--append]
+# v0.6.4-rc1a Final v3:
+#   - (RC1a Semantic Fix): Corrected exact mode to match example_name (not fingerprint).
+#   - (Optimization): Optimized exact de-duplication using a pre-computed set (O(1) lookup).
+#   - (Robustness): Added re.DOTALL to pattern extraction regexes.
 
 import argparse
 import csv
 import os
 import re
 import sys
-import unicodedata # (RC1a Patch): Added for normalization fallback
-from typing import Dict, List, Optional, Tuple
+# Import Set for type hinting the optimized de-duplication structure.
+from typing import Dict, List, Optional, Tuple, Set
 
 # ---------------------------------------------------------------------
 # Header mapping / CSV read (BOM-safe, case-insensitive)
@@ -46,13 +43,6 @@ from typing import Dict, List, Optional, Tuple
 def _read_candidates(path: str) -> List[Dict[str, str]]:
     """
     Read a candidates CSV coming from discover.py.
-
-    Logical fields we try to map (case-insensitive):
-      - fingerprint: counterparty_fingerprint | fingerprint | vendor_key
-      - example_name: example_counterparty_name | example | sample_name | counterparty | name
-      - count: count | freq | frequency
-      - last_seen: last_seen_date | last_seen | last_date | sample_date | date
-      - sample_amount: sample_amount | example_amount | sample_amt | amount
     """
     try:
         # Ensure BOM-safe reading
@@ -85,11 +75,10 @@ def _read_candidates(path: str) -> List[Dict[str, str]]:
         "sample_amount": pick("sample_amount", "example_amount", "sample_amt", "amount"),
     }
 
-    # Minimal required inputs to propose a rule
-    missing = [k for k in ("example_name", "fingerprint", "count") if key_cols.get(k) is None]
-    if missing:
-        raise SystemExit(
-            f"FATAL: Missing required columns in {path}: {missing}. "
+    # Minimal required inputs: Fingerprint (for grouping context) and Example Name (for matching/titles).
+    if key_cols.get("fingerprint") is None or key_cols.get("example_name") is None:
+         raise SystemExit(
+            f"FATAL: Missing required 'fingerprint' or 'example_name' columns (or aliases) in {path}. "
             f"Present: {sorted(cols.keys())}"
         )
 
@@ -99,29 +88,31 @@ def _read_candidates(path: str) -> List[Dict[str, str]]:
         out.append({
             "fingerprint":   (r.get(key_cols["fingerprint"]) or "").strip(),
             "example_name":  (r.get(key_cols["example_name"]) or "").strip(),
-            "count":         (r.get(key_cols["count"]) or "").strip(),
-            "last_seen":     (r.get(key_cols["last_seen"]) or "").strip() if key_cols["last_seen"] else "",
-            "sample_amount": (r.get(key_cols["sample_amount"]) or "").strip() if key_cols["sample_amount"] else "",
+            # Handle potential absence of optional columns gracefully
+            "count":         (r.get(key_cols["count"]) or "").strip() if key_cols.get("count") else "",
+            "last_seen":     (r.get(key_cols["last_seen"]) or "").strip() if key_cols.get("last_seen") else "",
+            "sample_amount": (r.get(key_cols["sample_amount"]) or "").strip() if key_cols.get("sample_amount") else "",
         })
     return out
 
 # ---------------------------------------------------------------------
-# Pattern helpers (stable tokenization; avoid over-broad patterns)
+# Pattern helpers (Used for fuzzy patterns and exact titles)
 # ---------------------------------------------------------------------
 
-# Keep A-Z, 0-9 and '&'
+# Keep A-Z, 0-9 and '&' (For Fuzzy Tokenization)
 _ALNUM_AMP = re.compile(r"[^A-Z0-9&]+")
 # (RC1a Polish): Check for at least one alphanumeric character
 _HAS_ALNUM = re.compile(r"[A-Z0-9]")
-# (RC1a Patch): Fallback title sanitizer (consistent with _ALNUM_AMP)
-_TITLE_SAFE_RE = re.compile(r"[^A-Z0-9&]+")
+
+# Title sanitizer for exact mode titles (Allows more characters for readability)
+# Allow A-Z, 0-9, &, _, space, hyphen, apostrophe.
+_TITLE_SAFE_RE = re.compile(r"[^A-Z0-9&_ '-]+")
+
 
 def _tokenize_for_pattern(name: str) -> Optional[str]:
     """
-    Pick a clean token from the example name to use in a wildcard pattern.
-      - Uppercase, keep A-Z, 0-9 and '&'
-      - Split on non-alnum
-      - Prefer the longest token with >= 3 chars, not purely digits, and containing at least one alphanumeric char.
+    (Fuzzy Mode Only) Pick a clean token from the name for a wildcard pattern.
+    Prefers the longest token with >= 3 chars. (Naive implementation for RC1).
     """
     if not name:
         return None
@@ -137,6 +128,17 @@ def _tokenize_for_pattern(name: str) -> Optional[str]:
     tokens.sort(key=lambda x: (-len(x), x))
     return tokens[0]
 
+def _sanitize_title(name: str) -> str:
+    """(Exact Mode Only) Create a safe, readable title slug."""
+    if not name:
+        return "CANDIDATE"
+    # Simple normalization: uppercase, replace unsafe chars with space.
+    title = _TITLE_SAFE_RE.sub(' ', name.upper())
+    # Collapse multiple spaces into one, strip, and cap length.
+    title = re.sub(r'\s+', ' ', title).strip()[:64]
+    return title or "CANDIDATE"
+
+
 def _escape_quotes(s: str, quote_char: str = '"') -> str:
     """Escape the specific quote character used for enclosing the string."""
     return s.replace(quote_char, f'\\{quote_char}')
@@ -146,27 +148,25 @@ def _escape_quotes(s: str, quote_char: str = '"') -> str:
 # ---------------------------------------------------------------------
 
 # Regression Fix (RC1): Ensure regexes support both single (') and double (") quotes.
-_FUZZY_RE = re.compile(r'counterparty\s*~\s*[\'"](.*?)[\'"]', re.IGNORECASE)
-_EXACT_RE = re.compile(r'counterparty\s*==\s*[\'"](.*?)[\'"]', re.IGNORECASE)
-# Accept legacy/broken patterns to avoid duplicates if present in user rules
-_FINGERPRINT_RE = re.compile(r'fingerprint\s*==\s*[\'"](.*?)[\'"]', re.IGNORECASE)
+# (Robustness v3): Added re.DOTALL for resilience against multiline formatting.
+_FUZZY_RE = re.compile(r'counterparty\s*~\s*[\'"](.*?)[\'"]', re.IGNORECASE | re.DOTALL)
+_EXACT_RE = re.compile(r'counterparty\s*==\s*[\'"](.*?)[\'"]', re.IGNORECASE | re.DOTALL)
 
-def _load_existing_patterns(rules_path: Optional[str]) -> Tuple[List[str], List[str], List[str]]:
+def _load_existing_patterns(rules_path: Optional[str]) -> Tuple[List[str], List[str]]:
     if not rules_path or not os.path.exists(rules_path):
-        return [], [], []
+        return [], []
     try:
         # Ensure BOM-safe reading
         with open(rules_path, "r", encoding="utf-8-sig") as f:
             text = f.read()
     except Exception as e:
         print(f"Warning: Could not read existing rules file {rules_path}: {e}", file=sys.stderr)
-        return [], [], []
+        return [], []
         
     # Extract patterns using the updated regexes
     return (
         _FUZZY_RE.findall(text),
         _EXACT_RE.findall(text),
-        _FINGERPRINT_RE.findall(text),
     )
 
 def _already_covered_fuzzy(pattern: str, existing_fuzzy: List[str]) -> bool:
@@ -183,12 +183,23 @@ def _already_covered_fuzzy(pattern: str, existing_fuzzy: List[str]) -> bool:
             return True
     return False
 
-def _already_covered_exact(name: str, existing_exact: List[str], existing_fuzzy: List[str]) -> bool:
+# (Optimization v3): Updated signature to accept pre-computed exact_set.
+def _already_covered_exact(name: str, existing_exact_set: Set[str], existing_fuzzy: List[str]) -> bool:
     """Check if the proposed exact name is already covered by exact or fuzzy rules."""
-    if name in existing_exact:
+    # (RC1a Semantic Fix & Optimization): Case-insensitive check using the pre-computed set.
+    name_lower = name.lower()
+    if name_lower in existing_exact_set:
         return True
-    # Also consider fuzzy patterns that already cover this exact name
-    return _already_covered_fuzzy(f"*{name}*", existing_fuzzy)
+    
+    # Also consider if existing fuzzy patterns already cover this exact name.
+    # This is a heuristic check for de-duplication purposes.
+    for fuzzy_pattern in existing_fuzzy:
+        # Basic wildcard simulation: if the core of the fuzzy pattern is in the name.
+        core = fuzzy_pattern.strip("*").lower()
+        if core and core in name_lower:
+            # Heuristic match: assume existing fuzzy rule covers this specific example.
+            return True
+    return False
 
 # ---------------------------------------------------------------------
 # Rule generation
@@ -209,59 +220,53 @@ def generate_rules(
     emit_match: str = "fuzzy",  # "fuzzy" | "exact"
     quote_char: str = '"', # Default to double quotes for output
 ) -> List[str]:
-    exist_fuzzy, exist_exact, exist_fingerprint = _load_existing_patterns(existing_rules_file)
+    exist_fuzzy, exist_exact = _load_existing_patterns(existing_rules_file)
+    
+    # (Optimization v3): Create a case-insensitive set for fast O(1) exact match lookups.
+    exist_exact_set = {e.lower() for e in exist_exact}
+    
     blocks: List[str] = []
 
     for c in cands:
-        example = c.get("example_name", "") or c.get("fingerprint", "")
-        fp      = c.get("fingerprint", "")
+        # (RC1a Robustness): Enforce non-empty fingerprint and example name.
+        fp = c.get("fingerprint", "")
+        example = c.get("example_name", "")
+        
+        if not fp or not example:
+            # Skip candidates missing essential data.
+            continue
+
         count   = c.get("count", "")
         last    = c.get("last_seen", "")
         samp    = c.get("sample_amount", "")
 
-        # Determine the best token for the rule name and pattern
-        token = _tokenize_for_pattern(example) or _tokenize_for_pattern(fp)
-        
-        if not token:
-            # --- BEGIN RC1a PATCH SECTION ---
-            if emit_match == "exact":
-                # Fallback (RC1a Patch): create a safe title token if all tokens are <3 chars (e.g. CO-OP, BP, M&S).
-                base = (fp or example or "").upper().strip()
-                if not base:
-                    continue
-                
-                # 1. Normalize accents (e.g., CAFÉ -> CAFE) for robustness (matches discover.py fingerprinting)
-                base = unicodedata.normalize('NFKD', base).encode('ascii', 'ignore').decode('ascii')
-                
-                # 2. Normalize to TITLE_SAFE: A-Z/0-9/&/underscore; cap length.
-                # Use strip('_') to prevent leading/trailing underscores.
-                # We must keep the "CANDIDATE" fallback because normalization can result in an empty string.
-                token = _TITLE_SAFE_RE.sub('_', base)[:32].strip('_') or "CANDIDATE"
-            else:
-                # For fuzzy emit, still require >=3-char token to avoid over-broad patterns (until v0.6.5)
-                continue
-            # --- END RC1a PATCH SECTION ---
-
         meta  = _build_meta(count, last, samp)
-        # Escape title and category for safe output
-        title_escaped = _escape_quotes(f'{prefix}: {token}', quote_char)
         category_escaped = _escape_quotes(default_category, quote_char)
         
         # Prepare example comment (no escaping needed for comments)
-        example_comment = example or fp or token
+        example_comment = example
 
         if emit_match == "exact":
-            # Use fingerprint if available, otherwise uppercase example name
-            exact_name = (fp or example).upper()
-            if _already_covered_exact(exact_name, exist_exact, exist_fuzzy) or exact_name in exist_fingerprint:
+            # (RC1a Semantic Fix): Use the example_name for matching and the title.
+
+            # Check coverage against the actual example name
+            if _already_covered_exact(example, exist_exact_set, exist_fuzzy):
                 continue
             
-            exact_name_escaped = _escape_quotes(exact_name, quote_char)
+            # Generate a safe title slug from the example name
+            title_slug = _sanitize_title(example)
+            title_escaped = _escape_quotes(f'{prefix}: {title_slug}', quote_char)
+            
+            # Use the raw example name for the exact match condition
+            exact_name_escaped = _escape_quotes(example, quote_char)
+
             block = [
                 meta,
                 f'# Example: {example_comment}',
+                f'# Fingerprint: {fp}', # Add fingerprint for context
                 f'rule {quote_char}{title_escaped}{quote_char} ' + "{",
                 "  match:",
+                # Match the raw example name, as the engine matches against the raw counterparty field.
                 f'    - counterparty == {quote_char}{exact_name_escaped}{quote_char}',
                 "  set:",
                 f'    - category = {quote_char}{category_escaped}{quote_char}',
@@ -269,14 +274,27 @@ def generate_rules(
                 ""
             ]
         else:  # fuzzy (default)
+            # Fuzzy mode retains existing tokenization logic.
+            
+            # Try tokenizing the example name first, then the fingerprint if the example fails.
+            token = _tokenize_for_pattern(example) or _tokenize_for_pattern(fp)
+
+            if not token:
+                # Skip if no suitable token (>=3 chars) is found (Safety Guard for RC1).
+                continue
+
             pattern = f'*{token}*'
             if _already_covered_fuzzy(pattern, exist_fuzzy):
                 continue
             
+            # Use the token for the title (naive heuristic for RC1)
+            title_escaped = _escape_quotes(f'{prefix}: {token}', quote_char)
             pattern_escaped = _escape_quotes(pattern, quote_char)
+
             block = [
                 meta,
                 f"# Example: {example_comment}",
+                f'# Fingerprint: {fp}', # Add fingerprint for context
                 f'rule {quote_char}{title_escaped}{quote_char} ' + "{",
                 "  match:",
                 f'    - counterparty ~ {quote_char}{pattern_escaped}{quote_char}',
@@ -330,6 +348,11 @@ def main() -> int:
     if not cands:
         print("No candidates found in input file. Nothing to write.")
         return 0
+    
+    # (RC1a Robustness): Calculate metrics before generation for accurate reporting
+    total_cands = len(cands)
+    valid_cands_count = len([c for c in cands if c.get("fingerprint", "") and c.get("example_name", "")])
+    skipped_count = total_cands - valid_cands_count
 
     blocks = generate_rules(
         cands=cands,
@@ -340,11 +363,17 @@ def main() -> int:
         quote_char=args.quote_style,
     )
 
+    if skipped_count > 0:
+        print(f"Note: Skipped {skipped_count} row(s) missing fingerprints or example names.")
+
     if not blocks:
-        print("All candidates appear to be covered by existing rules or were skipped. Nothing new to write.")
+        if valid_cands_count == 0:
+             print("No valid candidates found after filtering. Nothing to write.")
+        else:
+            print("All valid candidates appear to be covered by existing rules or were skipped. Nothing new to write.")
         return 0
 
-    # Determine write mode: overwrite if specified, otherwise append if file exists or append specified, else write new.
+    # Determine write mode
     if args.overwrite:
         write_mode = "w"
     elif args.append or os.path.exists(args.output):
@@ -356,14 +385,13 @@ def main() -> int:
         # Write output using standard utf-8
         with open(args.output, write_mode, encoding="utf-8", newline="") as f:
             # Add a newline separator if appending to a non-empty file
-            # Check file size only if we know the file exists, otherwise f.tell() might fail or be misleading
             if write_mode == "a":
                 try:
                     # Attempt to check if the file is non-empty before appending separator
                     if os.path.getsize(args.output) > 0:
                          f.write("\n\n# --- Appended by suggest.py ---\n\n")
                 except OSError:
-                    pass # File might not exist yet depending on 'a' mode behavior specifics
+                    pass # Handle potential race conditions gracefully
                 
             f.write("\n".join(blocks))
     except Exception as e:
@@ -374,4 +402,8 @@ def main() -> int:
     return 0
 
 if __name__ == "__main__":
+    # Ensure compatibility with PYTHONWARNINGS=error policy
+    if not sys.warnoptions:
+        import warnings
+        warnings.simplefilter("default")
     sys.exit(main())
