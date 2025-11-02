@@ -212,3 +212,4 @@ bench_out*/
 # Ignore chaos maps and test outputs
 chaos.map.json
 test_suite/
+angus-tests
