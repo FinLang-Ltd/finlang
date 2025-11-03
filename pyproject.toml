@@ -7,13 +7,16 @@ name = "finlang"
 version = "0.6.4.post1"
 description = "FinLang: a deterministic, auditable DSL for financial rules"
 readme = { file = "README.md", content-type = "text/markdown" }
-changelog = "CHANGELOG.md"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = ["pandas>=2.0"]
 authors = [{ name = "FinLang Ltd" }]
-urls = { Homepage = "https://finlang.io", Repository = "https://github.com/FinLang-Ltd/finlang" }
+urls = {
+  Homepage = "https://finlang.io",
+  Repository = "https://github.com/FinLang-Ltd/finlang",
+  Changelog = "https://github.com/FinLang-Ltd/finlang/blob/main/CHANGELOG.md" # <-- ADDED HERE
+}
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
