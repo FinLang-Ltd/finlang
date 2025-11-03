@@ -15,7 +15,7 @@ authors = [{ name = "FinLang Ltd" }]
 urls = {
   Homepage = "https://finlang.io",
   Repository = "https://github.com/FinLang-Ltd/finlang",
-  Changelog = "https://github.com/FinLang-Ltd/finlang/blob/main/CHANGELOG.md" # <-- ADDED HERE
+  Changelog = "https://github.com/FinLang-Ltd/finlang/blob/main/CHANGELOG.md"
 }
 classifiers = [
   "Programming Language :: Python :: 3",
