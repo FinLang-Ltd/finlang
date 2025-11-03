@@ -290,9 +290,20 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
             if not mask.any():
                 continue
 
-            # 2. Apply actions (Vectorized)
+            # 2. Capture BEFORE state for audit (NEW)
             matched_indices = df.index[mask]
             
+            # Determine which fields might change
+            mutable_fields = {"category", "flags", "memo", "status", "exclude"}
+            fields_to_watch = [f for f in mutable_fields if f in df.columns]
+            
+            # Snapshot before state
+            if audit_mode != "none" and fields_to_watch:
+                pre_state = df.loc[mask, fields_to_watch].copy()
+            else:
+                pre_state = None
+
+            # 3. Apply actions (Vectorized)
             # Parse actions first
             actions_parsed = []
             parsed_actions_list = []
@@ -326,7 +337,7 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
                         # Standard append for category/memo/status
                         df.loc[mask, field] = merged
 
-            # 3. Log audit
+            # 4. Log audit with DIFF TRACKING (NEW)
             if audit_mode != "none" and not audit_capped:
                 num_matched = len(matched_indices)
                 
@@ -337,19 +348,69 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
                 else:
                     indices_to_log = matched_indices
                 
+                # Capture AFTER state
+                post_state = df.loc[mask, fields_to_watch] if fields_to_watch else None
+                
                 for idx in indices_to_log:
                     # Ensure index is native int for JSON serialization
                     entry = {
                         "index": int(idx),
                         "rule": rule_name,
                     }
-                    if audit_mode == "full":
-                        entry["match"] = conditions_parsed
-                        entry["set"] = actions_parsed
+                    
+                    # Compute diffs (NEW)
+                    if pre_state is not None and post_state is not None:
+                        diffs = {}
+                        for col in fields_to_watch:
+                            old_val = pre_state.at[idx, col]
+                            new_val = post_state.at[idx, col]
+                            
+                            # Convert empty strings to None for cleaner JSON
+                            old_clean = None if old_val == "" else old_val
+                            new_clean = None if new_val == "" else new_val
+                            
+                            # Only log if actually changed
+                            if old_val != new_val:
+                                diffs[col] = {
+                                    "old": old_clean,
+                                    "new": new_clean
+                                }
                         
-                    audit_log.append(entry)
+                        # LITE mode: only log if something changed
+                        if audit_mode == "lite":
+                            if diffs:  # Only add entry if there were changes
+                                entry["changes"] = diffs
+                                audit_log.append(entry)
+                                # Don't increment audit_count here, do it after the if/else
+                            # If no diffs in lite mode, skip this entry entirely
+                            else:
+                                continue  # Skip to next index
+                        else:  # FULL mode
+                            entry["match"] = conditions_parsed
+                            entry["set"] = actions_parsed
+                            entry["changes"] = diffs  # Include even if empty
+                            audit_log.append(entry)
+                    else:
+                        # Fallback if no fields to watch (shouldn't happen normally)
+                        if audit_mode == "full":
+                            entry["match"] = conditions_parsed
+                            entry["set"] = actions_parsed
+                        audit_log.append(entry)
+                    
+                    # Increment count only if we actually added an entry
+                    if audit_mode == "lite":
+                        # Count was already handled in the if diffs block above
+                        pass
+                    else:
+                        pass  # Will be counted below
                 
-                audit_count += len(indices_to_log)
+                # Update audit count based on what was actually logged
+                if audit_mode == "lite":
+                    # Count only entries with changes
+                    audit_count = len(audit_log)
+                else:
+                    # Count all matched indices
+                    audit_count += len(indices_to_log)
 
 
         except RuntimeError as e:
