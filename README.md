@@ -1,7 +1,7 @@
 # FinLang — The Financial Rules Engine
 
 **Deterministic. Auditable. Global.**  
-Built for **EU AI Act compliance**. Ready for **August 2026**.
+Compliant with the **EU AI Act (effective August 2026)**.
 
 [![PyPI version](https://badge.fury.io/py/finlang.svg)](https://badge.fury.io/py/finlang)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
@@ -12,7 +12,7 @@ Built for **EU AI Act compliance**. Ready for **August 2026**.
 
 ## 🌍 Overview
 
-**FinLang** is a domain-specific language and CLI engine for financial transaction processing.  
+**FinLang** is a domain-specific language (DSL) and high-performance CLI engine for financial transaction processing.  
 It replaces opaque machine-learning categorization with **transparent, deterministic rules** — delivering explainability, auditability, and global compatibility.
 
 > **Built for compliance.**  
@@ -20,60 +20,113 @@ It replaces opaque machine-learning categorization with **transparent, determini
 
 ---
 
-## ⚙️ Key Features (v0.6.4 RC1 Final)
+## 📝 The FinLang DSL
+
+FinLang rules are human-readable, Git-friendly, and designed for precision.  
+The engine processes rules top-to-bottom; the last matching rule sets the category, while flags accumulate.
+
+```fin
+# Example: Basic categorization and flagging
+rule "GROCERIES: Tesco" {
+  match:
+    - counterparty ~ "*TESCO*"
+  set:
+    - category = "Groceries"
+    - flags += "Supermarket"
+}
+
+# Example: Numeric range and exact match
+rule "TRAVEL: High Value Flight" {
+  match:
+    - counterparty == "BRITISH AIRWAYS"
+    - amount in -5000.00 .. -500.00
+  set:
+    - category = "Travel"
+    - flags += "HighValue"
+}
+```
+
+---
+
+## ⚙️ Key Features (v0.6.4)
 
 | Feature | Description |
 |:--|:--|
 | **Deterministic DSL** | Human-readable `.fin` rules language — explainable logic, Git-friendly. |
-| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — 24 K rows/sec + validated throughput. |
-| **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8 % success rate on addressable patterns. |
+| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — 24K+ rows/sec validated throughput. |
+| **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% success on addressable patterns. |
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
-| **Audit Trail System** | Every decision logged; deterministic, stateless processing for reproducibility. |
-| **CR/DR Semantics** | Case-insensitive (`CR`, `cr`, `Cr`, `DR`, `dr`), accounting negatives `(123.45)`, trailing minus `123.45-`. |
-| **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)`. Comprehensively tested for debit-only, credit-only, both columns, zero/empty values, and CR/DR suffixes. |
-| **Strict Parsing** | Locale-aware normalization with fail thresholds (`--strict-parse`, `--fail-threshold 0.01`). |
-| **Flag Integrity** | `flags += [...]` enforced; duplicates deduplicated deterministically (RC1a polish). |
+| **Audit Trail System** | Every decision logged (before/after state diffs); stateless for reproducibility. |
+| **CR/DR Semantics** | Case-insensitive CR/DR, accounting negatives `(123.45)`, trailing minus `123.45-`. |
+| **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)` across 9 edge cases. |
+| **Strict Parsing** | Locale-aware normalization with configurable thresholds (`--strict-parse`). |
+| **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
 
 ---
 
-## 🚀 Quick Start (5-Step Growth Loop)
+## 📦 Installation
 
-### 1️⃣ Initial Categorization
+**Requirements:** Python 3.10 or later
+
+**From PyPI (Recommended):**
+```bash
+pip install finlang
+```
+
+**With Fast I/O (PyArrow):**
+```bash
+pip install "finlang[fastio]"
+```
+*(Enables `--fastio` for accelerated CSV I/O.)*
+
+**From Source (Development):**
+```bash
+git clone https://github.com/FinLang-Ltd/finlang.git
+cd finlang
+pip install -e .[fastio]
+```
+
+---
+
+## 🚀 Quick Start — The 5-Step Growth Loop
+
+1️⃣ **Initial Categorization**
 ```bash
 finlang --input transactions.csv --output baseline.csv   --rules my_rules.fin --include-pack retail,transport
 ```
 
-### 2️⃣ Discover Gaps
+2️⃣ **Discover Gaps**
 ```bash
-finlang-discover   --input baseline.csv   --candidates candidates.csv   --all-candidates all_candidates.csv   --min-count 5
+finlang-discover --input baseline.csv   --candidates candidates.csv --all-candidates all_candidates.csv   --min-count 5
 ```
 
-### 3️⃣ Suggest Rules (Exact Mode Recommended)
+3️⃣ **Suggest Rules (Exact Mode Recommended)**
 ```bash
-finlang-suggest   --input candidates.csv   --output suggested_rules.fin   --rules my_rules.fin   --emit-match exact
+finlang-suggest --input candidates.csv --output suggested_rules.fin   --rules my_rules.fin --emit-match exact
 ```
 
-### 4️⃣ Merge and Re-run
+4️⃣ **Merge and Re-run**
 ```bash
 cat my_rules.fin suggested_rules.fin > merged.fin
 finlang --input transactions.csv --output improved.csv   --rules merged.fin --include-pack retail,transport
 ```
 
-### ✅ Expected Result
-+ 5 – 10 % coverage improvement typical on real datasets  
-Zero duplicates when using `--emit-match exact`.
+✅ **Expected Result:** 5–10% coverage improvement; zero duplicates in `exact` mode.
 
 ---
 
-## 📊 Performance Benchmarks (v0.6.4 RC1 Validated)
+## 📊 Performance Benchmarks (v0.6.4 Validated)
+
+Measured with `--audit-mode none` (max throughput).
 
 | Dataset | Rules | Time (s) | Rows/sec | Notes |
-|:--:|:--:|:--:|:--:|:--|
-| 100 K (UK Synthetic) | 121 | 2.54 | **39,370 ✅** | Baseline |
-| 100 K (After Growth Loop) | 764 | 4.96 | **20,161 ✅** | +6.3× rules → 2× slower |
-| 5 M × 50 cols | — | 201 | **24,849 ✅** | Exceeds claim by 4.4 % |
+|:--|:--|:--:|:--:|:--|
+| 100 K (UK Synthetic) | 121 | 2.54 | **39 370 ✅** | Baseline |
+| 100 K (after Growth Loop) | 764 | 4.96 | **20 161 ✅** | +6.3× rules → ≈ 2× slower |
+| **5M × 50 cols** | — | 208.31 | **24 003 ✅** | High volume validation |
 
-Performance degrades **linearly** with rule count; no cliff at scale.
+>  **Audit Overhead:** Enabling `--audit-mode lite/full` **reduces throughput by ≈ 38%** due to diff calculation; provides full decision provenance.  
+> See [`docs/benchmarks.md`](docs/benchmarks.md) for details.
 
 ---
 
@@ -86,63 +139,49 @@ Performance degrades **linearly** with rule count; no cliff at scale.
 | 🇪🇺 Continental Europe | 1.234,56 | DD/MM | `--decimal "," --thousands "." --dayfirst` |
 | 🇨🇭 Switzerland | 1'234.56 | DD/MM | `--thousands "'" --dayfirst` |
 
-**Encodings:** UTF-8 (BOM-safe), CP1252, Latin-1 auto-detect  
-**Delimiters:** `,`, `;`, `|`, `	` (auto)  
-**Currencies:** £ € $ ¥ ₹ + non-breaking spaces automatically stripped
+**Auto-Detection and Normalization:** BOM-safe UTF-8 encodings, `, ; | \t` delimiters, and automatic currency symbol stripping.
 
 ---
 
-## 🧠 The Growth Loop
+## 🧠 The Growth Loop Explained
 
 > **Discover → Suggest → Categorize → Repeat**
 
-FinLang’s **Growth Loop** accelerates rule creation through data-driven discovery.
+FinLang’s Growth Loop accelerates rule creation through data-driven discovery.
 
-- **Discover** uncategorized counterparties automatically  
-- **Suggest** new rules in seconds (1:1 mapping in `exact` mode)  
+- **Discover** uncategorized counterparties  
+- **Suggest** new rules in seconds (1:1 mapping in exact mode)  
 - **Merge + Re-run** for incremental coverage gains  
-- **Validated Result:** 97.8 % success rate on addressable patterns  
-- **ROI:** 8.8 transactions per new rule  
+- **Validated Result:** 97.8% success on addressable patterns  
+- **ROI:** 8.8 transactions categorized per new rule  
 
-📄 See: [`docs/growth_loop_best_practices.md`](./docs/growth_loop_best_practices.md)
+📄 See: [`docs/growth_loop_best_practices.md`](docs/growth_loop_best_practices.md)
 
 ---
 
-## 🧾 Known Limitations (v0.6.4 RC1)
+## 🧾 Known Limitations (v0.6.4)
 
-- ⚠️ `--emit-match fuzzy` may produce duplicate patterns (`*GROUP*`, `*LLC*`, etc.).  
-  Use `--emit-match exact` for production.  
-  Fix planned v0.6.5 (stopword filter + dedup).
-- ⚠️ Hyphenated/apostrophe names < 1 % impact in fuzzy mode.  
-  Exact mode unaffected.
+- ⚠️ `--emit-match fuzzy` (default) uses naive tokenization and may produce broad patterns (e.g. `*PLC*`).   
+  → Use `--emit-match exact` for production workflows (improvements planned for v0.6.5).  
+- ⚠️ Hyphenated/apostrophe names may affect fuzzy matching (< 1% impact).  
 - ⚠️ No support for non-Gregorian calendars or non-Western numerals.
 
 ---
 
 ## 📘 Documentation
 
-Full technical docs are included under `docs/`:
-- [`release_notes_v0_6_4.md`](./docs/release_notes_v0_6_4.md)
-- [`benchmarks.md`](./docs/benchmarks.md)
-- [`growth_loop_best_practices.md`](./docs/growth_loop_best_practices.md)
-- [`amount_synthesis.md`](./docs/amount_synthesis.md)
-- [`i18n_examples.md`](./docs/i18n_examples.md)
-- [`stateless_processing.md`](./docs/stateless_processing.md)
+- [`docs/release_notes_v0_6_4.md`](docs/release_notes_v0_6_4.md)  
+- [`docs/benchmarks.md`](docs/benchmarks.md)  
+- [`docs/growth_loop_best_practices.md`](docs/growth_loop_best_practices.md)  
+- [`docs/amount_synthesis.md`](docs/amount_synthesis.md)  
+- [`docs/i18n_examples.md`](docs/i18n_examples.md)  
+- [`docs/stateless_processing.md`](docs/stateless_processing.md)
 
----
-
-## 📦 Installation
-
-**From PyPI (once published):**
+**Command-line help:**
 ```bash
-pip install finlang
-```
-
-**From source:**
-```bash
-git clone https://github.com/finlang/finlang.git
-cd finlang
-pip install -e .
+finlang --help
+finlang-discover --help
+finlang-suggest --help
 ```
 
 ---
@@ -150,18 +189,18 @@ pip install -e .
 ## 🧩 Example CLI Usage
 
 ```bash
-finlang --input bank.csv --output categorized.csv   --rules examples/rules.demo.fin   --include-pack retail,transport,subs   --fastio --audit-mode lite
+finlang --input bank.csv --output categorized.csv   --rules examples/rules.demo.fin   --include-pack retail,transport,subs   --fastio --audit audit_log.json --audit-mode lite
 ```
 
 ---
 
 ## 📜 License & Commercial Use
 
-Open-source under **AGPL-3.0**.  
-Commercial licenses available via **FinLang Ltd**.
+FinLang is open source under the **GNU Affero General Public License (AGPL-3.0)**.  
+Commercial licenses and enterprise support are available via **FinLang Ltd**.
 
 📧 info@finlang.io  
-🌐 [https://finlang.io](https://finlang.io)
+🌐 https://finlang.io
 
 ---
 
@@ -169,8 +208,8 @@ Commercial licenses available via **FinLang Ltd**.
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine | v0.6.4 (RC1a) | ✅ Production-Ready |
-| CLI Suite | RC1 Final | ✅ Validated |
-| Discover/Suggest | RC1 Final | ✅ 97.8 % accuracy |
-| Docs | RC1 Final | ✅ Complete |
-| Next Milestone | v0.6.5 | 🚧 Tokenizer improvements |
+| Core Engine | v0.6.4 | ✅ Production-Ready |
+| CLI Suite | v0.6.4 | ✅ Validated |
+| Discover/Suggest | v0.6.4 | ✅ 97.8% accuracy |
+| Docs | v0.6.4 | ✅ Complete |
+| Next Milestone | v0.6.5 | 🚧 Fuzzy tokenizer & audit optimization |
