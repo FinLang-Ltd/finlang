@@ -23,15 +23,15 @@ classifiers = [
 [project.scripts]
 finlang = "finlang.cli.run_finlang:main"
 finlang-discover = "finlang.tools.discover:main"
-finlang-suggest  = "finlang.tools.suggest:main"
+finlang-suggest = "finlang.tools.suggest:main"
 
 [project.optional-dependencies]
-dev   = ["pytest", "build", "twine", "check-manifest"]
+dev = ["pytest", "build", "twine", "check-manifest"]
 bench = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 include-package-data = true
 
 [tool.setuptools.packages.find]
