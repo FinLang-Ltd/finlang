@@ -4,18 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "finlang"
-version = "0.6.4.post1"
+version = "0.6.4"
 description = "FinLang: a deterministic, auditable DSL for financial rules"
 readme = { file = "README.md", content-type = "text/markdown" }
-license = { file = "LICENSE" }          # <-- fix: use file, drop license-files
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = ["pandas>=2.0"]
 authors = [{ name = "FinLang Ltd" }]
-urls = {
-  Homepage = "https://finlang.io",
-  Repository = "https://github.com/FinLang-Ltd/finlang",
-  Changelog = "https://github.com/FinLang-Ltd/finlang/blob/main/CHANGELOG.md"
-}
+urls = { Homepage = "https://finlang.io", Repository = "https://github.com/FinLang-Ltd/finlang" }
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
@@ -29,8 +26,8 @@ finlang-discover = "finlang.tools.discover:main"
 finlang-suggest  = "finlang.tools.suggest:main"
 
 [project.optional-dependencies]
-dev    = ["pytest", "build", "twine", "check-manifest"]
-bench  = ["matplotlib", "numpy"]
+dev   = ["pytest", "build", "twine", "check-manifest"]
+bench = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
 
 [tool.setuptools]
