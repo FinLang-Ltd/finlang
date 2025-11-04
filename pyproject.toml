@@ -7,8 +7,7 @@ name = "finlang"
 version = "0.6.4.post1"
 description = "FinLang: a deterministic, auditable DSL for financial rules"
 readme = { file = "README.md", content-type = "text/markdown" }
-license = "AGPL-3.0-only"
-license-files = ["LICENSE"]
+license = { file = "LICENSE" }          # <-- fix: use file, drop license-files
 requires-python = ">=3.10"
 dependencies = ["pandas>=2.0"]
 authors = [{ name = "FinLang Ltd" }]
@@ -30,8 +29,8 @@ finlang-discover = "finlang.tools.discover:main"
 finlang-suggest  = "finlang.tools.suggest:main"
 
 [project.optional-dependencies]
-dev   = ["pytest", "build", "twine", "check-manifest"]
-bench = ["matplotlib", "numpy"]
+dev    = ["pytest", "build", "twine", "check-manifest"]
+bench  = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
 
 [tool.setuptools]
