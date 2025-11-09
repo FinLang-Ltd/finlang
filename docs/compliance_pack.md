@@ -1,5 +1,5 @@
 # 📑 FinLang Compliance Pack Summary
-*Version: v0.6.x – September 29, 2025*
+*Version: v0.6.4.post1 GA – November 2025*
 
 This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s legal, compliance, and governance framework. It is intended for customers, partners, and potential acquirers as a due diligence reference.
 
@@ -68,5 +68,8 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
 - **Acquisition-grade docs** – machine-grade consistency across technical and legal documentation.  
 
 ---
+
+---
+**See also:** [Privacy Policy](privacy.md) · [Terms of Use](terms.md) · [Benchmarks](benchmarks.md)
 
 © FinLang Ltd

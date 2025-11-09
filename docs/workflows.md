@@ -1,243 +1,265 @@
 # 📖 Core Workflows
-*Applies to FinLang v0.6.x*
+*Applies to FinLang **v0.6.4.post1 (GA Rev 3.2)***
 
-This guide shows how to use **FinLang** day-to-day — from basic categorization runs to iterative rule growth and high-scale benchmarking. It’s recipe-driven, with practical examples you can run immediately.
+
+
+
+## 🎯 Quick Navigation
+**I want to…**
+- [Run FinLang daily](#-daily-run) → Basic categorization
+- [Improve my rules (feedback loop)](#-growth-loop-feedback-workflow) → Iterative coverage improvement
+- [Test performance](#-benchmarking) → Validate scaling
+- [Deploy to a team](#-enterprise-integration--workflows) → Enterprise setup & CI/CD
 
 ---
 
-## Daily Run
+## ✅ Daily Run
+The **Daily Run** applies your personal rules plus optional starter packs to new transaction data.
 
-The **Daily Run** is your standard workflow: apply your personal rules plus optional starter packs to new transaction data.
-
-### Example
-
+### First Time? Quick Setup
 ```bash
-finlang --input transactions.csv --output categorized.csv   --rules my_rules.fin --include-pack retail,sanity   --fastio --audit audit.json --audit-mode lite
+# 1) Install FinLang (with fast IO extras)
+pip install finlang[fastio]
+
+# 2) Create an empty rules file
+echo "# My FinLang Rules" > my_rules.fin
+
+# 3) Run your first categorization
+finlang --input transactions.csv --output categorized.csv --rules my_rules.fin
+```
+
+### Example (Full Production Command)
+```bash
+finlang --input transactions.csv --output categorized.csv \
+  --rules my_rules.fin --include-pack retail,sanity \
+  --fastio --audit audit.json --audit-mode lite
 ```
 
 ### What’s Happening
-- `transactions.csv` → raw bank export (FinLang normalizes headers automatically).
-- `my_rules.fin` → your personal ruleset (highest precedence).
-- `--include-pack retail,sanity` → adds baseline packs for coverage and sanity checks.
-- `--audit audit.json --audit-mode lite` → logs changed cells for traceability (`lite` = only changed cells).  
-- `--fastio` → speeds up CSV IO with `pyarrow`.
+- `transactions.csv` → raw bank export (**FinLang normalizes headers automatically**).
+- `my_rules.fin` → your personal ruleset (**highest precedence**).
+- `--include-pack retail,sanity` → adds baseline coverage & sanity checks.
+- `--audit audit.json --audit-mode lite` → logs changed cells for traceability (lite = only changed cells).
+- `--fastio` → speeds up CSV IO with PyArrow.
 
-### When to Use
+> **🌍 International users:** If your CSV uses European formats (e.g., `1.234,56` or `DD/MM/YYYY`), add I18n flags:
+> ```bash
+> finlang --input transactions.csv --output categorized.csv \
+>   --rules my_rules.fin --include-pack retail,sanity \
+>   --decimal , --thousands . --dayfirst --encoding auto --strict-parse
+> ```
+> See **i18n_examples.md** for regional recipes.
+
+**When to Use**
 - Daily or weekly transaction categorization.
 - Producing audit trails for compliance or bookkeeping.
 - Fast, reliable updates with minimal overhead.
 
 ---
 
-## Growth Loop
+## 🔁 Growth Loop (Feedback Workflow)
+![Growth Loop Diagram](assets/finlang_growth_loop.png)
 
-The **Growth Loop** helps you iteratively improve your rule coverage by identifying and fixing uncategorized transactions. It’s a cycle of: process → discover → suggest → review/merge → re-run.
+FinLang’s Growth Loop converts **uncategorized** data into **new rules** using three tools:
 
-![Growth Feedback Loop](assets/finlang_growth_loop.png)
+- `finlang` → Process transactions
+- `finlang-discover` → Find frequent uncategorized patterns
+- `finlang-suggest` → Generate conservative draft rules
 
----
+### Step 1 — Initial Processing
+Run FinLang as per the Daily Run example above. This produces `categorized.csv`.
 
-### Step 1: Initial Processing
-
-```bash
-finlang --input transactions.csv --output categorized.csv   --rules my_rules.fin --include-pack retail,sanity   --fastio --audit audit.json --audit-mode lite
-```
-
-- Applies your rules + optional packs.
-- Produces `categorized.csv` in canonical form.
-- Some rows will remain uncategorized — these are what we target.
-
----
-
-### Step 2: Discover Candidates
+### Step 2 — Discover Candidates
+Identify frequently-occurring **uncategorized** counterparties and also export full discovery stats.
 
 ```bash
-finlang-discover --input categorized.csv   --candidates discovery/candidates.csv   --all discovery/all_candidates.csv   --min-count 5
+finlang-discover --input categorized.csv \
+  --candidates candidates.csv \
+  --all-candidates all_candidates.csv \
+  --min-count 3 --strict-parse --encoding auto
 ```
 
-- Scans uncategorized rows in `categorized.csv`.
-- Surfaces frequent counterparties into `candidates.csv`.
-- Full frequency table written to `all_candidates.csv`.
-
----
-
-### Step 3: Suggest Draft Rules
+### Step 3 — Suggest Draft Rules
+Generate draft `.fin` rules from the candidates. For production-grade precision, prefer **exact** matching.
 
 ```bash
-finlang-suggest --input discovery/candidates.csv   --output draft_rules.fin   --rules my_rules.fin   --category "Review"   --prefix "SUGGEST"
+finlang-suggest --input candidates.csv --output draft_rules.fin \
+  --rules my_rules.fin \
+  --emit-match exact \
+  --category "Review"
 ```
 
-- Generates conservative draft rules in `.fin` syntax.
-- **Intelligently de-duplicates:** By referencing your `my_rules.fin`, it skips any patterns already covered, so you don’t get redundant suggestions.
-- Default category = `"Review"` (safe placeholder).
+> ⚠️ **Important:** Always review `draft_rules.fin` before merging. The `"Review"` category is intentional—verify logic then update categories.
 
----
-
-### Step 4: Review & Merge (Manual)
-
-Open `draft_rules.fin` in your editor:
-
-- Replace placeholder `"Review"` with specific categories (e.g., `"Groceries"`).  
-- Add flags (`flags += "subscription"`, etc.).  
-- Adjust overly broad wildcard matches.  
-
-When satisfied, append to your main ruleset:
-
-**mac/Linux (bash/zsh):**
+### Step 4 — Review & Merge
 ```bash
-cp my_rules.fin{,.bak} && cat draft_rules.fin >> my_rules.fin
-```
+# Linux/macOS
+cat draft_rules.fin >> my_rules.fin
 
-**Windows CMD:**
-```cmd
-copy my_rules.fin my_rules.bak && type draft_rules.fin >> my_rules.fin
-```
-
-**PowerShell:**
-```powershell
-Copy-Item my_rules.fin -Destination my_rules.bak
+# Windows (PowerShell)
 Get-Content draft_rules.fin | Add-Content my_rules.fin
+
+# Windows (CMD)
+type draft_rules.fin >> my_rules.fin
 ```
 
----
-
-### Step 5: Re-run with Full Audit
-
+### Step 5 — Re-run with Full Audit
 ```bash
-finlang --input transactions.csv --output categorized.csv   --rules my_rules.fin --include-pack retail,sanity   --audit audit.json --audit-mode full
+finlang --input transactions.csv --output categorized.csv \
+  --rules my_rules.fin --include-pack retail,sanity \
+  --audit audit_full.json --audit-mode full --fastio
 ```
 
-- Validates new rules against your dataset.
-- **Audit mode `full`** → records before/after snapshots of all evaluated cells.
+### 📈 Expected Outcomes
+| Iteration | Uncategorized ↓ | Time/Loop | Rules Added |
+|----------:|------------------|-----------|-------------|
+| First loop | 60% → 40% | ~45 min | 15—30 |
+| 3—5 loops | 40% → 15% | ~20 min | 5—10 |
+| Steady state | <5% | ~10 min/mo | Maintenance only |
 
----
+*Results vary by dataset complexity and team discipline. Most users see **5–10%** improvement per loop.*
 
-🔁 Repeat the loop regularly → coverage improves, manual work decreases, and your ruleset grows smarter over time.
-
----
-
-## Benchmarking
-
-Benchmarking shows how FinLang scales with large datasets. Use this to validate performance in your environment or compare rulesets.
-
-### Single-Ruleset Harness
-
+### Track Coverage (Cross-Platform)
 ```bash
-python -m benchmarks.bench_finlang_harness   --mode full-cli   --run-fin "finlang --fastio --audit-mode none --headless"   --rules examples/rules.demo.fin   --rows 25000 50000 100000 200000   --cols 5 20 35 50   --runs 3   --final-rows 1000000 5000000   --outdir bench_out
+# Linux/macOS
+finlang-discover --input categorized.csv --candidates temp.csv
+grep -c '""' categorized.csv  # Count empty categories (heuristic)
 ```
 
-- `--rows` / `--cols` → synthetic grid sizes.
-- `--runs 3` → repeat each grid point for stability.
-- `--final-rows` → stress tests (1M, 5M rows).
-- `--outdir` → saves CSV + plots.
+```powershell
+# Windows PowerShell
+finlang-discover --input categorized.csv --candidates temp.csv
+(Get-Content categorized.csv | Select-String '""').Count
+```
 
-**Outputs**
-- `bench_results.csv` → timings data.
-- `bench_heatmap.png` → visual performance by row/col.
-- `bench_surface.png` → 3D surface plot.
-- Finale plots → large-row stress runs.
+---
 
-### Multi-Ruleset Comparator
+## 🧪 Benchmarking
+**When to benchmark**
+- Validate that FinLang handles your data volume
+- Compare ruleset strategies
+- Capacity planning prior to rollout
+- After major rule changes (regression check)
 
+**When not to benchmark**
+- Routine daily ops (adds noise)
+- Before understanding your data patterns
+- Without a specific performance question
+
+### Single-Ruleset Harness (CLI)
 ```bash
-python -m benchmarks.bench_finlang_rulesets \
-  --run-fin "finlang --fastio --audit-mode none" \
-  --rules-set RETAIL:src/finlang/rulepacks/01-vendors-retail.fin \
-  --rules-set TRANSPORT:src/finlang/rulepacks/02-transport.fin \
-  --rows 50000 100000 --cols 10 20 --repeats 3 --outdir bench_out
+python /mnt/data/bench_finlang_harness.py \
+  --mode full-cli \
+  --run-fin "finlang --fastio --audit-mode none --headless --strict-parse --encoding auto" \
+  --rules examples/rules.demo.fin \
+  --rows 25000 50000 100000 200000 \
+  --cols 5 20 35 50 \
+  --runs 3 \
+  --final-rows 1000000 5000000 \
+  --outdir bench_out
 ```
 
-- Compare performance across multiple named rulesets.
-- Produces side-by-side plots for fair comparison.
+### Performance at a Glance
+| Rows × Cols | Runtime | Throughput | Context | Suitable For |
+|------------:|--------:|-----------:|--------|--------------|
+| 5M × 5  | ~35 s  | ~140 K rows/s | SME batch | Small business |
+| 5M × 20 | ~95 s  | ~52 K rows/s  | Payment gateway | Mid-market |
+| 5M × 50 | ~208 s | ~24 K rows/s  | Enterprise ledger | Enterprise |
+
+See **benchmarks.md** and **release_notes_v0_6_4.md** for detailed data & methodology.
 
 ---
 
-## Quick Reference
+## 🏢 Enterprise Integration & Workflows
 
-- **Daily Run** → apply rules + packs with lite audit.  
-- **Growth Loop** → process → discover → suggest → review/merge → re-run.  
-- **Benchmarking** → stress test scaling and compare rulesets.  
+### Git-Based Review Flow (Recommended)
+```bash
+# Create feature branch
+git checkout -b add-suggested-rules
 
----
+# Review and edit draft_rules.fin locally
+# ... make changes ...
 
-## Next Steps
+# Merge draft rules into main ruleset
+cat draft_rules.fin >> my_rules.fin
 
-- Explore the **[Rule Language](rule_language.md)** for advanced rule writing.
-- See the **[CLI Reference](cli_reference.md)** for all flags and switches.
-- Check the **[FAQ](faq.md)** if you hit issues.
+# Commit & push
+git add my_rules.fin
+git commit -m "Add suggested rules for TESCO, AMAZON, UBER"
+git push origin add-suggested-rules
 
----
+# Open a Pull Request for review
+```
 
-## 📈 Coverage Improvement Tracking (Business Impact)
+### CI/CD Validation (GitHub Actions)
+Protect your main branch with automated rule testing:
 
-FinLang isn’t just a rules engine — it’s a **coverage accelerator**. The Growth Loop consistently drives higher automation over time:
+```yaml
+name: Validate Rules
+on: [pull_request]
 
-- **Week 1**: ~60% automated categorization  
-- **Week 4**: ~85% automated categorization  
-- **Week 12**: ~95%+ automated categorization  
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install FinLang
+        run: pip install "finlang[fastio]"
+      - name: Validate Rules (strict, headless)
+        run: >
+          finlang --rules my_rules.fin
+                  --input test_data/sample.csv
+                  --output /dev/null
+                  --headless --strict-parse --audit-mode none
+```
 
-*Typical results from growth loop iteration. Actual metrics vary by data quality and team discipline.*
+> **Windows note:** Use `NUL` instead of `/dev/null` if running steps on Windows runners.
 
----
+### ✅ Rollout Checklist
+**Phase 1: Pilot (Week 1–2)**
+- [ ] Install FinLang in test environment
+- [ ] Validate with 3 months historical data
+- [ ] Train 2–3 power users
+- [ ] Create initial ruleset
 
-## 🏢 Enterprise Integration Workflows
+**Phase 2: Department (Week 3–4)**
+- [ ] Deploy to finance team (10–20 users)
+- [ ] Set up Git repository for rules
+- [ ] Establish Growth Loop cadence
+- [ ] Document standard workflows
 
-FinLang scales from a solo analyst to global finance teams. Recommended practices for enterprise rollout:
+**Phase 3: Enterprise (Month 2–3)**
+- [ ] CI/CD pipeline integration
+- [ ] Audit log storage & retention
+- [ ] Multi-team collaboration model
+- [ ] SLA definition & monitoring
 
-### Shared Rulesets
-- Store `rules.fin` in Git-based version control (GitHub, GitLab, Bitbucket).  
-- Protect main branch with pull requests + reviews.  
-- Tag stable versions for audits.
-
-### CI/CD Integration (Current Tip)
-You can integrate FinLang into CI/CD pipelines to automatically check rules:
-
-- **Validation (syntax + dry run):**
-  ```bash
-  finlang --rules my_rules.fin --input sample.csv --output /dev/null --audit-mode none --headless
-  ```
-  Exits non-zero if rules are invalid or fail to parse.
-
-- **Apply on Sample Data (regression check):**
-  ```bash
-  finlang --rules my_rules.fin --input sample.csv --output sample_out.csv --audit-mode lite --headless
-  ```
-  Use diffs on `sample_out.csv` to detect unintended changes.
-
-### Multi-User Collaboration
-- Assign different teams specialized rule packs (e.g. Treasury, Compliance, Operations).  
-- Merge them into a master `rules.fin` at release time.  
-- Use audit JSONs for compliance hand-off.
-
-### Audit Log Storage
-- Export audit results to PostgreSQL or Elasticsearch.  
-- Enable compliance teams to query, archive, and certify transaction categorization trails.
-
----
-
-## ⚡ Benchmarking in Business Terms
-
-Benchmarks translate directly into operational capacity:
-
-| Rows × Cols | Runtime | Throughput | Business Context |
-| :--- | :--- | :--- | :--- |
-| 5M × 5 | ~35s | ~140k rows/s | Daily SME batch processing |
-| 5M × 20 | ~95s | ~52.5k rows/s | Real-time payment gateway ingestion |
-| 5M × 50 | ~210s | ~23.8k rows/s | Enterprise-scale monthly ledger reconciliation |
-
-**Takeaway:**  
-FinLang comfortably supports millions of monthly bank transactions with **<4 minute latency per batch**, enabling near-real-time categorization and audit-grade traceability.
-
----
-
-## 🗂 Adoption Pyramid
+**Phase 4: Scale (Month 3+)**
+- [ ] Automated daily runs
+- [ ] Dashboard/metrics reporting
+- [ ] Cross-department rule sharing
+- [ ] Rule pack marketplace / internal packs
 
 ![Adoption Pyramid](assets/finlang_adoption_pyramid.png)
 
-- **Individual:** Run rules locally to automate personal or small-scale workflows.  
-- **Team:** Share rules in version control, iterate with the Growth Loop.  
-- **Enterprise:** CI/CD integration, shared packs, audit log pipelines, SLA-driven support.
+---
+
+## 📚 Related Documentation
+- **install.md** — Getting started quickly  
+- **flags.md** — All CLI flags & canonical formats  
+- **i18n_examples.md** — Regional format recipes  
+- **mapping_guide.md** — Align headers to the canonical schema  
+- **amount_synthesis.md** — Debit/credit synthesis logic  
+- **rule_language.md** — Write and test rules  
+- **growth_loop_best_practices.md** — 3-step discovery workflow  
+- **cli_reference.md** — Complete command reference  
+- **benchmarks.md** — Performance data and methodology  
+- **release_notes_v0_6_4.md** — GA highlights and changes
 
 ---
 
-© FinLang Ltd
+© FinLang Ltd. All rights reserved.

@@ -6,6 +6,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [v0.6.4] — 2025-11-09 — GA (Machine-Grade)
+
+### 🚀 Highlights
+- **GA Docs Suite (audited & approved):**
+  - `cli_reference.md` (GA Rev 3.1) — complete CLI for `finlang`, `finlang-discover`, `finlang-suggest`, env vars, cross-platform examples.
+  - `rule_language.md` (Rev 2) — stable DSL spec, stacked rules, determinism, best practices.
+  - `flags.md` (Rev 2) — canonical inputs for all flags (incl. `--fail-threshold` as **fraction 0.0–1.0**).
+  - `i18n_examples.md` (Rev 2) — regional recipes (FR/DE, UK, CH apostrophe, explicit `--dayfirst` for determinism).
+  - `mapping_guide.md` (Rev 3.4) — **correct nested `amount` mapping** (`aliases` / `debit` / `credit`), case-insensitive matching, custom map **replaces** default, `exclude` = informational only in v0.6.4.
+  - `growth_loop_best_practices.md` (Rev 2) — discover → **suggest** (`--emit-match exact`) → review/merge.
+  - `workflows.md` (GA Rev 3.2) — Daily Run, Growth Loop, benchmarking, enterprise rollout; Windows/Linux/macOS parity.
+  - `benchmarks.md` (GA Rev 3.1) — validated: **≈24k rows/s @ 5M×50**; audit overhead characterized (~38%).
+  - `stateless_processing.md` (Rev 2), `amount_synthesis.md` (Rev 2), `release_notes_v0_6_4.md` (Rev 2), `install.md` (Rev 2), `faq.md`, `security.md`, `compliance_pack.md`.
+
+### ✨ Engine / CLI
+- Locale controls: `--decimal`, `--thousands`, `--dayfirst`; `--encoding utf-8-sig` (default) with `--encoding auto` available.
+- Strictness: `--strict-parse`, `--fail-threshold` (**fraction**, e.g. `0.02`).
+- Audit: `--audit`, `--audit-mode` (`none|lite|full`); CSV injection mitigations.
+- Discovery & Suggestion workflow standardized:
+  - `finlang-discover --candidates ... [--all/--all-candidates ...]`
+  - `finlang-suggest --emit-match exact` recommended.
+
+### 📈 Performance
+- Linear scaling validated; ~24,003 rows/sec on 5M×50.
+- Audit diff overhead characterized (~38%) with sustained throughput.
+
+### 🗂 Mapping
+- Default `bank.map.json` path documented; custom `--map` **replaces** default.
+- `amount` mapping supports **single-column aliases** or **debit/credit synthesis**.
+- `exclude` field: usable as a boolean marker in rules; **no automatic row dropping** in v0.6.4.
+
+### 🧾 Legal & Governance
+- **CLA v1.0** added (dual-licensing enablement; contributor retains copyright).
+- `terms.md`, `privacy.md`, `compliance_pack.md` aligned under Scottish law.
+
+
 ## [0.6.4.post1] – 2025-11-03
 **Status:** Production-ready (RC1 certified)
 
