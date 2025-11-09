@@ -102,7 +102,7 @@ By submitting a pull request, patch, or other Contribution to any FinLang reposi
 
 ### For Corporate Contributors
 
-1. Download this CLA as a PDF.
+1. Download [this CLA as a PDF](FinLang_CLA_v1.0.pdf).
 2. Have an authorised signatory sign it.
 3. Email the signed CLA to **legal@finlang.io**.
 4. Include: company name, signatory name, title, and date.
