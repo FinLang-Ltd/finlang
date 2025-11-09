@@ -6,6 +6,17 @@ on:
   pull_request_target:
     types: [opened, closed, synchronize]
 
+# Needed so the action can post comments and commit the signatures file
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+# Prevent two CLA runs from racing on the same PR
+concurrency:
+  group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   cla:
     runs-on: ubuntu-latest
@@ -13,12 +24,17 @@ jobs:
       - name: CLA assistant lite
         uses: contributor-assistant/github-action@v2.6.1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}           # for comments
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }} # to push signatures
         with:
-          path-to-signatures: 'signatures/version1.json'
-          path-to-document: 'docs/legal/CLA.md'
-          branch: 'main'
-          allowlist: 'dependabot[bot],github-actions[bot]'
-          remote-organization-name: 'FinLang-Ltd'
-          remote-repository-name: 'finlang'
+          # Where the signatures JSON will live (in this repo on the default branch)
+          path-to-signatures: signatures/version1.json
+          # Your CLA document
+          path-to-document: docs/legal/CLA.md
+          # Branch to commit the signatures into (your default branch)
+          branch: main
+          # Ignore bot accounts
+          allowlist: dependabot[bot],github-actions[bot]
+          # Use the same repo/org (fine to keep explicit)
+          remote-organization-name: FinLang-Ltd
+          remote-repository-name: finlang
