@@ -202,6 +202,12 @@ Commercial licenses and enterprise support are available via **FinLang Ltd**.
 📧 info@finlang.io  
 🌐 https://finlang.io
 
+------
+
+## Contributing
+Contributions are welcome! Before submitting a PR, please review and accept our
+[Contributor Licence Agreement (CLA)](docs/legal/CLA.md).
+
 ---
 
 ## 🏁 Version Summary
