@@ -109,9 +109,9 @@ Compare-Object (Get-Content baseline_audit.json) (Get-Content rerun_audit.json)
 
 ## 📖 Related Documentation
 
-- [Compliance Pack](compliance_pack.md) – Governance overview  
-- [Privacy Policy](privacy.md) – Data handling & rights  
-- [Terms](terms.md) – Licensing & legal terms  
+- [Compliance Pack](legal/compliance_pack.md) – Governance overview  
+- [Privacy Policy](legal/privacy.md) – Data handling & rights  
+- [Terms](legal/terms.md) – Licensing & legal terms  
 - [Rule Language](rule_language.md) – DSL reference  
 - [Benchmarks](benchmarks.md) – Performance data
 

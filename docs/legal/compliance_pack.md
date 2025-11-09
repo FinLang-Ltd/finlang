@@ -70,6 +70,6 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
 ---
 
 ---
-**See also:** [Privacy Policy](privacy.md) · [Terms of Use](terms.md) · [Benchmarks](benchmarks.md)
+**See also:** [Privacy Policy](privacy.md) · [Terms of Use](terms.md) · [Benchmarks](../benchmarks.md)
 
 © FinLang Ltd
