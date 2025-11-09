@@ -1,23 +1,44 @@
 # 📖 Rule Language Reference
-*Applies to FinLang v0.6.x*
+*Applies to FinLang v0.6.x (Stable since v0.6.0) — Rev 2.1*
 
-FinLang uses a simple, declarative DSL (`.fin` files) to define categorization logic. Rules match transactions by conditions, then apply actions to set categories, flags, and other fields.
+> **Note:** This DSL is stable. All v0.6.x releases maintain backward compatibility.  
+> Breaking changes (if any) will only occur in v0.7.0+.
+
+---
+
+## 🎯 Quick Start
+
+**Simplest possible rule:**
+```fin
+rule "Groceries" {
+  match:
+    - counterparty ~ "*TESCO*"
+  set:
+    - category = "Groceries"
+}
+```
+
+**What this does:**
+- Finds any transaction with "TESCO" in the counterparty name
+- Sets its category to "Groceries"
+
+That's it! Everything else builds on this pattern.
 
 ---
 
 ## 🔹 Rule Structure
 
-A rule has:
-- A **name** (quoted string).
-- A **block** with two sections: `match:` and `set:`.
+A FinLang `.fin` file is a deterministic set of rules, each with two blocks:
+- `match:` → defines which transactions the rule applies to
+- `set:` → defines what to change when the rule applies
 
 ```fin
-rule "GROCERIES: Tesco" {
+rule "Transport: Uber" {
   match:
-    - counterparty ~ "*TESCO*"
+    - counterparty ~ "*UBER*"
   set:
-    - category = "Groceries"
-    - flags += "auto"
+    - category = "Transport"
+    - flags += "reviewed"
 }
 ```
 
@@ -25,279 +46,189 @@ rule "GROCERIES: Tesco" {
 
 ## 🔹 Match Conditions
 
-Conditions check fields against values. Multiple conditions combine with **AND**.
+Conditions check fields against values. **All conditions must match** (AND logic).
+
+> **Important:** If you need OR logic, write separate rules.
 
 ### Supported Operators
-- `==` → exact match  
-- `~` → wildcard match (`*` for substring, prefix, suffix)  
-- `in` → numeric range (amount only)
+- `==` : Exact match
+- `~` : Wildcard match (`*pattern*`)
+- `in` : Range or list inclusion
 
-### Examples
+**Example (AND logic):**
 ```fin
-# Exact text match
-counterparty == "AMAZON EU"
-
-# Wildcard: contains "UBER"
-counterparty ~ "*UBER*"
-
-# Wildcard: starts with "NETFLIX"
-counterparty ~ "NETFLIX*"
-
-# Numeric range: amount between -20 and -5
-amount in -20..-5
+match:
+  - counterparty ~ "*UBER*"
+  - amount in -100..0
+# Both must be true
 ```
 
----
+**For OR logic, use separate rules:**
+```fin
+rule "Transport: Uber" {
+  match:
+    - counterparty ~ "*UBER*"
+  set:
+    - category = "Transport"
+}
 
-## 🔹 Fields Available
-
-You can match on:
-- `counterparty` → normalized payee/vendor name
-- `amount` → numeric transaction amount
-- `category` → current category (useful for refinement rules)
-- `flags` → existing flags
-- `status` → optional workflow status field
-- `memo` → notes or free-text descriptions
-
----
-
-## 🔹 Set Actions
-
-Actions define what happens when a rule matches.
-
-- `category = "..."` → overwrite category
-- `memo = "..."` → overwrite memo
-- `status = "..."` → overwrite status
-- `exclude = true/false` → mark row for exclusion
-- `flags += "..."` → **append** a flag (safe default)
-
-⚠️ `flags = "..."` (overwrite) is **not allowed** — this prevents accidental loss of existing flags. Always use `+=`.
+rule "Transport: Lyft" {
+  match:
+    - counterparty ~ "*LYFT*"
+  set:
+    - category = "Transport"
+}
+```
 
 ---
 
 ## 🔹 Amount Field Logic
 
-The `amount` field is critical for many rules. FinLang uses a clear, deterministic process to resolve the final transaction amount.
+FinLang automatically synthesizes the `amount` field if your export provides `debit` and `credit` separately:
+```
+amount = abs(credit) - abs(debit)
+```
 
-**Resolution Order:**
-
-1. **If an `amount` column exists:** It is always trusted as the primary source.  
-2. **If `amount` is missing:** FinLang automatically *synthesizes* it from `debit` and `credit` columns using the following formula:
-   ```
-   amount = abs(credit) - abs(debit)
-   ```
-   - **Debit-only:** results in `-abs(debit)`  
-   - **Credit-only:** results in `+abs(credit)`  
-   - **Both empty:** results in `0`
-
-This logic ensures that even if a bank export has inconsistent debit/credit signs, the resulting `amount` is always calculated correctly.
-
-**Examples:**
-
-| Debit | Credit | Resulting `amount` |
-| :---: | :----: | :-----------------: |
-| 12.34 |        | `-12.34`            |
-|       | 9.99   | `+9.99`             |
-| 12.00 | 5.00   | `-7.00` (`5 - 12`)  |
+⚠️ **Locale Matters:** If your bank uses comma decimals (e.g., `12,34`), use the `--decimal ,` flag or amounts may parse incorrectly.  
+See [i18n_examples.md](i18n_examples.md).
 
 ---
 
 ## 🔹 Best Practices
 
-✅ **Specific first, general later**  
-Rules are applied in order of precedence:  
-1. Your personal rules (`--rules my_rules.fin`).  
-2. Then included packs (`--include-pack`).  
-Within each file, rules run top-to-bottom. For `category`, `memo`, and `exclude`, the **last matching rule wins**. Flags always accumulate.
+**Prefer wildcards for robustness**
 
-✅ **Use audit mode**  
-Always review `audit.json` in **full audit mode** when testing new rules. It shows exactly which cells changed.
-
-✅ **Prefer wildcards for robustness**  
-Instead of exact strings (`"TESCO 1234"`), use patterns (`*TESCO*`) to catch statement variations.
-
-✅ **Use flags for metadata**  
-Flags (`recurring`, `subscription`, `fx`) allow multiple labels without overriding categories.
-
-✅ **Keep rules atomic**  
-One rule = one clear intent. Easier to debug and audit.
+**Example:**
+❌ **Too specific:** `counterparty == "TESCO STORE 1234 LONDON"`  
+✅ **Better:** `counterparty ~ "*TESCO*"`  
+✅ **Even better:** `counterparty ~ "TESCO*"`
 
 ---
 
-## 🔹 Advanced Example: Rule Stacking & Refinement
-
-Rules are applied in order, allowing you to create layers of logic. A common pattern is to set a general category first, then use a more specific rule to refine it.
-
-Because later rules can override earlier ones, you can even match on a category set by a previous rule.
+## 🔹 Advanced Examples (Stacked Rules)
 
 ```fin
-# --- Rule 1: General Vendor (runs first) ---
-# Broadly categorizes all Amazon transactions as "Shopping".
-rule "VENDOR: Amazon" {
+# 1. Broad catch
+rule "Amazon (generic)" {
   match:
-    - counterparty ~ "*AMAZON*"
+    - counterparty ~ "*AMZN*"
   set:
     - category = "Shopping"
 }
 
-# --- Rule 2: Specific Refinement (runs after Rule 1) ---
-# Catches Amazon Prime subscriptions by matching on the category
-# set by the previous rule AND the transaction amount.
-rule "SUBSCRIPTION: Amazon Prime" {
+# 2. Narrow refinement
+rule "Amazon Prime" {
   match:
-    - category == "Shopping"
-    - counterparty ~ "*AMAZON*PRIME*"
+    - counterparty ~ "*AMZNPRIME*"
   set:
     - category = "Subscriptions"
-    - flags += "Subscription"
-    - flags += "Recurring"
+    - flags += "prime"
 }
 ```
 
-### Demonstration of Stacked Processing
+### Why This Pattern Works
+1. **Rule 1 casts a wide net** – captures all Amazon transactions.  
+2. **Rule 2 refines specific cases** – recognizes subscriptions.  
+3. **Flags accumulate** – helps track multiple attributes.  
+4. **Later rules overwrite** earlier category values deterministically.
 
-**Input Transaction:**
-
-| counterparty       | amount | category | flags |
-|--------------------|:------:|:--------:|:-----:|
-| AMAZON PRIME UK    | -10.99 |          |       |
-
-**After Rule 1 (“VENDOR: Amazon”):**
-
-| counterparty       | amount |    category    | flags |
-|--------------------|:------:|:--------------:|:-----:|
-| AMAZON PRIME UK    | -10.99 | **Shopping**   |       |
-
-**After Rule 2 (“SUBSCRIPTION: Amazon Prime”):**
-
-| counterparty       | amount |    category     |            flags             |
-|--------------------|:------:|:---------------:|:----------------------------:|
-| AMAZON PRIME UK    | -10.99 | **Subscriptions** | **Subscription, Recurring** |
-
-The specific rule refines the general one — a common and powerful pattern.
-
----
-
-## 🔹 Example Rule Pack
-
-```fin
-rule "SUBSCRIPTION: Netflix" {
-  match:
-    - counterparty ~ "NETFLIX*"
-  set:
-    - category = "Entertainment"
-    - flags += "subscription"
-}
-
-rule "TRANSPORT: Uber Rides" {
-  match:
-    - counterparty ~ "*UBER*"
-    - amount in -100..0
-  set:
-    - category = "Transport"
-    - flags += "auto"
-}
-```
+Use case: Start broad, refine as you learn patterns in your data.
 
 ---
 
 ## 🔹 Catch-Alls & Flagging
 
-Rules don’t just assign categories — they can also be used as *safety nets* to highlight transactions that need manual review. These patterns are especially useful for enterprise teams to surface edge cases.
+**When to use catch-all rules:**
+- ✅ Flagging high-value uncategorized transactions
+- ✅ Identifying potential duplicates
+- ✅ Highlighting unusual patterns
+- ✅ Creating safety nets for compliance
 
+**When NOT to use:**
+- ❌ As a substitute for proper categorization
+- ❌ For every small transaction (adds noise)
+
+**Example:**
 ```fin
-# --- CATCH-ALLS & FLAGGING ---
-
-# Flags any uncategorized debit larger than £500
-rule "Flag: Large Unidentified Debit" {
+rule "Review: Uncategorised > £1000" {
   match:
-    - amount in -500..-0.01
     - category == ""
+    - amount <= -1000
   set:
-    - flags += "Review: Large Unidentified"
-}
-
-# Flags small Square payments that may indicate duplicates
-rule "Flag: Potential Duplicate" {
-  match:
-    - counterparty ~ "*SQ *"
-    - amount in -20..-0.01
-  set:
-    - flags += "Review: Potential Duplicate"
+    - flags += "high_value"
+    - category = "Review"
 }
 ```
-
-These catch-all rules act as guardrails, ensuring no high-value or suspicious-looking transaction is silently ignored.
-
----
-
-## 🔹 Quick Reference
-
-- **Operators:** `==`, `~`, `in`  
-- **Set fields:** `category`, `memo`, `status`, `exclude`, `flags +=`  
-- **Rule precedence:** personal rules → packs; last match wins for overwrites, flags always accumulate  
-- **Audit mode:** always use for testing
 
 ---
 
 ## ⚡ Performance Characteristics
 
 - **Ruleset-invariant** → Rule complexity has minimal performance impact  
-- **Deterministic** → Same inputs → same outputs, guaranteed  
-- **Linear scaling** → Performance scales predictably with data size (see `benchmarks.md` for detailed plots)  
+  *Example:* 10 rules vs 1000 rules ≈ 5% runtime difference
+- **Deterministic** → Same inputs → same outputs, guaranteed
+- **Linear scaling** → Performance scales predictably with dataset size  
+  *Example:* 100K rows ≈ 2.5 s, 5 M rows ≈ 208 s (~24 K rows/sec)
+
+See [benchmarks.md](benchmarks.md) for details.
 
 ---
 
-## 🏢 Enterprise Rule Management
+## 🧪 CI/CD Integration
 
-- **Version control** → Store `rules.fin` in Git for full audit trails  
-- **Testing framework** → Validate rules against sample data pre-deployment  
-- **Change management** → Review and approve modifications before merging into production rulesets  
+You can safely validate and regression-test rulesets in pipelines.
 
----
-
-## 🔄 CI/CD Integration Examples
-
-FinLang rules can be validated and regression-tested in automated pipelines. These examples show how to integrate across different operating systems.
-
-### **Linux / macOS (bash/zsh)**
-
-```bash
-# Validate rules syntax before deployment (output discarded)
-finlang --rules my_rules.fin --input sample.csv --output /dev/null --audit-mode none --headless
-
-# Apply rules on sample data for regression testing
-finlang --rules my_rules.fin --input sample.csv --output sample_out.csv --audit-mode lite --headless
-```
-
-### **Windows PowerShell**
-
+**Example (PowerShell):**
 ```powershell
-# Validate rules syntax before deployment (output discarded)
-finlang --rules my_rules.fin --input sample.csv --output NUL --audit-mode none --headless
-
-# Apply rules on sample data for regression testing
-finlang --rules my_rules.fin --input sample.csv --output sample_out.csv --audit-mode lite --headless
+finlang --rules production.fin --input test.csv --output test_out.csv --strict-parse
+Compare-Object (Get-Content test_out.csv) (Get-Content expected_out.csv)
 ```
 
-### **Windows CMD**
+### Exit Code Validation
+All examples return `0` on success, non-zero on failure.
 
-```cmd
-:: Validate rules syntax before deployment (output discarded)
-finlang --rules my_rules.fin --input sample.csv --output NUL --audit-mode none --headless
+**Example CI/CD script (bash):**
+```bash
+#!/bin/bash
+set -e
 
-:: Apply rules on sample data for regression testing
-finlang --rules my_rules.fin --input sample.csv --output sample_out.csv --audit-mode lite --headless
+# Validate syntax
+finlang --rules production.fin --input test.csv --output /dev/null --headless
+
+# Regression test
+finlang --rules production.fin --input test.csv --output test_out.csv --headless
+
+# Compare to golden file
+diff test_out.csv expected_out.csv
+echo "✅ All tests passed"
 ```
-
-These commands enable CI/CD systems to:  
-- Fail builds if rule syntax is invalid.  
-- Detect regressions by comparing `sample_out.csv` to a committed expected version.  
 
 ---
 
-📌 See [`workflows.md`](workflows.md) for how rules integrate into the Growth Loop and daily workflows.
+## ⚠️ Common Mistakes
+
+| Mistake | Problem | Solution |
+|----------|----------|----------|
+| `flags = "value"` | Overwrites all flags | Use `flags += "value"` |
+| Missing quotes | Syntax error | Always quote strings: `"value"` |
+| Wrong operator | No match | Use `~` for wildcards, `==` for exact |
+| Order matters | Wrong rule wins | Put specific rules first |
+| No audit testing | Silent errors | Use `--audit-mode full` during validation |
 
 ---
 
-© FinLang Ltd
+## 📘 Quick Reference
+
+| Keyword | Description |
+|----------|-------------|
+| `match` | Conditions (all must be true) |
+| `set` | Assignments (category, flags, notes, etc.) |
+| `flags +=` | Append mode (non-destructive) |
+| `in` | Range test or list inclusion |
+| `~` | Wildcard operator |
+| `==` | Exact match |
+| `#` | Comment line |
+
+---
+
+© FinLang Ltd — v0.6.x DSL Reference (Rev 2.1)

@@ -1,285 +1,228 @@
 # 📖 FinLang CLI Reference
-*Applies to FinLang v0.6.x*
+*Applies to FinLang v0.6.4.post1 (GA Rev 3.1)*
 
-This document provides a full reference of available switches and flags across the FinLang ecosystem, 
-including the core CLI, discovery/suggestion helpers, and benchmarking harnesses. It also includes 
-example workflows such as the *growth loop* and practical recipes for daily use.
+## 🎯 About This Document
+
+This is the **complete command-line reference** for all FinLang tools.
+
+**Use this when:**
+- You need flag syntax and defaults
+- You're writing scripts or CI/CD pipelines
+- You want to understand all available options
+
+**For quick start guides, see:**
+- [Install Guide](install.md) — Getting started
+- [i18n Examples](i18n_examples.md) — Regional settings
+- [Workflows](workflows.md) — Common patterns
 
 ---
 
-## Install
+## 1) Core CLI — `finlang`
 
+**Simple Example:**
 ```bash
-pip install "finlang[fastio]"
+# Basic categorization with rules
+finlang --input bank.csv --output categorized.csv --rules my_rules.fin
 ```
 
-Optional: install `pyarrow` for faster `--fastio`.  
-Supports Python 3.9+ on Windows, macOS, Linux.
-
----
-
-## 1. Core CLI (`finlang`)
-
-**Usage:**
-
+**Usage (Full):**
 ```bash
 finlang --input <csv> --output <csv> [--rules FILE ...] [--include-pack PACKS] [--map FILE]
-        [--audit FILE] [--audit-mode {none|lite|full}] [--fastio] [--timings] [--headless]
+        [--audit FILE] [--audit-mode {none|lite|full}] [--strict-parse] [--fail-threshold F]
+        [--decimal .|,] [--thousands ','|'.'|' '|'\''] [--dayfirst] [--date-format FMT]
+        [--encoding CODEC|auto] [--output-encoding CODEC]
+        [--fastio] [--timings] [--headless]
 ```
 
 ### Required
-
-- `--input PATH`  
-  Source transactions CSV. Can be raw (with bank headers) or canonical.  
-- `--output PATH`  
-  Destination CSV. If locked, FinLang writes a timestamped fallback.
+- `--input PATH` — Source CSV (raw bank export or canonical)
+- `--output PATH` — Destination CSV (timestamped fallback if locked)
 
 ### Rules & Packs
-
-- `--rules FILE [FILE …]`  
-  Load one or more `.fin` rule files (highest precedence).  
-- `--include-pack retail,transport,...`  
-  Add built-in packs (lower precedence than rules).
+- `--rules FILE [FILE …]` — One or more `.fin` files (highest precedence)
+- `--include-pack retail,transport,...` — Bundled packs (lower precedence)
 
 ### Mapping & Canonicalization
-
-- `--map FILE`  
-  Optional header mapping JSON (defaults to bundled `bank.map.json`).  
-- Canonical columns: `counterparty, amount, date, category, flags, memo`.  
-- Debit/credit synthesis:  
+- `--map FILE` — Optional header‑map JSON (defaults to bundled `bank.map.json`)
+- Canonical columns: `counterparty, amount, date, category, flags, memo`
+- Amount synthesis when needed:
   ```
   amount = abs(credit) - abs(debit)
-  ```  
-  if no `amount` column exists.
+  ```
 
 ### Auditing
+- `--audit FILE` — Write audit JSON of rule‑driven changes
+- `--audit-mode {none|lite|full}` (default: **lite**)
+  - **none** — fastest, no audit
+  - **lite** — changed cells only (capped)
+  - **full** — before/after state diffs (capped)
 
-- `--audit FILE`  
-  Write structured audit JSON of rule-driven changes.  
-- `--audit-mode {none|lite|full}` (default: *lite*)  
-  - **none**: fastest, no audit.  
-  - **lite**: records changed cells only (capped).  
-  - **full**: records before/after snapshots of all evaluated cells (capped).
+### Internationalization & Encoding
+- `--decimal` / `--thousands` — Numeric punctuation
+- `--dayfirst` or `--date-format` — Date parsing strategy
+- `--encoding` — Input codec (**default `utf-8-sig`**; `auto` recommended for safety)
+- `--output-encoding` — Output CSV codec (default `utf-8`)
 
-### Performance & Logging
-
-- `--fastio`  
-  Use `pyarrow` for faster CSV IO if available.  
-- `--timings`  
-  Print stage-by-stage timing breakdown.  
-- `--headless`  
-  Suppress console chatter (use in scripts/benchmarks).
-
-### Rule Engine Notes
-
-- **Engine-slim projection is always on** (no flag): only the minimal columns are evaluated, then results are joined back.  
-- Match fields: `counterparty, amount, category, flags, status, memo`.  
-- Operators: `==`, `~` (wildcards), `in` (for `amount` ranges).  
-- Set fields: `category, status, memo, flags, exclude`.  
-- **Flags:** only `flags += "..."` (append) is allowed.  
-- **Exclude:** defaults to `false`. Rules can set `exclude = true`.
+### Strictness & Execution
+- `--strict-parse` — Enforce delimiter/header consistency; fail early
+- `--fail-threshold F` — **Fraction `0.0–1.0`** (e.g., `0.05`)
+- `--fastio` — Prefer PyArrow I/O (20–40% faster on large files)
+- `--timings` — Print phase timings
+- `--headless` — Suppress non-essential console output
 
 ---
 
-## 2. Growth Loop Example
+## 2) Discovery Helper — `finlang-discover`
 
-A recommended workflow for bootstrapping coverage:
-
-```bash
-# 1. Discover frequent uncategorized counterparties
-finlang-discover --input categorized.csv --top-k 20 > suggestions.fin
-
-# 2. Append suggested rules into your main ruleset
-type suggestions.fin >> my_rules.fin    # (Windows)
-cat suggestions.fin >> my_rules.fin     # (Linux/macOS)
-
-# 3. Apply rules + packs with full audit trail
-finlang --input transactions.csv --output categorized.csv         --rules my_rules.fin --include-pack retail,sanity --audit-mode full
-```
-**Growth Loop Diagram**
-
-![FinLang Growth Loop](assets/finlang_growth_loop.png)
-
----
-
-## 3. Discovery Helper (`finlang-discover`)
-
-**Purpose:** Surface frequently occurring *uncategorized counterparties* so you can draft rules to cover them.
+**Purpose:** Surface frequently occurring **uncategorized counterparties** to draft rules for.
 
 **Usage:**
-
 ```bash
-finlang-discover --input canonical.csv --candidates out.csv --all out_full.csv
-                 [--min-count N] [--min-amount X] [--since-date YYYY-MM-DD] [--top-k K]
+finlang-discover --input canonical.csv --candidates out.csv [--all out_full.csv]   [--min-count N] [--min-amount X] [--since-date YYYY-MM-DD] [--top-k K]   [--strict-parse] [--fail-threshold F]   [--encoding CODEC|auto] [--decimal .|,] [--thousands ','|'.'|' '|'\'']   [--dayfirst] [--date-format FMT] [--fastio] [--headless]
 ```
 
-### Flags
+**Output Format (`--candidates`):**
+```csv
+counterparty_fingerprint,example_counterparty_name,count,sample_amount,sample_date
+TESCO,TESCO STORES 1234,134,-92.34,2025-08-21
+```
+Use this as input to `finlang-suggest` to generate draft rules.
 
-- `--input FILE` (required)  
-  Canonical CSV with `counterparty, category, amount, date`.  
-- `--candidates FILE` (required)  
-  Shortlist output (top counterparties).  
-- `--all FILE` (required)  
-  Full frequency table.  
-- `--min-count N` (default 5)  
-  Minimum occurrences to consider.  
-- `--min-amount X`  
-  Always include counterparties with a single transaction ≥ X.  
-- `--since-date YYYY-MM-DD`  
-  Filter to recent data.  
-- `--top-k K`  
-  Limit shortlist length.
-
-**Outputs:** shortlist of suggested counterparties + full table of frequencies.
+> ℹ️ **Note:** The **full table** specified via `--all` contains additional aggregates:
+> `sum_amount, first_date, last_date`.
 
 ---
 
-## 4. Suggestion Helper (`finlang-suggest`)
+## 3) Suggestion Helper — `finlang-suggest`
 
-**Purpose:** Generate conservative draft rules from discovery output.
+**Purpose:** Generate conservative **draft `.fin` rules** from a candidates CSV.
 
 **Usage:**
-
 ```bash
-finlang-suggest --input candidates.csv --output draft_rules.fin
-                [--rules existing.fin] [--category "Review"]
-                [--prefix "SUGGEST"] [--append|--overwrite]
+finlang-suggest --input candidates.csv --output draft_rules.fin   [--emit-match {exact|fuzzy}] [--category "Review"] [--prefix "SUGGEST"]   [--rules existing.fin] [--append|--overwrite] [--quote-style {always|minimal}]
 ```
 
-### Flags
+**Key Flags**
+- `--emit-match` — **Use `exact` for 1:1 production rules**; `fuzzy` may be broader.
+- `--category` *(default "Review")* — Draft category label
+- `--prefix` *(default "SUGGEST")* — Rule title prefix
+- `--rules` — De‑dupe against existing rules
+- `--append` / `--overwrite` — File write mode
+- `--quote-style` — CSV/FIN quoting (`always|minimal`)
 
-- `--input FILE` (required)  
-  Shortlist from `finlang-discover`.  
-- `--output FILE` (required)  
-  Draft rules file.  
-- `--rules FILE`  
-  De-dupe against existing rules.  
-- `--category NAME` (default: `"Review"`)  
-  Category for draft rules.  
-- `--prefix NAME` (default: `"SUGGEST"`)  
-  Rule title prefix.  
-- `--append` / `--overwrite`  
-  Control file writing mode.
-
-**Output:** Draft `.fin` rules like:
-
+**Example Output**
 ```fin
 # SUGGESTED (freq=134, last=2025-08-21, sample_amt=-92.34)
-rule "SUGGEST: TESCO" {
+rule "SUGGEST: TESCO STORES 1234" {
   match:
-    - counterparty ~ "*TESCO*"
+    - counterparty == "TESCO STORES 1234"
   set:
     - category = "Review"
 }
 ```
 
+⚠️ **Important:** Always review draft rules manually before merging into production.  
+The `"Review"` category is intentional—verify each rule’s logic before deployment.
+
 ---
 
-## 5. Benchmark Harnesses
+## 4) Environment Variables
 
-### A) Single Ruleset
+| Variable | Effect | Example |
+|----------|--------|---------|
+| `FINLANG_SAFE_TEXT` | Enable CSV injection protection | `export FINLANG_SAFE_TEXT=1` |
+| `FINLANG_AUDIT_MODE` | Default audit mode | `export FINLANG_AUDIT_MODE=full` |
+| `FINLANG_AUDIT_MAX` | Cap audit log entries | `export FINLANG_AUDIT_MAX=10000` |
 
-**Usage:**
-
+**Usage Examples:**
 ```bash
-python -m benchmarks.bench_finlang_harness --mode full-cli --run-fin "finlang --fastio --audit-mode none"   --rules examples/rules.demo.fin --include-pack retail,transport,subs   --rows 25000 50000 100000 200000 --cols 5 20 35 50 --runs 3   --final-rows 1000000 5000000 --outdir bench_out
+# Linux/macOS
+export FINLANG_AUDIT_MODE=full
+finlang --input data.csv ...
+
+# Windows PowerShell
+$env:FINLANG_AUDIT_MODE="full"
+finlang --input data.csv ...
 ```
 
-**Flags:**
+---
 
-- `--mode {full-cli|io-only}`  
-- `--run-fin "CMD"` (the CLI command template)  
-- `--rules FILE`  
-- `--include-pack PACKS`  
-- `--map FILE`  
-- `--rows N1 N2 ...`  
-- `--cols C1 C2 ...`  
-- `--runs K` (repeats per grid point)  
-- `--final-rows N ...` (big finale runs)  
-- `--cli-parse` (parse CLI stdout timings instead of timer)  
-- `--outdir DIR` (results + plots)
+## 5) Quick Reference Table
 
-**Outputs:** `bench_results.csv`, heatmaps, surfaces, finale plots.
+> 🧭 This table lists the most common operational flags.  
+> For full canonical details (all flags, data types, and defaults), see [flags.md](flags.md).
 
-### B) Multi-Ruleset
+| Flag | Applies To | Default | Meaning / Use Case | See Also |
+|------|-------------|----------|--------------------|-----------|
+| `--input` | finlang, discover | required | Input CSV | - |
+| `--output` | finlang, suggest | required | Output file | - |
+| `--rules` | finlang, suggest | none | User rules (highest precedence) | [rule_language.md](rule_language.md) |
+| `--include-pack` | finlang, benchmarks | none | Add built‑in packs | [workflows.md](workflows.md) |
+| `--map` | finlang, benchmarks | bundled | Column mapping | [mapping_guide.md](mapping_guide.md) |
+| `--audit` | finlang | none | Write audit JSON | [release_notes_v0_6_4.md](release_notes_v0_6_4.md) |
+| `--audit-mode` | finlang | lite | Audit verbosity | [release_notes_v0_6_4.md](release_notes_v0_6_4.md) |
+| `--strict-parse` | finlang, discover | off | Hardened CSV parsing | [flags.md](flags.md) |
+| `--fail-threshold` | finlang, discover | none | Fraction `0.0–1.0` drop‑rate ceiling | [flags.md](flags.md) |
+| `--decimal` / `--thousands` | finlang, discover | . / , | Numeric punctuation | [i18n_examples.md](i18n_examples.md) |
+| `--dayfirst` / `--date-format` | finlang, discover | off / none | Date parsing strategy | [i18n_examples.md](i18n_examples.md) |
+| `--encoding` | finlang, discover | utf-8-sig | Input codec (`auto` recommended) | [flags.md](flags.md) |
+| `--output-encoding` | finlang | utf-8 | Output codec | - |
+| `--emit-match` / `--quote-style` | suggest | fuzzy / minimal | Rule emission style | [growth_loop_best_practices.md](growth_loop_best_practices.md) |
+| `--category` / `--prefix` | suggest | Review / SUGGEST | Rule metadata | - |
+| `--append` / `--overwrite` | suggest | append | Write mode | - |
+| `--fastio` | finlang, discover | off | Arrow I/O acceleration | - |
+| `--timings` / `--headless` | finlang, discover | off | Diagnostics / quiet mode | - |
 
-**Usage:**
+---
 
+## 6) Practical Recipes
+
+**Daily Run (Auditable + Fast)**
 ```bash
-python -m benchmarks.bench_finlang_rulesets --run-fin "finlang --fastio"   --rules-set RETAIL:examples/rules.retail.fin --rules-set TRANSPORT:examples/rules.transport.fin   --rows 50000 100000 --cols 10 20 --repeats 3 --outdir bench_out
+finlang --input in.csv --output out.csv --rules my.fin   --include-pack retail,sanity --fastio   --audit audit.json --audit-mode lite
 ```
 
-- `--rules-set NAME:FILE` (repeatable).  
-- Other flags mirror single-ruleset harness.
+**Growth Loop (Rev 3.1)**
+```bash
+# 1) Discover candidates (CSV)
+finlang-discover --input categorized.csv --candidates candidates.csv --top-k 50
 
-**Outputs:** comparison heatmaps and lines across rulesets.
+# 2) Generate draft rules
+finlang-suggest --input candidates.csv --output draft_rules.fin   --emit-match exact --category "Review" --append
 
----
+# 3) Apply rules + packs with full audit
+finlang --input transactions.csv --output categorized.csv   --rules draft_rules.fin --include-pack retail,sanity   --audit audit.json --audit-mode full
+```
 
-## 6. Quick Reference Table
+**Enterprise CI/CD (Headless + Strict)**
+```bash
+finlang --input daily_export.csv --output categorized.csv   --rules production_rules.fin   --include-pack retail,transport,subs   --strict-parse --fail-threshold 0.02   --encoding auto --fastio   --headless --audit ci_audit.json --audit-mode lite
 
-| Flag | Applies To | Default | Meaning / Use Case |
-|------|------------|---------|--------------------|
-| `--input` | finlang, discover | required | Input CSV file |
-| `--output` | finlang, suggest | required | Output CSV or rules file |
-| `--rules` | finlang, suggest | none | User rules (highest precedence) |
-| `--include-pack` | finlang, benchmarks | none | Add built-in packs |
-| `--map` | finlang, benchmarks | bundled | Column mapping JSON |
-| `--audit` | finlang | none | Audit JSON path |
-| `--audit-mode` | finlang | lite | Audit verbosity (none/lite/full) |
-| `--fastio` | finlang | off | Use pyarrow IO if installed |
-| `--timings` | finlang | off | Show timing breakdown |
-| `--headless` | finlang | off | Suppress console output |
-| `--min-count` | discover | 5 | Min frequency for candidates |
-| `--min-amount` | discover | none | Always include above this |
-| `--since-date` | discover | none | Filter recent data |
-| `--top-k` | discover | none | Limit shortlist length |
-| `--category` | suggest | Review | Default category for drafts |
-| `--prefix` | suggest | SUGGEST | Rule title prefix |
-| `--append/--overwrite` | suggest | append | File writing mode |
-| `--mode` | benchmarks | full-cli | Benchmark mode |
-| `--rows/--cols` | benchmarks | none | Grid sizes |
-| `--runs` | benchmarks | 1 | Repeats per run |
-| `--final-rows` | benchmarks | none | Big finale sizes |
-| `--outdir` | benchmarks | bench_out | Results directory |
-
----
-
-## 7. Practical Recipes
-
-- **Daily run (fast + auditable):**  
-  ```bash
-  finlang --input in.csv --output out.csv --rules my.fin           --include-pack retail,sanity --fastio --audit audit.json --audit-mode lite
-  ```
-
-- **Pure throughput benchmark:**  
-  ```bash
-  python -m benchmarks.bench_finlang_harness --mode full-cli     --run-fin "finlang --fastio --audit-mode none --headless"     --rows 100000 500000 1000000 --cols 10 50 --runs 3 --outdir bench_out
-  ```
-
-- **Coverage growth loop:**  
-  ```bash
-  finlang-discover --input categorized.csv --top-k 50 > suggestions.fin
-  finlang-suggest --input suggestions.fin --output draft_rules.fin --rules my_rules.fin --category "Review"
-  finlang --input transactions.csv --output categorized.csv --rules my_rules.fin --include-pack retail,sanity --audit-mode full
-  ```
+if [ $? -ne 0 ]; then
+  echo "Categorization failed - check logs"
+  exit 1
+fi
+```
 
 ---
 
 ## FAQ
 
 **Q: I tried `flags = "X"` and it didn’t work. Why?**  
-A: Flags are append-only. Use `flags += "X"` instead. This ensures no accidental overwrites.
+A: Flags are append‑only. Use `flags += "X"`.
 
-**Q: Why is audit mode slowing things down?**  
-A: `--audit-mode full` records before/after for all evaluated cells. `lite` (default) records changed cells only. Use `none` for fastest benchmarks.
+**Q: Why did audit mode slow my job?**  
+A: `full` mode records before/after diffs. Use `lite` (default) for speed.
 
-**Q: My amounts look wrong. Why?**  
-A: If no `amount` column exists, FinLang synthesizes it with `abs(credit) - abs(debit)`. Check your bank map or source headers.
+**Q: My amounts are wrong (199,99 → 19999.0).**  
+A: Your file uses a comma decimal. Add `--decimal , --thousands .` or see [i18n_examples.md](i18n_examples.md).
+
+**Q: Mixed US/EU formats in one file?**  
+A: Not supported. FinLang enforces one locale per run for determinism. Split your file or normalize formats first.
 
 **Q: Which rules take precedence?**  
-A: Rules are applied in the order they are loaded. Personal rules (`--rules`) are loaded first, then pack rules (`--include-pack`). Within each file, rules run top-to-bottom. For `category`, `memo`, and `exclude`, the last matching rule wins, but flags always accumulate.
+A: Load order then file order — user `--rules` first, then packs; within a file, top to bottom.
 
 ---
 
-© FinLang Ltd
+© FinLang Ltd — v0.6.4.post1 (GA Rev 3.1)

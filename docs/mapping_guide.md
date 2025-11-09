@@ -1,55 +1,98 @@
-# 📖 Mapping Guide
-*Applies to FinLang v0.6.x*
-
-This guide explains how FinLang maps your raw bank export headers into the canonical column names required by the engine. It also covers customization, troubleshooting, validation, and enterprise practices.
+# 📘 Mapping Guide
+*Applies to FinLang v0.6.4.post1 (GA Rev 3.4 — Final Clarified)*
 
 ---
 
-## 🔹 Purpose of Mapping
+## 🚀 Quick Start
 
-Different banks export different CSV headers. For example:  
-- Some use `Payee`, others use `Vendor`, others use `Description`.  
-- Some export `Debit`/`Credit` columns, others provide a single `Amount` field.
+**Most users don’t need custom maps** — the default `bank.map.json` already covers major UK/EU banks.
 
-FinLang uses a JSON mapping file to normalize these variations into canonical fields:  
-`date`, `counterparty`, `amount`, `debit`, `credit`, `memo`, `category`, `flags`.
+**Only create a custom map if:**
+- Your bank uses non-standard column names
+- The default map doesn’t recognize your headers
+
+**Simple examples:**
+```bash
+# Default map (works for most banks)
+finlang --input revolut.csv --output out.csv --rules rules.fin
+
+# Custom map (for unusual headers)
+finlang --input unusual_bank.csv --output out.csv --rules rules.fin --map custom.map.json
+```
 
 ---
 
-## 🔹 The Bundled `bank.map.json`
+## 🎯 Overview
 
-FinLang ships with a **default `bank.map.json`** that covers a wide range of common English-language headers used by UK, US, and European banks. You can find this file in the distribution and override it with your own via the `--map` flag.
+FinLang uses **mapping files** to translate the column names in your bank or accounting exports into FinLang’s **canonical schema**.
 
-**Core Required Fields (must exist after mapping):**
+Mapping ensures consistent interpretation of fields such as `date`, `amount`, and `counterparty`, even when your CSV headers differ (e.g., `TransactionDate`, `Value`, `Description`).
 
-  - `date`
-  - `counterparty`
-  - `amount`  
-    (this may be present directly, or synthesized from `debit` + `credit`)
+---
 
-Without these three, FinLang will abort with a schema error.
+## 🔹 The Canonical Schema
 
-**Optional Canonical Fields (understood if present):**
+**Required fields (must exist after mapping or synthesis):**
+- `date` — transaction date (ISO recommended in output)
+- `counterparty` — payee/vendor/description
+- `amount` — signed numeric; **or** `debit`/`credit` from which `amount` is synthesized
 
-  - `memo` → free text (notes, transaction type, etc.)
-  - `category` → assigned by rules
-  - `flags` → append-only tags (`flags += "Retail"`)
-  - `status` → can be set/used in rules
-  - `exclude` → marks rows to be dropped from further processing
+**Optional fields (used if present):**
 
-**Excerpt from the bundled `bank.map.json`:**
+| Field | Purpose / Effect | Typical Source | Notes |
+|------|-------------------|----------------|-------|
+| `memo` | Free text notes shown verbatim in output | “Notes”, “Reference”, “Type” | Not interpreted by engine logic |
+| `category` | Display/category field set by rules | (rarely present in input) | Rules commonly assign/overwrite this |
+| `flags` | Append‑only tags for review/analytics | (rare) | **Use** `flags += "Retail"`; non‑destructive |
+| `status` | State you can set/test in rules | (rare) | E.g., `status = "reconciled"` then filter later |
+| `exclude` | Usable in rules as a custom boolean marker. **Informational only** in v0.6.4; FinLang does not skip rows automatically. | (n/a) | Future releases may add native exclusion behavior |
 
+**Examples (rules using optional fields):**
+```fin
+rule "Mark high‑value for review" {
+  match:
+    - amount <= -1000
+  set:
+    - flags += "high_value"
+    - category = "Review"
+}
+```
+
+📌 Extra columns not in the canonical list are **passed through unchanged** to the output.
+
+---
+
+## 🗂️ The Bundled `bank.map.json` (Actual Shape)
+
+FinLang ships with a default mapping file, **`bank.map.json`**, which already covers many common formats (e.g., Barclays, Revolut, Starling, Monzo).  
+**Schema note:** The bundled file uses a nested object for `amount` with **`aliases`** (single-column amounts) and **`debit` / `credit`** for two-column exports.
+
+📍 Source path:
+```
+src/finlang/mapping/bank.map.json
+```
+
+**Realistic example (matches the bundled file’s structure):**
 ```json
 {
   "date": [
     "date",
+    "Date",
     "transaction_date",
     "txn_date",
     "posted_date",
-    "value_date"
+    "post_date",
+    "value_date",
+    "booking_date",
+    "timestamp",
+    "transaction date",
+    "posted date",
+    "value date",
+    "booking date"
   ],
   "counterparty": [
     "description",
+    "Description",
     "payee",
     "vendor",
     "merchant",
@@ -58,6 +101,7 @@ Without these three, FinLang will abort with a schema error.
   ],
   "memo": [
     "type",
+    "Type",
     "notes",
     "note",
     "memo"
@@ -70,146 +114,200 @@ Without these three, FinLang will abort with a schema error.
 }
 ```
 
-This bundled file ensures that most common exports will "just work" without customization.
-
-📌 Note: If you don’t specify `--map`, FinLang automatically uses the bundled `bank.map.json`. You only need `--map` if you want to override with your own custom file.
+**How it works:**
+1. FinLang reads your CSV headers.  
+2. Compares them (**case‑insensitively**) to these lists.  
+3. Maps matched columns to canonical names.  
+4. For `amount`:
+   - If a header matches any in `amount.aliases` → that column is the **amount**.
+   - Else, if both `debit` and `credit` headers are present → FinLang **synthesizes** `amount`.
+   - Else → FinLang errors (missing required columns).
 
 ---
 
-## 🔹 How to Use and Customize Mappings
+## ⚙️ Using Custom Maps
 
-There are two primary ways to handle mapping:
+Provide your own JSON mapping file with the `--map` flag:
 
-### 1. Use the Default (No Action Required)
+```bash
+finlang --input bank.csv --output out.csv --rules my_rules.fin --map my_bank.map.json
+```
 
-If your CSV headers are common (e.g., `Date`, `Description`, `Debit`, `Credit`), you don't need to do anything. FinLang will automatically use its bundled `bank.map.json`.
+📌 **Important:** Providing a custom map **replaces** the default bundled map entirely.  
+It does **not merge** — only the specified mappings will be used.
 
-### 2. Build Your Own Custom Map
+📌 **Tip:** Run with `--strict-parse` to validate header alignment early.
 
-If you have a bank export with unusual headers, you can provide your own mapping file.
+---
 
-- **Step 1: Create a JSON file** (e.g., `my_custom_map.json`).  
-- **Step 2: Add your mappings.** For each canonical field, create a key and provide a list of the header names from your CSV that should map to it.
+## 📝 Creating a Custom Map
 
-**Example `my_custom_map.json` for a non-standard export:**
+**Step 1: Identify your CSV headers**
+```bash
+# View first line of your CSV
+head -n 1 bank.csv
+# Output: Transaction_Date,EUR_Value,Vendor_Name,Debit,Credit
+```
 
+**Step 2: Create your map file (choose one pattern below)**
+
+**(A) Single amount column**
 ```json
 {
-  "date": ["TXN_DATE"],
-  "counterparty": ["Beneficiary_Name"],
-  "memo": ["Transaction_Ref"],
+  "date": ["Transaction_Date"],
+  "counterparty": ["Vendor_Name"],
   "amount": {
-    "debit": "Outgoing_Amt",
-    "credit": "Incoming_Amt"
+    "aliases": ["EUR_Value"]
   }
 }
 ```
 
-- **Step 3: Tell FinLang to use it.** Use the `--map` flag in the command line:
+**(B) Separate debit / credit columns**
+```json
+{
+  "date": ["Transaction_Date"],
+  "counterparty": ["Vendor_Name"],
+  "amount": {
+    "debit": "Debit",
+    "credit": "Credit"
+  }
+}
+```
 
+**Step 3: Test with strict parsing**
 ```bash
-finlang --input my_bank.csv --output categorized.csv --rules my_rules.fin --map my_custom_map.json
+finlang --input bank.csv --output out.csv   --map my_bank.map.json --rules rules.fin --strict-parse
 ```
 
-This will override the default `bank.map.json` with your custom logic.
+If headers don’t match, you’ll get a clear, fatal error identifying missing requirements.
 
 ---
 
-## 🔹 Advanced Notes
+## 🧭 Mapping vs. Internationalization (I18n)
 
-- **Language & Character Support**  
-  - FinLang is designed to be language-agnostic. The mapping file and rule files should be saved with **UTF-8 encoding** to support international character sets in your transaction data.  
-  - The engine normalizes text for matching by stripping accents (e.g., `CAFÉ` becomes `CAFE`) to ensure robust, accent-insensitive comparisons.
+It’s important to understand the difference between the **mapping file** and the **I18n flags**:
 
-- **Case Insensitivity**  
-  The mapping process is case-insensitive. A header of `Description` in your CSV will match the `description` key in your mapping file.
+| Concept | Purpose | Example |
+|----------|----------|----------|
+| **Mapping (`--map`)** | Tells FinLang *which column* is the amount | `amount.aliases = ["Value_EUR"]` |
+| **I18n Flags (`--decimal`, `--thousands`)** | Tell FinLang *how to read* the numbers in that column | `--decimal ,` parses `1.234,56` correctly |
 
-- **Extra Columns**  
-  If your input file has **more columns than the canonical model**, they are simply passed through unchanged. FinLang only interprets the canonical fields listed above (required: `date`, `counterparty`, `amount`; optional: `memo`, `category`, `flags`, `status`, `exclude`). All other columns are passed through unchanged. All other fields remain in the output CSV for your reference but are not affected by rules.
-
-- **Limitations**  
-  The mapping is a simple header-to-field translation. It does not perform complex data transformations or cell-level manipulations. That is the job of the rule engine.
-
-- **Precedence of Amount vs Debit/Credit**  
-  If both `amount` and debit/credit exist, `amount` is always trusted. Debit/credit are fallback only.
-
-- **Amount Synthesis Rule**  
-  If no `amount` column exists, FinLang synthesizes it with:  
-  ```
-  amount = abs(credit) - abs(debit)
-  ```
-
-**Examples:**
-
-| Debit | Credit | Synthesized `amount` |
-|-------|--------|-----------------------|
-| 12.34 |        | `-12.34`              |
-|       | 9.99   | `+9.99`               |
-| 12.00 | 5.00   | `-7.00` (`5 - 12`)    |
-|       |        | `0`                   |
-
-📌 See [`rule_language.md`](rule_language.md) for how rules are applied once data has been mapped into the canonical schema.
+You must use both to correctly process non‑US/UK data.  
+See [i18n_examples.md](i18n_examples.md) for regional recipes.
 
 ---
 
-## 🔹 Troubleshooting
+## 💰 Amount Synthesis
 
-**Issue:** “My CSV fails to load: unknown header `vendor_name`.”  
-- ✅ Add `"vendor_name"` under `counterparty` in your map.  
-- ✅ Re-run with `--map my.map.json`.
+If no `amount` column exists after mapping, FinLang automatically **synthesizes** one from `debit` and `credit` columns.
 
-**Issue:** “My amounts look wrong.”  
-- ✅ Check whether your file has both debit/credit and amount columns. Remember: `amount` always takes precedence.  
-- ✅ Verify the synthesis rule is understood:  
-  ```
-  amount = abs(credit) - abs(debit)
-  ```
-
-**Issue:** “Multiple possible counterparty fields exist.”  
-- ✅ Only the first populated column is used. Consider editing your map to set explicit priority.
-
-**Issue:** “Flags or categories disappeared.”  
-- ✅ Check you didn’t accidentally overwrite canonical column names in your custom map.  
-- ✅ Use `--audit audit.json --audit-mode full` to verify changes.
+This logic—including all edge cases for different bank formats—is detailed in [amount_synthesis.md](amount_synthesis.md).
 
 ---
 
-## 🔹 Validating a Map
+## 🏦 Common Bank Export Formats
 
-You can validate your custom map against a CSV to ensure headers match.
+**Revolut (UK):**  
+- Headers already match canonical schema.  
+✅ No custom map needed.
 
-**Linux/macOS:**
+**Barclays (UK):**  
+- `"Transaction Date"` → `date`  
+- `"Amount"` → `amount`  
+✅ Default map works.
 
+**German Banks (Sparkasse, Deutsche Bank):**  
+- Often use `"Soll"` (debit) / `"Haben"` (credit)  
+- Require custom map + I18n flags:
+
+```json
+{
+  "amount": {
+    "debit": "Soll",
+    "credit": "Haben"
+  }
+}
+```
 ```bash
-finlang --input transactions.csv --map my.map.json --output /dev/null --audit-mode none --headless
+finlang --map german_bank.map.json --decimal , --thousands .
 ```
 
-**Windows PowerShell:**
-
-```powershell
-finlang --input transactions.csv --map my.map.json --output NUL --audit-mode none --headless
+**Swiss Banks (UBS, Credit Suisse):**  
+- May use apostrophe as thousands separator:
+```bash
+finlang --thousands "'" --decimal .
 ```
 
-If the map is invalid, FinLang will exit non-zero and explain which headers failed.
+See [i18n_examples.md](i18n_examples.md) for complete regional recipes.
 
 ---
 
-## 🔹 Enterprise Considerations
+## 🧩 Case Insensitivity
 
-- **Shared maps:** Place mapping files in version control alongside rules for team consistency.  
-- **Multiple banks:** Maintain separate maps per institution (e.g. `hsbc.map.json`, `barclays.map.json`).  
-- **Auditing:** Always validate maps before production runs. Consider using CI/CD validation (see [Rule Language](rule_language.md)).  
-- **Portability:** When onboarding new datasets, review `bank.map.json` and extend rather than overwrite to preserve defaults.
+Mapping keys are matched **case‑insensitively**, so both `description` and `Description` work equally well.
 
----
-
-## 🔹 Cross-References
-
-- [Rule Language](rule_language.md) → how mapped fields are used in rules  
-- [CLI Reference](cli_reference.md) → all CLI flags for supplying maps  
-- [Workflows](workflows.md) → daily run + growth loop integration  
-- [FAQ](faq.md) → common mapping and amount-related questions
+If your bank uses unusual or non‑ASCII header names, ensure the file encoding is declared properly (e.g., `--encoding utf‑8` or `--encoding auto`).
 
 ---
 
-© FinLang Ltd
+## 🧰 Troubleshooting
+
+| Symptom | Cause | Fix |
+|----------|--------|-----|
+| **“Missing canonical field: amount”** | CSV headers don’t match mapping | Create custom map with your amount column name or debit/credit names |
+| **“Malformed numeric value”** | Locale mismatch (e.g., `1.234,56`) | Add `--decimal , --thousands .` |
+| **“Multiple matches for column”** | Duplicate header aliases | Check for conflicting keys in custom map |
+| **Output amounts wrong sign** | Debit/Credit logic unclear | See [amount_synthesis.md](amount_synthesis.md) |
+| **Headers not recognized** | Encoding issues | Try `--encoding auto` or `--encoding utf‑8‑sig` |
+| **Case‑sensitive matching fails** | Non‑ASCII characters | Ensure map file is UTF‑8 encoded |
+
+**Debug Tip:** Use `--strict-parse` to fail fast with clear error messages.
+
+---
+
+## ✅ Validation Workflow
+
+**Recommended process for new bank formats:**
+
+1. **Test with default map first**
+```bash
+finlang --input new_bank.csv --output test.csv --rules rules.fin --strict-parse
+```
+2. **If it fails, check the error message**
+```
+FATAL: Missing required columns after mapping: ['amount'].
+       Provide a mapping JSON via --map or preprocess your CSV first.
+```
+3. **Create minimal custom map**
+```json
+{
+  "amount": {
+    "aliases": ["EUR_Value"]
+  }
+}
+```
+4. **Test again with custom map**
+```bash
+finlang --input new_bank.csv --output test.csv   --map custom.map.json --rules rules.fin --strict-parse
+```
+5. **Verify output with audit mode**
+```bash
+finlang --input new_bank.csv --output test.csv   --map custom.map.json --rules rules.fin   --audit test_audit.json --audit-mode full
+```
+6. **Check audit log for correct field interpretation**
+
+---
+
+## 🔹 Cross‑References
+
+- [flags.md](flags.md) – Master list of all flags and canonical formats  
+- [i18n_examples.md](i18n_examples.md) – Regional recipes for parsing data  
+- [amount_synthesis.md](amount_synthesis.md) – Detailed logic for debit/credit synthesis  
+- [rule_language.md](rule_language.md) – How mapped fields are used in rules  
+- [cli_reference.md](cli_reference.md) – All CLI flags for supplying maps  
+- [workflows.md](workflows.md) – How mapping fits into daily runs  
+- [faq.md](faq.md) – Common mapping and amount‑related questions
+
+---
+
+© FinLang Ltd — v0.6.4.post1 (GA Rev 3.4 — Final Clarified)

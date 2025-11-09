@@ -1,156 +1,137 @@
-# 📖 Installation Guide
-*Applies to FinLang v0.6.x*
+# 🧩 Installation Guide
+*Applies to FinLang v0.6.4.post1 (GA Rev 2)*
 
-This guide walks you through installing **FinLang** on Windows, macOS, and Linux — with optional fast CSV I/O and tips for common pitfalls.
-
----
-
-## Requirements
-
-- **Python**: 3.10 or newer (3.10–3.12 recommended)
-- **OS**: Windows, macOS (Intel/Apple Silicon), or Linux
-- **RAM**: Scales with your CSV size (as a rough guide, 1–2× file size)
-
-> Tip: Use a **virtual environment** so FinLang and its dependencies stay isolated from your system Python.
+FinLang can be installed on Windows, macOS, or Linux using `pip`.  
+This guide walks through installation, quick testing, and key configuration notes introduced in **v0.6.4.post1 (GA)**.
 
 ---
 
-## Quick Install (recommended)
+## 🚀 Quick Install
+
+FinLang requires **Python 3.10–3.12**.
 
 ```bash
 pip install finlang
 ```
 
-Verify:
-
-```bash
-finlang --help
-```
-
-📌 This will also install helper tools:  
-- `finlang-discover` (for surfacing uncategorized counterparties)  
-- `finlang-suggest` (for generating draft rules)  
-
-You can call them directly from the shell — no need to run `python discover.py`.
-
-### Optional: Faster I/O (pyarrow)
-
-For faster CSV reads/writes, install the optional **fast I/O** extra (pulls in `pyarrow`):
-
+Or with Fast I/O acceleration (recommended for large datasets):
 ```bash
 pip install "finlang[fastio]"
 ```
 
-If `pyarrow` isn’t available for your platform, FinLang still runs — it just uses standard I/O.
-
----
-
-## Create a Virtual Environment (optional but recommended)
-
-### macOS / Linux (bash/zsh)
+Verify installation:
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install "finlang[fastio]"   # or: pip install finlang
+finlang --help
 ```
 
-### Windows (PowerShell)
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-python -m pip install "finlang[fastio]"   # or: python -m pip install finlang
-```
-
-> If your shell complains about quotes, use: `pip install finlang[fastio]` (no quotes) on PowerShell/CMD.
+📌 **FinLang v0.6.4+** automatically detects common encodings (e.g., `latin-1`) and delimiters (`;`, `,`, `\t`).  
+For complete control over regional formats, see the **[i18n Examples](i18n_examples.md)**.
 
 ---
 
-## From Source (editable install)
+## 🧪 Minimal Smoke Test
 
-```bash
-git clone https://github.com/your-org/finlang.git
-cd finlang
-pip install -U pip
-pip install -e .           # editable install for development
-# optional fast I/O:
-pip install ".[fastio]"
-```
+Create a small test CSV:
 
----
-
-## Minimal Smoke Test
-
-1) Create a tiny CSV (headers can be raw — FinLang will canonicalize columns using its bank map):
 ```csv
-Date,Description,Debit,Credit
-2025-01-01,Tesco Superstore,45.20,
-2025-01-02,ACME Payroll,,1500.00
+date,amount,description
+2025-01-10,19.99,Test transaction
 ```
 
-2) Run FinLang to produce a canonical/processed file:
+Then run:
 ```bash
-finlang --input sample.csv --output categorized.csv --audit audit.json --audit-mode lite
+finlang --input test.csv --output out.csv --rules rules.fin --audit audit.json
 ```
 
-You should get `categorized.csv` with canonical columns (`counterparty, amount, date, category, flags, memo`) and an `audit.json` file if changes were made.
-
-📌 Audit modes:  
-- `none` → fastest, no audit file written.  
-- `lite` (default) → records changed cells only.  
-- `full` → records before/after snapshots of all evaluated cells.
+FinLang will categorize transactions using your rule file and generate an audit log.
 
 ---
 
-## Upgrading / Uninstalling
+### 🌍 Note on Internationalization (I18n)
 
-- **Upgrade** to the latest version:
-  ```bash
-  pip install -U finlang
-  ```
+The above smoke test works for US/UK-style CSVs.  
+If your CSV uses European number or date formats, you must add locale flags:
 
-- **Uninstall**:
-  ```bash
-  pip uninstall finlang
-  ```
-
----
-
-## Platform Notes & Troubleshooting
-
-### Windows
-- If `pip` isn’t found, try `python -m pip` or `py -m pip`.
-- If `finlang` isn’t found after install, ensure your **Scripts** folder is on PATH (e.g., `%USERPROFILE%\AppData\Local\Programs\Python\Python3x\Scripts\`). Activating a venv handles this automatically.
-- Unicode output issues? Run `chcp 65001` in CMD to switch to UTF‑8.
-
-### macOS
-- On Apple Silicon (M1/M2/M3), use a **universal/arm64** Python (via `python.org` or Homebrew).
-- If `pip` points to a different interpreter, prefer `python3 -m pip ...`.
-
-### Linux
-- Ensure `venv` is available: on Debian/Ubuntu `sudo apt-get install python3-venv`.
-- If you see permission errors, use a venv or `pip install --user ...`.
-
-### `pyarrow` / fast I/O
-- If `pip install "finlang[fastio]"` fails on `pyarrow`, try updating pip first:
-  ```bash
-  pip install -U pip wheel setuptools
-  pip install "finlang[fastio]"
-  ```
-- You can always install base FinLang (`pip install finlang`) and skip fast I/O — FinLang will **fall back** to standard CSV I/O.
-
-### Command not found
-- Make sure the environment is activated (you should see `(.venv)` in your prompt) or use full paths: `python -m finlang`.
+**Example (EU data):**
+```bash
+finlang --input sample.csv --output out.csv --rules rules.fin \
+  --decimal , --thousands . --dayfirst
+```
+For full regional recipes, see **[i18n Examples](i18n_examples.md)**.
 
 ---
 
-## What’s Next?
+## ⚙️ Developer (Editable) Install
 
-- Read the **[CLI Reference](cli_reference.md)** for all flags and switches.  
-- Check **[Core Workflows](workflows.md)** to run the daily loop and the growth loop.  
-- Learn the **[Rule Language](rule_language.md)** to write powerful, auditable rules.  
+Clone and install in editable mode for local development:
+
+```bash
+git clone https://github.com/finlang-ltd/finlang.git
+cd finlang
+pip install -e .
+```
 
 ---
 
-© FinLang Ltd
+## 💡 Platform Notes & Troubleshooting
+
+### Internationalization & Parsing
+
+- **Problem:** Amounts are wrong (e.g., `199,99` → `19999.0`)  
+  **Fix:** Add `--decimal ,` to specify a comma decimal separator.
+
+- **Problem:** Dates parsed incorrectly (e.g., 01/12 → Jan 12 instead of 1 Dec)  
+  **Fix:** Add `--dayfirst` to interpret as `DD/MM/YYYY`.
+
+- **Problem:** Garbled text (e.g., `cafÃ©`)  
+  **Fix:** File uses non‑UTF‑8 encoding. Add `--encoding auto` to detect automatically.
+
+See **[i18n Examples](i18n_examples.md)** for more.
+
+---
+
+### Windows Users
+
+If you see Unicode errors, set UTF‑8 mode:
+```cmd
+chcp 65001
+```
+
+Then re‑run your FinLang command.
+
+---
+
+### macOS / Linux Users
+
+If `finlang` is not found, check that your Python Scripts directory is on PATH:
+```bash
+python3 -m pip install --upgrade finlang
+```
+or run directly:
+```bash
+python3 -m finlang --help
+```
+
+---
+
+## 🔄 Upgrade or Uninstall
+
+```bash
+pip install --upgrade finlang
+pip uninstall finlang
+```
+
+---
+
+## 📘 What’s Next?
+
+- **[Flags](flags.md)** – Canonical formats for all CLI arguments  
+- **[i18n Examples](i18n_examples.md)** – Regional command recipes (US, UK, EU)  
+- **[Growth Loop Best Practices](growth_loop_best_practices.md)** – Learn `discover` and `suggest` workflows  
+- **[CLI Reference](cli_reference.md)** – Detailed flag and command reference  
+- **[Rule Language](rule_language.md)** – Write deterministic `.fin` rules  
+- **[Workflows](workflows.md)** – Run FinLang day‑to‑day
+
+---
+
+© FinLang Ltd — v0.6.4.post1 (GA Rev 2)

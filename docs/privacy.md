@@ -1,5 +1,5 @@
 # 📖 Privacy Policy
-*Applies to FinLang v0.6.x*
+*Applies to FinLang v0.6.4.post1 GA*
 
 **Last Updated:** September 29, 2025
 
