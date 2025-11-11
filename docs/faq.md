@@ -12,7 +12,7 @@ A: Probably not. The default map covers most UK/EU banks.
 A: Add `--decimal , --thousands .` to your command. See [i18n_examples.md](i18n_examples.md).
 
 **Q: How do I start?**  
-A: `pip install finlang[fastio]` then `finlang --input bank.csv --output out.csv --rules rules.fin`
+A: `pip install "finlang[fastio]"` then `finlang --input bank.csv --output out.csv --rules rules.fin`
 
 **Q: Where's the full documentation?**  
 A: Start with [install.md](install.md) then [workflows.md](workflows.md).
