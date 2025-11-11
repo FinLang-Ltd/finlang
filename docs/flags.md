@@ -1,7 +1,8 @@
 # 🚩 FinLang Flags & Canonical Formats
-*FinLang v0.6.4.post1 (GA • Rev 2)*
+*FinLang v0.6.4.post1 (GA • Rev 3)*
 
-This page defines the **single source of truth** for CLI flags and their **expected input formats**. Use these conventions for deterministic parsing across platforms.
+This page defines the **single source of truth** for CLI flags and their **expected input formats**.  
+All definitions verified against the v0.6.4 GA codebase (Nov 2025).
 
 ---
 
@@ -9,7 +10,7 @@ This page defines the **single source of truth** for CLI flags and their **expec
 
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
-| `--since-date` | **ISO 8601** `YYYY-MM-DD` (e.g., `2025-01-01`) | Filter records with `date >= since_date` | Deterministic format. Other forms may parse but are **not guaranteed**. |
+| `--since-date` | **ISO 8601** `YYYY-MM-DD` (e.g., `2025-01-01`) | Filter records with `date >= since_date` | Implemented only for `finlang-discover`. |
 | `--dayfirst` | *(boolean switch)* | Interpret ambiguous dates as **DD/MM/YYYY** | Use for UK-style `01/12/2025`. Redundant for `DD.MM.YYYY` / `YYYY-MM-DD`. |
 | `--date-format` | e.g., `"%d/%m/%Y"` | Explicit parser for custom formats | Overrides ambiguity. Prefer ISO when possible. |
 
@@ -23,7 +24,7 @@ This page defines the **single source of truth** for CLI flags and their **expec
 |-----|------------------|--------|------|
 | `--decimal` | `.` or `,` | Decimal character | EU often uses `,` (comma). |
 | `--thousands` | `,` `.` `'` or space (`' '`) | Thousands separator | Switzerland commonly uses **apostrophe `'`**. |
-| `--encoding` | `utf-8-sig` *(default)*, `auto`, `utf-8`, `latin-1`, … | CSV text encoding | `auto` safely detects UTF‑8 / Latin‑1 in most cases. |
+| `--encoding` | `utf-8-sig` *(default)*, `auto`, `utf-8`, `latin-1`, … | CSV text encoding | `auto` safely detects UTF-8 / Latin-1 in most cases. |
 | `--output-encoding` | `utf-8` *(default)* or any valid codec | Output CSV encoding | Use when downstream tools require a specific codec. |
 
 **Common pitfalls:**  
@@ -37,7 +38,7 @@ This page defines the **single source of truth** for CLI flags and their **expec
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
 | `--strict-parse` | *(boolean switch)* | Enforce delimiter/header consistency | Fails early on malformed CSVs. |
-| `--fail-threshold` | **fraction `0.0–1.0`** (e.g., `0.05`) | Abort if drop-rate exceeds threshold | Protects against silent data loss. | 
+| `--fail-threshold` | **fraction `0.0–1.0`** (e.g., `0.05`) | Abort if drop-rate exceeds threshold | Protects against silent data loss. **Note:** In v0.6.4 this does **not** return a non-zero exit code. |
 | `--headless` | *(boolean switch)* | Suppress non-essential console output | Good for CI. |
 | `--timings` | *(boolean switch)* | Report phase timings | Pairs well with `--fastio`. |
 
@@ -47,7 +48,7 @@ This page defines the **single source of truth** for CLI flags and their **expec
 
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
-| `--fastio` | *(boolean switch)* | Prefer PyArrow for I/O | 20–40% speed‑up on large files (PyArrow ≥ 16). |
+| `--fastio` | *(boolean switch)* | Prefer PyArrow for I/O | 20–40% speed-up on large files (PyArrow ≥ 16). |
 
 ---
 
@@ -57,7 +58,7 @@ This page defines the **single source of truth** for CLI flags and their **expec
 |-----|------------------|--------|------|
 | `--rules` | Path(s) to `.fin` file(s) | Load user rules | Multiple allowed. |
 | `--include-pack` | Comma list (e.g., `retail,sanity`) | Include bundled rule packs | Optional. |
-| `--map` | Path to header map JSON | Apply canonical field mapping | Defaults to built‑in map if omitted. |
+| `--map` | Path to header map JSON | Apply canonical field mapping | Defaults to built-in map if omitted. |
 | `--audit` | Output path (`.json`) | Write audit log | Use with `--audit-mode`. |
 | `--audit-mode` | `none` \| `lite` \| `full` | Diff verbosity | `lite` default; `full` for validation. |
 
@@ -88,9 +89,9 @@ This page defines the **single source of truth** for CLI flags and their **expec
 | `--emit-match` | `exact` \| `fuzzy` | **Use `exact` for 1:1 production rules** |
 | `--category` | String | Default category for emitted rules |
 | `--prefix` | String | Add label prefix |
-| `--rules` | Path | De‑dupe against existing rules |
+| `--rules` | Path | De-dupe against existing rules |
 | `--append` / `--overwrite` | switches | File write mode |
-| `--quote-style` | `always` \| `minimal` | CSV/FIN quoting style |
+| `--quote-style` | `"` \| `'` | Quote character used in suggested rules output. |
 
 ---
 
@@ -124,7 +125,15 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 ---
 
 ## 🧪 Audit Reference
-Cross‑verified against **Independent Technical Audit (Nov 8, 2025)**.
+Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.  
+All flags validated in FinLang v0.6.4.post1 (GA).
+
+---
+
+## ⚠️ Known Issues (v0.6.4)
+
+- `--fail-threshold`: Logs a **FATAL** error when triggered but exits with code `0`. Will be fixed in v0.7.  
+- No other functional discrepancies detected.
 
 ---
 

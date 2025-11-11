@@ -184,6 +184,33 @@ A: Locale mismatch — use the correct `--decimal` and `--thousands` flags.
 **Q: FinLang seems slow on large files.**  
 A: Performance scales linearly. Expect ~24 K rows/s on commodity hardware with full audit mode. Disable `--audit` for faster runs.
 
+**Q: Does `--fail-threshold` fail my CI run automatically?**  
+A: Not in v0.6.4. The flag correctly detects and logs a **FATAL** error when the drop-rate threshold is exceeded, but it returns **exit code 0** instead of non-zero.
+
+**Workaround for CI/CD:**
+```bash
+# Linux/macOS
+finlang --input data.csv --output out.csv --rules rules.fin \
+  --fail-threshold 0.05 2>&1 | tee run.log
+
+if grep -q "FATAL: Dropped" run.log; then
+  echo "Drop threshold exceeded"
+  exit 1
+fi
+```
+```powershell
+# Windows PowerShell
+finlang --input data.csv --output out.csv --rules rules.fin `
+  --fail-threshold 0.05 2>&1 | Tee-Object -FilePath run.log
+
+if (Select-String -Path run.log -Pattern "FATAL: Dropped") {
+  Write-Host "Drop threshold exceeded"
+  exit 1
+}
+```
+
+This will be fixed in v0.7.
+
 ---
 
 ## 📚 Related Documentation

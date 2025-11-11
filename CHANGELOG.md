@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [v0.6.4] — 2025-11-09 — GA (Machine-Grade)
 
+
 ### 🚀 Highlights
 - **GA Docs Suite (audited & approved):**
   - `cli_reference.md` (GA Rev 3.1) — complete CLI for `finlang`, `finlang-discover`, `finlang-suggest`, env vars, cross-platform examples.
@@ -61,6 +62,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 - Regression in `run_audit()` (introduced during I18n refactor) that omitted
   before/after diffs.
+
+  ### Known Issues
+- `--fail-threshold`: Logs a **FATAL** error when the drop-rate is exceeded,  
+  but returns exit code `0` in v0.6.4.  
+  Planned fix: v0.7 will exit with code `1` when threshold is breached.
 
 ---
 
