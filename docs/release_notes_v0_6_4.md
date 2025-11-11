@@ -37,6 +37,14 @@ It completes the v0.6.x cycle with hardened I/O, full internationalization (I18n
 
 ---
 
+### ⚠️ Known Issues
+- **`--fail-threshold`** — Logs a **FATAL** error when the drop-rate exceeds the specified fraction,  
+  but exits with code `0` instead of `1`.  
+  This will be corrected in v0.7.
+
+
+---
+
 ## 🔄 Upgrading from v0.6.3 or Earlier
 
 ### Breaking Changes
