@@ -19,7 +19,7 @@ The **Daily Run** applies your personal rules plus optional starter packs to new
 ### First Time? Quick Setup
 ```bash
 # 1) Install FinLang (with fast IO extras)
-pip install finlang[fastio]
+pip install "finlang[fastio]"
 
 # 2) Create an empty rules file
 echo "# My FinLang Rules" > my_rules.fin
