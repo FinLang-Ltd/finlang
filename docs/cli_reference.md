@@ -60,30 +60,7 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 | `--date-format STR` | Explicit strptime format for dates (e.g., `%Y-%m-%d`). |
 | `--output-encoding NAME` | Output encoding (default UTF-8). |
 | `--timings` | Print basic step timings to STDERR. |
-| `--fail-threshold F` | Abort if drop-rate > `F` (fraction `0.0–1.0`). **⚠️ In v0.6.4 this logs FATAL but exits `0`. Use the CI workaround below.** |
-
-### CI Workaround for `--fail-threshold`
-```bash
-# Linux/macOS
-finlang --input data.csv --output out.csv --rules rules.fin   --fail-threshold 0.05 2>&1 | tee run.log
-
-if grep -q "FATAL: Dropped" run.log; then
-  echo "Drop threshold exceeded"
-  exit 1
-fi
-```
-```powershell
-# Windows PowerShell
-finlang --input data.csv --output out.csv --rules rules.fin `
-  --fail-threshold 0.05 2>&1 | Tee-Object -FilePath run.log
-
-if (Select-String -Path run.log -Pattern "FATAL: Dropped") {
-  Write-Host "Drop threshold exceeded"
-  exit 1
-}
-```
-
----
+| `--fail-threshold F` | Abort if drop-rate > `F` (fraction `0.0–1.0`). **** |
 
 ## 2) `finlang-discover` — Discovery Tool
 
@@ -216,10 +193,9 @@ A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.
 
 ---
 
-## ⚠️ Known Issues (v0.6.4)
+## ⚠️ Known Issues (v0.6.4.post2)
 
-- `--fail-threshold` logs a **FATAL** error when the drop-rate is exceeded but returns **exit code 0**. Use the CI workaround above. This will be fixed in v0.7.
-- No other functional discrepancies identified in audited flags.
+- None
 
 ---
 

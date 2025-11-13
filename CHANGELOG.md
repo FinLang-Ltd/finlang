@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [v0.6.4.post2] — 2025-11-14 — GA (Final Polish)
+**Status:** Production-ready (Fully Validated)
+
+### Fixed
+- **CI/CD Hardening:** Fixed CLI exit code behavior to ensure pipeline reliability.
+  - `--fail-threshold` violations now correctly exit with code `2` (Validation Error).
+  - Output file write failures (e.g., read-only fs) now correctly exit with code `1` (Runtime Error).
+- **Documentation:** Removed "Known Issues" section; all identified exit-code bugs are resolved.
+
 ## [v0.6.4] — 2025-11-09 — GA (Machine-Grade)
 
 

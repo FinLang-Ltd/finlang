@@ -185,31 +185,21 @@ A: Locale mismatch — use the correct `--decimal` and `--thousands` flags.
 A: Performance scales linearly. Expect ~24 K rows/s on commodity hardware with full audit mode. Disable `--audit` for faster runs.
 
 **Q: Does `--fail-threshold` fail my CI run automatically?**  
-A: Not in v0.6.4. The flag correctly detects and logs a **FATAL** error when the drop-rate threshold is exceeded, but it returns **exit code 0** instead of non-zero.
+A: Yes, as of v0.6.4.post2. The flag correctly detects when the drop-rate threshold is exceeded, logs a FATAL error, and returns exit code 2.
 
-**Workaround for CI/CD:**
+**Example:**
 ```bash
-# Linux/macOS
-finlang --input data.csv --output out.csv --rules rules.fin \
-  --fail-threshold 0.05 2>&1 | tee run.log
-
-if grep -q "FATAL: Dropped" run.log; then
-  echo "Drop threshold exceeded"
-  exit 1
-fi
-```
-```powershell
-# Windows PowerShell
-finlang --input data.csv --output out.csv --rules rules.fin `
-  --fail-threshold 0.05 2>&1 | Tee-Object -FilePath run.log
-
-if (Select-String -Path run.log -Pattern "FATAL: Dropped") {
-  Write-Host "Drop threshold exceeded"
-  exit 1
-}
+finlang --input data.csv --output out.csv --rules rules.fin --fail-threshold 0.05
+# If >5% of rows are dropped during normalization:
+# FATAL: Dropped X/Y rows during normalization (> 5.00%).
+# Exit code: 2
 ```
 
-This will be fixed in v0.7.
+**Exit codes:**
+- `0` = Success (drop rate within threshold)
+- `2` = Validation failure (drop rate exceeded threshold)
+
+**Note:** This was fixed in v0.6.4.post2. Earlier versions (v0.6.4, v0.6.4.post1) incorrectly returned exit code 0.
 
 ---
 
