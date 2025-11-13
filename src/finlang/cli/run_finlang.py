@@ -579,8 +579,8 @@ def _normalize_canonical(
             # In strict mode, any drop is a failure (thresh=0.0)
             msg = f"Strict parse: {msg}"
         print(msg, file=sys.stderr)
-        # Return an empty DataFrame with columns to signify fatal normalization failure
-        return pd.DataFrame(columns=df.columns)
+        # Raise SystemExit to ensure non-zero exit code for validation failure
+        raise SystemExit(2)
 
     return df_out
 
@@ -659,19 +659,21 @@ def safe_write_csv(df: pd.DataFrame, path: str, verbose: bool, encoding: str) ->
         if verbose:
             print(f"X Cannot write to {path} — file is open in another program.")
             print(f"   -> Saving to fallback: {fb}")
+       # ... (inside PermissionError handling)
         try:
             df.to_csv(fb, index=False, encoding=encoding)
         except Exception as e:
              print(f"FATAL: Failed to write to fallback {fb}: {e}", file=sys.stderr)
+             raise
         return fb
     except Exception as e:
         print(f"FATAL: Failed to write CSV to {path}: {e}", file=sys.stderr)
-        return path
-
+        raise
 
 def safe_write_json(obj, path: str, verbose: bool) -> str:
     _ensure_parent_dir(path)
     try:
+        
         # Write JSON using standard utf-8
         with open(path, "w", encoding="utf-8") as f:
             json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
@@ -681,16 +683,17 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
         if verbose:
             print(f"X Cannot write to {path} — file is open in another program.")
             print(f"   -> Saving to fallback: {fb}")
+        # ... (inside PermissionError handling)
         try:
             with open(fb, "w", encoding="utf-8") as f:
                 json.dump(obj, f, indent=2, ensure_ascii=False, default=str)
         except Exception as e:
              print(f"FATAL: Failed to write JSON to fallback {fb}: {e}", file=sys.stderr)
+             raise
         return fb
     except Exception as e:
         print(f"FATAL: Failed to write JSON to {path}: {e}", file=sys.stderr)
-        return path
-
+        raise
 
 # --------------------------------------------------------------------------------------
 # Strict Parsing Utilities (Synchronized with discover_v0_6_4_rc1.py)

@@ -38,7 +38,7 @@ All definitions verified against the v0.6.4 GA codebase (Nov 2025).
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
 | `--strict-parse` | *(boolean switch)* | Enforce delimiter/header consistency | Fails early on malformed CSVs. |
-| `--fail-threshold` | **fraction `0.0–1.0`** (e.g., `0.05`) | Abort if drop-rate exceeds threshold | Protects against silent data loss. **Note:** In v0.6.4 this does **not** return a non-zero exit code. |
+| `--fail-threshold` | **fraction `0.0–1.0`** (e.g., `0.05`) | Abort if drop-rate exceeds threshold | Protects against silent data loss. |
 | `--headless` | *(boolean switch)* | Suppress non-essential console output | Good for CI. |
 | `--timings` | *(boolean switch)* | Report phase timings | Pairs well with `--fastio`. |
 
@@ -130,10 +130,9 @@ All flags validated in FinLang v0.6.4.post1 (GA).
 
 ---
 
-## ⚠️ Known Issues (v0.6.4)
+## ⚠️ Known Issues (v0.6.4.post2)
 
-- `--fail-threshold`: Logs a **FATAL** error when triggered but exits with code `0`. Will be fixed in v0.7.  
-- No other functional discrepancies detected.
+- None
 
 ---
 
