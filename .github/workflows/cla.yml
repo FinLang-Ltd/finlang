@@ -30,8 +30,7 @@ jobs:
           # Where the signatures JSON will live (in this repo on the default branch)
           path-to-signatures: signatures/version1.json
           # Your CLA document
-          path-to-document: docs/legal/CLA.md
-          # Branch to commit the signatures into (your default branch)
+          path-to-document: https://github.com/FinLang-Ltd/finlang/blob/main/docs/legal/CLA.md          # Branch to commit the signatures into (your default branch)
           branch: main
           # Ignore bot accounts
           allowlist: dependabot[bot],github-actions[bot]
