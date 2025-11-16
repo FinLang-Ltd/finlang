@@ -13,7 +13,7 @@ Compliant with the **EU AI Act (effective August 2026)**.
 ## 🌍 Overview
 
 **FinLang** is a domain-specific language (DSL) and high-performance CLI engine for financial transaction processing.  
-It replaces opaque machine-learning categorization with **transparent, deterministic rules** — delivering explainability, auditability, and global compatibility.
+It replaces opaque machine-learning categorization with **transparent, deterministic rules** — delivering explainability, auditability, and global compatibility..
 
 > **Built for compliance.**  
 > Designed to meet the **EU AI Act** “high-risk AI” obligations — deterministic, explainable, and fully auditable.
