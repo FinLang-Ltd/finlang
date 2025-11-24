@@ -1,10 +1,6 @@
 # 📖 FinLang CLI Reference
 *Version: v0.6.4.post1 (GA • Rev 3.5)*
 
-This is the authoritative, production-ready CLI reference for FinLang v0.6.4.post1. It preserves the comprehensive structure of the original guide while fixing the three critical issues you flagged and harmonizing links/notes with the rest of the GA docs.
-
----
-
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
 - [2) `finlang-discover` — Discovery Tool](#2-finlang-discover--discovery-tool)
