@@ -23,13 +23,13 @@ Apply your rules (and optional rule packs) to a CSV of transactions to produce a
 FinLang expects the following **canonical columns** after mapping/synthesis. Your source CSV headers are normalized via `--map` (or the built-in map) into these canonical names:
 
 - `date` — Transaction date (ISO recommended)
-- `amount` — Signed numeric amount (synthesis allowed from `debit`/`credit`)
+- `amount` — Signed numeric amount (synthesized from debit/credit if needed)
 - `counterparty` — Merchant / payee / descriptor
-- `currency` — Optional 3-letter code (e.g., GBP, USD, EUR)
 - `memo` — Optional free text / description
-- `category` — Optional initial category (rules may override)
-- `status` — Optional transaction status
-- `exclude` — Optional exclusion flag (informational only in v0.6.4)
+- `category` — Optional existing category (rules may override)
+- `status` — Optional: workflow / transaction state
+- `flags` — Internal list field (append-only via `flags +=`)
+- `exclude` — Optional marker only (FinLang v0.6.4 does not drop rows based on it)
 
 > **Required after mapping/synthesis:** `date`, `amount`, `counterparty`. If missing, FinLang exits with a fatal error.
 
