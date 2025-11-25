@@ -41,7 +41,7 @@ Mapping ensures consistent interpretation of fields such as `date`, `amount`, an
 
 | Field | Purpose / Effect | Typical Source | Notes |
 |------|-------------------|----------------|-------|
-| `memo` | Free text notes shown verbatim in output | “Notes”, “Reference”, “Type” | Not interpreted by engine logic |
+| `memo` | Free text notes shown verbatim in output | “Notes”, “Reference”, “Type” | Interpreted; matchable and settable. |
 | `category` | Display/category field set by rules | (rarely present in input) | Rules commonly assign/overwrite this |
 | `flags` | Append‑only tags for review/analytics | (rare) | **Use** `flags += "Retail"`; non‑destructive |
 | `status` | State you can set/test in rules | (rare) | E.g., `status = "reconciled"` then filter later |

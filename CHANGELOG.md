@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [v0.6.4.post3] — 2025-11-25 — Hotfix
+**Status:** Critical Patch
+
+### Fixed
+- **CLI Integration:** Fixed a bug where `status` fields were not passed to the engine, and updates to `status` and `memo` were discarded before output. Both fields are now fully matchable and settable.
+
 ## [v0.6.4.post2] — 2025-11-14 — GA (Final Polish)
 **Status:** Production-ready (Fully Validated)
 

@@ -1115,14 +1115,14 @@ def main(args_list=None):
         if not df.empty:
             log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
             # Prepare DF for engine (select relevant columns)
-            engine_cols = [c for c in ["counterparty", "amount", "date", "memo", "category", "flags"] if c in df.columns]
+            engine_cols = [c for c in ["counterparty", "amount", "date", "memo", "category", "flags", "status"] if c in df.columns]
             engine_df = df[engine_cols].copy()
             
             # Execute engine
             proc_engine_df, audit_log = run_audit(engine_df, rules, audit_mode=args.audit_mode)
 
             # Assign results back to original df (efficient update)
-            for col in ("category", "flags"):
+            for col in ("category", "flags", "status", "memo"):
                 if col in proc_engine_df.columns:
                     df[col] = proc_engine_df[col]
         else:
