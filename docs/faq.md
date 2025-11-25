@@ -80,7 +80,7 @@ A: Use `flags` or `status` in your rule set:
 ```fin
 rule "Review large withdrawals" {
   match:
-    - amount <= -1000
+    - amount in -999999..-1000
   set:
     - flags += "review"
     - status = "pending"
@@ -93,9 +93,9 @@ A: Not within a single rule. Each rule’s `match:` block uses **AND** logic acr
 **Q: How can I ignore small transactions?**  
 A: Either filter them out later using a spreadsheet or mark them with a flag:  
 ```fin
-rule "Ignore micro‑transactions" {
+rule "Ignore micro-transactions" {
   match:
-    - abs(amount) < 1.00
+    - amount in -1.00..0
   set:
     - flags += "ignore"
 }

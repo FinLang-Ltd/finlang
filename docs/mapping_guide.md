@@ -51,7 +51,7 @@ Mapping ensures consistent interpretation of fields such as `date`, `amount`, an
 ```fin
 rule "Mark high‑value for review" {
   match:
-    - amount <= -1000
+    - amount in -999999..-1000
   set:
     - flags += "high_value"
     - category = "Review"

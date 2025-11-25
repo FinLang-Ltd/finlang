@@ -26,6 +26,51 @@ That's it! Everything else builds on this pattern.
 
 ---
 
+## ✅ Canonical Fields (FinLang v0.6.4)
+
+*These are the only fields supported in the `match:` and `set:` blocks of FinLang rules.*
+
+### **Matchable Fields**
+
+These fields may appear in the `match:` block:
+
+| Field            | Description                                           |
+| ---------------- | ----------------------------------------------------- |
+| **counterparty** | Merchant/payee text. Supports `==` and `~` wildcards. |
+| **amount**       | Numeric field. Supports `==` and `in` range.          |
+| **category**     | Current category value.                               |
+| **flags**        | Tests whether a flag is already present.              |
+| **status**       | Workflow/status metadata.                             |
+| **memo**         | Free-text description.                                |
+
+------
+
+### **Settable Fields**
+
+These fields may appear in the `set:` block:
+
+| Field                  | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| **category**           | Assigns or overrides the category.                        |
+| **status**             | Assigns workflow/status metadata.                         |
+| **memo**               | Adds or overrides free-text notes.                        |
+| **flags** (`flags +=`) | Appends a flag (append-only, deduped).                    |
+| **exclude**            | Marks the row as excluded (informational only in v0.6.4). |
+
+------
+
+### **Important Notes**
+
+- **`date` is a required canonical column**, but **cannot be matched or set** in v0.6.4.
+- **`exclude` does not filter rows**; it is only a marker in v0.6.4.
+- **`flags` may only use `+=`** — assignments like `flags =` are not allowed.
+- **`amount`, `counterparty`, and `date` cannot be modified** by rules.
+- **`currency` is not supported** in any match or set operation.
+
+
+
+---
+
 ## 🔹 Rule Structure
 
 A FinLang `.fin` file is a deterministic set of rules, each with two blocks:
@@ -51,11 +96,27 @@ Conditions check fields against values. **All conditions must match** (AND logic
 > **Important:** If you need OR logic, write separate rules.
 
 ### Supported Operators
-- `==` : Exact match
-- `~` : Wildcard match (`*pattern*`)
-- `in` : Range or list inclusion
+
+**Compatible Operators in v0.6.4:**
+
+**MATCH operators** (line 40):
+
+- `==` — exact match (case-insensitive for text, numeric for amount)
+- `~` — wildcard match (supports `*` glob patterns)
+- `in` — numeric range, e.g. `amount in 10.00..50.00` (amount field only)
+
+**SET operators** (line 60):
+
+- `=` — direct assignment (not allowed for `flags`)
+- `+=` — append (text fields only; `flags` must use this)
+
+**Valid fields:**
+
+- **Match:** counterparty, amount, category, flags, status, memo
+- **Set:** category, status, memo, flags, exclude
 
 **Example (AND logic):**
+
 ```fin
 match:
   - counterparty ~ "*UBER*"
@@ -153,7 +214,7 @@ Use case: Start broad, refine as you learn patterns in your data.
 rule "Review: Uncategorised > £1000" {
   match:
     - category == ""
-    - amount <= -1000
+    - amount in -999999..-1000
   set:
     - flags += "high_value"
     - category = "Review"
@@ -222,9 +283,9 @@ echo "✅ All tests passed"
 | Keyword | Description |
 |----------|-------------|
 | `match` | Conditions (all must be true) |
-| `set` | Assignments (category, flags, notes, etc.) |
+| `set` | Assignments (category, flags, memo, etc.) |
 | `flags +=` | Append mode (non-destructive) |
-| `in` | Range test or list inclusion |
+| `in` | Range inclusion |
 | `~` | Wildcard operator |
 | `==` | Exact match |
 | `#` | Comment line |
