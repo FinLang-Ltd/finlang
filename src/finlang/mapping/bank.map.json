@@ -1,5 +1,5 @@
 {
-  "date": [
+"date": [
     "date",
     "Date",
     "transaction_date",
@@ -12,8 +12,10 @@
     "transaction date",
     "posted date",
     "value date",
-    "booking date"
-  ],
+    "booking date",
+    "Completed Date",
+    "Started Date"
+   ],
   "counterparty": [
     "description",
     "Description",
