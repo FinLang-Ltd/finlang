@@ -1,0 +1,50 @@
+version: "0.6.4"
+
+# The definitive list of fields FinLang supports in v0.6.4
+canonical_fields:
+  required:
+    - date
+    - counterparty
+    - amount
+  optional:
+    - memo
+    - category
+    - flags
+    - status
+    - exclude
+
+# What the Engine allows in 'match:' blocks
+matchable:
+  - counterparty
+  - amount
+  - category
+  - flags
+  - status
+  - memo
+
+# What the Engine allows in 'set:' blocks
+settable:
+  - category
+  - status
+  - memo
+  - flags
+  - exclude
+
+# CLI -> Engine Contract: What must be passed IN
+# (Prevents the "Ghost Field" bug where status was dropped)
+engine_input:
+  - counterparty
+  - amount
+  - date
+  - memo
+  - category
+  - flags
+  - status
+
+# CLI <- Engine Contract: What must be written BACK
+# (Prevents the "Silent Discard" bug where updates were lost)
+engine_output:
+  - category
+  - flags
+  - status
+  - memo

@@ -26,7 +26,7 @@ finlang-discover = "finlang.tools.discover:main"
 finlang-suggest = "finlang.tools.suggest:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "build", "twine", "check-manifest"]
+dev = ["pytest", "build", "twine", "check-manifest", "PyYAML"]
 bench = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
 
