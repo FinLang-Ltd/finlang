@@ -88,7 +88,9 @@ src/finlang/mapping/bank.map.json
     "transaction date",
     "posted date",
     "value date",
-    "booking date"
+    "booking date",
+    "Completed Date",
+    "Started Date"
   ],
   "counterparty": [
     "description",
