@@ -1,17 +1,29 @@
 # Compliance-style flags — non-destructive (flags only).
 # NOTE: current grammar supports ==, ~, and numeric range 'in'. No date comparisons yet.
 
-rule "Flag: Large Transaction (>= 500)" {
+rule "Flag: Large Transaction (Debit >= 500)" {
   match:
     - amount in -1000000..-500
+  set:
+    - flags += "LargeTxn"
+}
+
+rule "Flag: Large Transaction (Credit >= 500)" {
+  match:
     - amount in 500..1000000
   set:
     - flags += "LargeTxn"
 }
 
-rule "Flag: Potential Foreign/FX" {
+rule "Flag: Potential Foreign/FX (Counterparty)" {
   match:
     - counterparty ~ "*NON*STERLING*"
+  set:
+    - flags += "FX"
+}
+
+rule "Flag: Potential Foreign/FX (Memo)" {
+  match:
     - memo ~ "*FX*"
   set:
     - flags += "FX"

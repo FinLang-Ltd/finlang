@@ -6,6 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.0] - 2025-12-30
+### Added
+- **Banking Pack v1.0:** First stable release of the Open Core rulepacks.
+- **Rule Hardening:** Added split logic for M&S, Apple, BA, and Cash/ATM to ensure strict engine compatibility.
+- **Engine:** Introduced strict validation for bundled rulepacks.
+
+### Fixed
+- **Rules:** Fixed "AND Trap" logic where multi-line matches were silently failing (Rules affected: 10/43).
+- **CLI:** Eliminated silent write-back loss for status and memo fields.
+- **Docs:** Clarified AND vs OR semantics in `08-examples.fin`.
+
 ## 📈 Internal/Engineering
 **Status:** Added Tier 1 Contract Tests to enforce CLI/Engine schema parity.
 

@@ -32,10 +32,17 @@ rule "Subs: YOUTUBE PREMIUM" {
     - flags += "Subscription"
 }
 
-rule "Subs: APPLE.COM/BILL" {
+rule "Subs: APPLE.COM/BILL (Full)" {
+  match:
+    - counterparty ~ "*APPLE.COM/BILL*"
+  set:
+    - category = "Review"
+    - flags += "Subscription"
+}
+
+rule "Subs: APPLE BILL (Generic)" {
   match:
     - counterparty ~ "*APPLE*BILL*"
-    - counterparty ~ "*APPLE.COM/BILL*"
   set:
     - category = "Review"
     - flags += "Subscription"

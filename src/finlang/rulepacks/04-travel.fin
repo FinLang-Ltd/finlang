@@ -32,10 +32,17 @@ rule "Travel: RYANAIR" {
     - flags += "Travel"
 }
 
-rule "Travel: BRITISH AIRWAYS" {
+rule "Travel: BRITISH AIRWAYS (Full)" {
   match:
     - counterparty ~ "*BRITISH*AIRWAYS*"
-    - counterparty ~ "*BA*"
+  set:
+    - category = "Review"
+    - flags += "Travel"
+}
+
+rule "Travel: BA (Abbr)" {
+  match:
+    - counterparty ~ "* BA *"
   set:
     - category = "Review"
     - flags += "Travel"

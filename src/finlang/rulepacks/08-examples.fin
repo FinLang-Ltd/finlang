@@ -1,5 +1,9 @@
 # Examples & Tutorial — shows operators and safe actions
 # Operators supported: ==, ~ (with * wildcards), and numeric range 'in' (amount only)
+#
+# IMPORTANT: Each rule's match block uses AND logic.
+# All conditions must be true for the rule to fire.
+# For OR logic, use separate rules (as shown below).
 
 # 1) Equality on strings
 rule "Example: Equality" {
@@ -11,10 +15,27 @@ rule "Example: Equality" {
 }
 
 # 2) Wildcard contains (prefix, suffix, substring)
-rule "Example: Wildcard Contains" {
+#    NOTE: These are separate rules to demonstrate OR logic.
+#    Each rule fires independently.
+
+rule "Example: Wildcard Prefix" {
   match:
     - counterparty ~ "TESCO*"
+  set:
+    - category = "Review"
+    - flags += "Example"
+}
+
+rule "Example: Wildcard Contains" {
+  match:
     - counterparty ~ "*COFFEE*"
+  set:
+    - category = "Review"
+    - flags += "Example"
+}
+
+rule "Example: Wildcard Substring" {
+  match:
     - counterparty ~ "*AMAZON*"
   set:
     - category = "Review"

@@ -41,9 +41,16 @@ rule "Retail: ASDA" {
     - flags += "Retail"
 }
 
-rule "Retail: M&S / MARKS & SPENCER" {
+rule "Retail: MARKS & SPENCER" {
   match:
     - counterparty ~ "*MARKS*SPENCER*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: M&S" {
+  match:
     - counterparty ~ "*M&S*"
   set:
     - category = "Review"

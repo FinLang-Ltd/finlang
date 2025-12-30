@@ -1,35 +1,71 @@
 # Bank/Fee/Interest — safe starters
 
-rule "Financial: BANK CHARGE" {
+rule "Financial: BANK CHARGE (Counterparty)" {
   match:
     - counterparty ~ "*BANK*CHARGE*"
+  set:
+    - category = "Review"
+    - flags += "BankFee"
+}
+
+rule "Financial: BANK CHARGE (Memo)" {
+  match:
+    - memo ~ "*BANK*CHARGE*"
+  set:
+    - category = "Review"
+    - flags += "BankFee"
+}
+
+rule "Financial: CHARGE (Memo)" {
+  match:
     - memo ~ "*CHARGE*"
   set:
     - category = "Review"
     - flags += "BankFee"
 }
 
-rule "Financial: INTEREST" {
+rule "Financial: INTEREST (Counterparty)" {
   match:
     - counterparty ~ "*INTEREST*"
+  set:
+    - category = "Review"
+    - flags += "Interest"
+}
+
+rule "Financial: INTEREST (Memo)" {
+  match:
     - memo ~ "*INTEREST*"
   set:
     - category = "Review"
     - flags += "Interest"
 }
 
-rule "Financial: FX FEE" {
+rule "Financial: FX FEE (Counterparty)" {
   match:
     - counterparty ~ "*FX*FEE*"
+  set:
+    - category = "Review"
+    - flags += "FX"
+}
+
+rule "Financial: FX (Memo)" {
+  match:
     - memo ~ "*FX*"
   set:
     - category = "Review"
     - flags += "FX"
 }
 
-rule "Financial: CASH WITHDRAWAL / ATM" {
+rule "Financial: CASH WITHDRAWAL" {
   match:
     - counterparty ~ "*CASH*WITHDRAWAL*"
+  set:
+    - category = "Review"
+    - flags += "Cash"
+}
+
+rule "Financial: ATM" {
+  match:
     - counterparty ~ "*ATM*"
   set:
     - category = "Review"
