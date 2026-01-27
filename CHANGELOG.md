@@ -6,6 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.1] - 2026-01-27
+### Fixed
+- **Engine:** Resolved a critical `RuntimeError` on Python 3.13+ and Pandas 3.0 where passing regex flags conflicted with pre-compiled patterns during fuzzy matching (`~`).
+
+### Changed
+- **Architecture:** Hardened the regex engine to use stateless string patterns with inline modifiers (`(?s)`), ensuring strict compatibility with modern Pandas versions.
+- **CI:** Updated test matrix to officially support Python 3.13 and Python 3.14.
+
 ## [0.7.0] - 2025-12-30
 ### Added
 - **Banking Pack v1.0:** First stable release of the Open Core rulepacks.

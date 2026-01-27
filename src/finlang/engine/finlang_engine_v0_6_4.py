@@ -105,10 +105,11 @@ def _looks_number(s: str) -> bool:
     except Exception:
         return False
 
-def _wildcard_to_regex(pattern: str) -> re.Pattern:
+def _wildcard_to_regex(pattern: str) -> str:
     escaped = re.escape(pattern).replace(r"\*", ".*")
     # Anchor the regex for full match semantics
-    return re.compile(f"^{escaped}$", re.IGNORECASE | re.DOTALL)
+    # (?s) activates DOTALL mode inline. Returns raw string.
+    return f"(?s)^{escaped}$"
 
 def parse_condition(condition: str) -> Tuple[str, str, Any]:
     """Parse a single condition into (field, operator, value).
@@ -231,7 +232,8 @@ def get_condition_mask(condition: str, df: pd.DataFrame, cache: Dict[str, pd.Ser
             s = _get_str_col(df, col, cache)
             regex = _wildcard_to_regex(raw)
             # Use match() for anchored regex comparison
-            return s.str.match(regex, na=False)
+            # case=False handles insensitivity. (?s) in string handles DOTALL.
+            return s.str.match(regex, case=False, na=False)
 
         if op == "in" and field == "amount":
             low, high = value

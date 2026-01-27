@@ -66,3 +66,37 @@ def test_drcr_synthesizes_amount(tmp_path):
 
     text = out.read_text(encoding="utf-8")
     assert "amount" in text  # synthesized column present
+
+def test_regex_wildcard_no_flags_crash_py313(tmp_path):
+    """
+    Regression: avoid 'Cannot pass flags that do not match pat.flags' on Python 3.13+
+    when evaluating ~ wildcards via pandas string ops.
+    """
+    data = tmp_path/"crash_repro.csv"
+    data.write_text(
+        "date,counterparty,amount\n"
+        "2025-01-01,M&S MARKS AND SPENCER LONDON,-10.00\n",
+        encoding="utf-8"
+    )
+
+    rules = tmp_path / "crash.fin"
+    # Use multi-line format to ensure robust parsing
+    rules.write_text(
+        'rule "CrashTest" {\n'
+        '    match:\n'
+        '        - counterparty ~ "*MARKS*SPENCER*"\n'
+        '    set:\n'
+        '        - category = "Groceries"\n'
+        '}',
+        encoding="utf-8"
+    )
+
+    out = tmp_path/"out.csv"
+    cmd = f'{BIN} --input "{data}" --output "{out}" --rules "{rules}" --audit-mode none'
+    run(cmd)
+
+    rows = list(csv.reader(out.read_text(encoding="utf-8").splitlines()))
+    header = rows[0]
+    assert "category" in header
+    cat_idx = header.index("category")
+    assert rows[1][cat_idx] == "Groceries"
