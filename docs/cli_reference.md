@@ -1,15 +1,19 @@
 # 📖 FinLang CLI Reference
-*Version: v0.6.4.post1 (GA • Rev 3.5)*
+
+> **Applies to:** FinLang v0.7+  
+> **Status:** Active  
+> **Last verified:** v0.7.2
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
 - [2) `finlang-discover` — Discovery Tool](#2-finlang-discover--discovery-tool)
 - [3) `finlang-suggest` — Rule Generation](#3-finlang-suggest--rule-generation)
+- [Rule Packs Quick Reference](#rule-packs-quick-reference)
 - [4) Environment Variables](#4-environment-variables)
 - [5) Quick Reference Table](#5-quick-reference-table)
 - [6) Practical Recipes](#6-practical-recipes)
 - [7) FAQ](#7-faq)
-- [⚠️ Known Issues (v0.6.4)](#️-known-issues-v064)
+- [⚠️ Known Issues (Active)](#️-known-issues-active)
 - [Related Documentation](#related-documentation)
 
 ---
@@ -29,7 +33,7 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 - `category` — Optional existing category (rules may override)
 - `status` — Optional: workflow / transaction state
 - `flags` — Internal list field (append-only via `flags +=`)
-- `exclude` — Optional marker only (FinLang v0.6.4 does not drop rows based on it)
+- `exclude` — Optional marker only (rows are flagged, not dropped)
 
 > **Required after mapping/synthesis:** `date`, `amount`, `counterparty`. If missing, FinLang exits with a fatal error.
 
@@ -37,26 +41,26 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--input PATH` | Input CSV file to process. |
-| `--output PATH` | Output CSV after rule processing. **Must be writeable; no auto-fallback name in v0.6.4.** |
-| `--rules PATH` | Your primary `.fin` rules file. |
-| `--include-pack LIST` | Comma-separated built-in packs to include (e.g., `retail,sanity`). |
-| `--map PATH` | Custom header mapping JSON (replaces bundled map). |
-| `--audit PATH` | Write audit JSON (diff of changed cells). |
-| `--audit-mode MODE` | `none | lite | full` — scope of logged changes. |
-| `--fastio` | Use PyArrow for IO (20–40% faster in our benches). |
-| `--headless` | Suppress non-essential console output. |
-| `--strict-parse` | Fail fast on malformed CSV / schema issues. |
-| `--decimal CH` | Decimal separator for numbers (e.g., `,`). |
-| `--thousands CH` | Thousands/grouping separator (e.g., `.`, space, NBSP `\u00A0`, thin NBSP `\u202F`). |
-| `--dayfirst` | Parse dates as `DD/MM/...` instead of `MM/DD/...`. |
-| `--encoding NAME` | Input file encoding (e.g., `utf-8`, `latin-1`, or `auto`). |
-| `--date-format STR` | Explicit strptime format for dates (e.g., `%Y-%m-%d`). |
-| `--output-encoding NAME` | Output encoding (default UTF-8). |
-| `--timings` | Print basic step timings to STDERR. |
-| `--fail-threshold F` | Abort if drop-rate > `F` (fraction `0.0–1.0`). **** |
+| Flag                     | Description                                                  |
+| ------------------------ | ------------------------------------------------------------ |
+| `--input PATH`           | Input CSV file to process.                                   |
+| `--output PATH`          | Output CSV after rule processing. (Must be writeable).       |
+| `--rules PATH`           | Your primary `.fin` rules file.                              |
+| `--include-pack LIST`    | Comma-separated built-in packs to include (e.g., `retail,sanity`). See [Rule Packs](#rule-packs-quick-reference). |
+| `--map PATH`             | Custom header mapping JSON (replaces bundled map; no merge). |
+| `--audit PATH`           | Write audit JSON (diff of changed cells).                    |
+| `--audit-mode MODE`      | Verbosity: `none` (fastest), `lite` (default — logs changed fields only), or `full` (includes match conditions and set actions). |
+| `--fastio`               | Use PyArrow for IO (20–40% faster).                          |
+| `--headless`             | Suppress non-essential console output.                       |
+| `--strict-parse`         | Fail fast on malformed CSV / schema issues.                  |
+| `--decimal CH`           | Decimal separator for numbers (e.g., `,`).                   |
+| `--thousands CH`         | Thousands/grouping separator (e.g., `.`, space, NBSP `\u00A0`, thin NBSP `\u202F`). |
+| `--dayfirst`             | Parse dates as `DD/MM/...` instead of `MM/DD/...`.           |
+| `--encoding NAME`        | Input file encoding (e.g., `utf-8`, `latin-1`, or `auto`).   |
+| `--date-format STR`      | Explicit strptime format for dates (e.g., `%Y-%m-%d`).       |
+| `--output-encoding NAME` | Output encoding (default UTF-8).                             |
+| `--timings`              | Print basic step timings to STDERR.                          |
+| `--fail-threshold F`     | Abort if drop-rate > `F` (fraction `0.0–1.0`).               |
 
 ## 2) `finlang-discover` — Discovery Tool
 
@@ -64,32 +68,35 @@ Scan a processed CSV to find frequently-occurring, **uncategorized** counterpart
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--input PATH` | Categorized CSV from a prior `finlang` run. |
-| `--candidates PATH` | Output CSV of shortlisted candidates. |
-| `--all PATH` (alias: `--all-candidates`) | Output full candidate set with aggregates. |
-| `--min-count N` | Minimum occurrences to include (default sensible). |
-| `--min-amount A` | Minimum absolute amount filter (optional). |
-| `--top-k N` | Limit to top-N by frequency/weight (optional). |
-| `--since-date YYYY-MM-DD` | Only consider rows on/after this date. |
-| `--encoding NAME` | Input encoding or `auto`. |
-| `--strict-parse` | Fail fast on malformed input. |
+| Flag                                     | Description                                        |
+| ---------------------------------------- | -------------------------------------------------- |
+| `--input PATH`                           | Categorized CSV from a prior `finlang` run.        |
+| `--candidates PATH`                      | Output CSV of shortlisted candidates.              |
+| `--all PATH` (alias: `--all-candidates`) | Output full candidate set with aggregates.         |
+| `--min-count N`                          | Minimum occurrences to include (default sensible). |
+| `--min-amount A`                         | Minimum absolute amount filter (optional).         |
+| `--top-k N`                              | Limit to top-N by frequency/weight (optional).     |
+| `--since-date YYYY-MM-DD`                | Only consider rows on/after this date.             |
+| `--encoding NAME`                        | Input encoding or `auto`.                          |
+| `--strict-parse`                         | Fail fast on malformed input.                      |
 
 ### Output Format
-**`--candidates` CSV columns (typical):**
-- `counterparty`
-- `count`
-- `example_memo`
-- `example_amount`
+**`--candidates` CSV columns:**
+- `counterparty_fingerprint` — Normalized counterparty key
+- `example_counterparty_name` — Original counterparty text (for reference)
+- `count` — Number of occurrences
+- `sample_amount` — Example transaction amount
+- `sample_date` — Example transaction date
 
-**`--all` CSV adds:**
+**`--all-candidates` CSV columns:**
+- `counterparty_fingerprint` — Normalized counterparty key
+- `example_counterparty_name` — Original counterparty text
 - `count` — Number of transactions for this counterparty  
 - `last_seen_date` — Most recent transaction date  
 - `max_abs_amount` — Largest absolute transaction amount  
 - `total_value` — Sum of all transaction amounts
 
-> The exact set/order may expand over time, but these fields are present in v0.6.4.
+> **Note:** `finlang-discover` also supports standard locale flags (`--decimal`, `--thousands`, `--dayfirst`, `--date-format`) and performance flags (`--fastio`, `--headless`, `--fail-threshold`). See Main CLI for details.
 
 ---
 
@@ -99,41 +106,71 @@ Turn discovery candidates into **draft `.fin` rules** for review/merge.
 
 ### Flags
 
-| Flag | Description |
-|------|-------------|
-| `--input PATH` | Candidates CSV (typically from `discover`). |
-| `--output PATH` | Output `.fin` file with suggested rules. |
-| `--rules PATH` | Your existing `.fin` (used to avoid duplicates). |
-| `--emit-match MODE` | `exact | smart` (use `exact` for production-grade 1:1 rules). |
-| `--category NAME` | Default category to assign (e.g., `Review`). |
-| `--prefix STR` | Optional rule-name prefix (e.g., `AUTO`). |
-| `--append` | Append to output file if it exists (default overwrite disabled unless specified). |
-| `--quote-style` | Quote character for emitted rules (`"` or `'`). |
+| Flag                | Description                                                  |
+| ------------------- | ------------------------------------------------------------ |
+| `--input PATH`      | Candidates CSV (typically from `discover`).                  |
+| `--output PATH`     | Output `.fin` file with suggested rules.                     |
+| `--rules PATH`      | Your existing `.fin` (used to avoid duplicates).             |
+| `--emit-match MODE` | `exact` or `fuzzy` (default). Use `exact` for production-grade 1:1 rules. |
+| `--category NAME`   | Default category to assign (e.g., `Review`).                 |
+| `--prefix STR`      | Optional rule-name prefix (e.g., `AUTO`).                    |
+| `--append`          | Append to output file if it exists (otherwise overwrites).   |
+| `--quote-style`     | Quote character for emitted rules (`"` or `'`).              |
 
 ### Output
 - A syntactically correct `.fin` file with conservative, deduplicated rules that you should **review** and then merge into your primary ruleset.
 
 ---
 
+## Rule Packs Quick Reference
+
+Bundled packs provide baseline categorization. Use with `--include-pack`:
+
+| Pack | Alias | Description |
+|------|-------|-------------|
+| `retail` | — | UK grocery & retail (Tesco, Sainsbury's, Lidl, etc.) |
+| `transport` | — | Transport & fuel (Uber, TfL, Shell, BP) |
+| `subscriptions` | `subs` | Streaming & software (Spotify, Netflix, Adobe) |
+| `travel` | — | Airlines & hotels (Airbnb, Ryanair, BA) |
+| `financial` | — | Bank fees, interest, ATM, FX |
+| `compliance` | — | Flags for large transactions, FX, duplicates |
+| `sanity` | — | Data quality checks (empty fields, zero amounts) |
+| `examples` | — | Tutorial rules (not for production) |
+
+**Common combinations:**
+```bash
+# Personal finance
+--include-pack retail,transport,subs,sanity
+
+# Business expenses  
+--include-pack retail,transport,travel,financial,sanity
+```
+
+> 📘 See [rulepacks.md](rulepacks.md) for detailed pack contents and commercial packs.
+
+> **Stability note:** Pack IDs (`retail`, `transport`, `subs`, etc.) are stable and won't change. The underlying filenames (e.g., `01-vendors-retail.fin`) are internal and may be renamed in future versions.
+
+---
+
 ## 4) Environment Variables
 
-| Variable | Effect | Example |
-|----------|--------|---------|
-| `FINLANG_SAFE_TEXT` | Enable CSV-injection protections for text fields | `export FINLANG_SAFE_TEXT=1` |
-| `FINLANG_AUDIT_MODE` | Default audit mode if `--audit-mode` omitted | `export FINLANG_AUDIT_MODE=full` |
-| `FINLANG_AUDIT_MAX` | Cap number of audit entries | `export FINLANG_AUDIT_MAX=10000` |
+| Variable             | Effect                                           | Example                          |
+| -------------------- | ------------------------------------------------ | -------------------------------- |
+| `FINLANG_SAFE_TEXT`  | Enable CSV-injection protections for text fields | `export FINLANG_SAFE_TEXT=1`     |
+| `FINLANG_AUDIT_MODE` | Default audit mode if `--audit-mode` omitted     | `export FINLANG_AUDIT_MODE=full` |
+| `FINLANG_AUDIT_MAX`  | Cap number of audit entries                      | `export FINLANG_AUDIT_MAX=10000` |
 
 ---
 
 ## 5) Quick Reference Table
 
-| Task | Command |
-|------|---------|
-| Minimal run (UK/US) | `finlang --input bank.csv --output out.csv --rules rules.fin --fastio` |
+| Task                          | Command                                                      |
+| ----------------------------- | ------------------------------------------------------------ |
+| Minimal run (UK/US)           | `finlang --input bank.csv --output out.csv --rules rules.fin --fastio` |
 | EU/CH locale (comma decimals) | `finlang --input bank.csv --output out.csv --rules rules.fin --decimal , --thousands . --dayfirst --encoding auto` |
-| Strict schema check | `finlang --input bank.csv --output out.csv --rules rules.fin --strict-parse` |
-| Growth loop (discover) | `finlang-discover --input out.csv --candidates cand.csv --all all.csv --min-count 3` |
-| Growth loop (suggest) | `finlang-suggest --input cand.csv --output draft.fin --rules rules.fin --emit-match exact --category "Review"` |
+| Strict schema check           | `finlang --input bank.csv --output out.csv --rules rules.fin --strict-parse` |
+| Growth loop (discover)        | `finlang-discover --input out.csv --candidates cand.csv --all all.csv --min-count 3` |
+| Growth loop (suggest)         | `finlang-suggest --input cand.csv --output draft.fin --rules rules.fin --emit-match exact --category "Review"` |
 
 ---
 
@@ -141,69 +178,96 @@ Turn discovery candidates into **draft `.fin` rules** for review/merge.
 
 ### Daily Run (audited)
 ```bash
-finlang --input transactions.csv --output categorized.csv   --rules my_rules.fin --include-pack retail,sanity   --fastio --audit audit.json --audit-mode lite
+finlang --input transactions.csv --output categorized.csv \
+  --rules my_rules.fin --include-pack retail,sanity \
+  --fastio --audit audit.json --audit-mode lite
 ```
 
-**What’s happening**
-- `transactions.csv` → raw bank export (headers mapped to canonical fields)
-- `my_rules.fin` → your personal ruleset (**last matching rule wins**)
-- `--include-pack retail,sanity` → baseline coverage + sanity checks
-- `--audit audit.json --audit-mode lite` → logs changed cells (lite = changed cells only)
-- `--fastio` → faster IO with PyArrow
+**What's happening**
+
+* `transactions.csv` → raw bank export (headers mapped to canonical fields)
+* `my_rules.fin` → your personal ruleset (**last matching rule wins**)
+* `--include-pack retail,sanity` → baseline coverage + sanity checks
+* `--audit audit.json --audit-mode lite` → logs changed cells (lite = changed cells only)
+* `--fastio` → faster IO with PyArrow
 
 ### International CSV (EU)
+
 ```bash
-finlang --input bank_eu.csv --output out.csv --rules rules.fin   --decimal , --thousands . --dayfirst --encoding auto --fastio
+finlang --input bank_eu.csv --output out.csv --rules rules.fin \
+  --decimal , --thousands . --dayfirst --encoding auto --fastio
 ```
 
 ### Growth Loop (3-step)
+
 ```bash
 # 1) Process with your current rules
 finlang --input data.csv --output categorized.csv --rules rules.fin --fastio
 
 # 2) Discover candidates
-finlang-discover --input categorized.csv   --candidates candidates.csv   --all all_candidates.csv   --min-count 3 --strict-parse --encoding auto
+finlang-discover --input categorized.csv \
+  --candidates candidates.csv \
+  --all-candidates all_candidates.csv \
+  --min-count 3 --strict-parse --encoding auto
 
 # 3) Suggest rules
-finlang-suggest --input candidates.csv --output draft_rules.fin   --rules rules.fin --emit-match exact --category "Review"
+finlang-suggest --input candidates.csv --output draft_rules.fin \
+  --rules rules.fin --emit-match exact --category "Review"
 ```
+
+### CI Validation with Fail Threshold
+
+Use `--fail-threshold` to abort processing if too many rows are dropped during normalization:
+
+```bash
+# Fail if more than 5% of rows are dropped
+finlang --input data.csv --output clean.csv --rules rules.fin \
+  --fail-threshold 0.05
+
+# Exit code: 0 = success, 2 = threshold exceeded
+echo "Exit code: $?"
+```
+
+> **Note:** When `--strict-parse` is enabled, the threshold is forced to `0.0` (any dropped row is fatal).
+
+This is useful in CI/CD pipelines to catch data quality issues early.
 
 ---
 
 ## 7) FAQ
 
-**Q: Which rule takes precedence?**  
+**Q: Which rule takes precedence?**
 A: The **last matching rule wins** for a transaction (deterministic override model). See `docs/rule_language.md`.
 
-**Q: Why does `--fail-threshold` not fail my CI even though it prints FATAL?**  
-A: In v0.6.4, it logs **FATAL** but exits `0`. Use the CI workaround shown above; this will be fixed in a future release.
+**Q: What exit codes does FinLang return?**
+A: `0` = success, `2` = validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns).
 
-**Q: Can I filter by date in `finlang` directly?**  
-A: Date filtering is available in `finlang-discover` via `--since-date`. The main `finlang` CLI does not implement `--since-date` in v0.6.4.
+**Q: Can I filter by date in `finlang` directly?**
+A: Date filtering is available in `finlang-discover` via `--since-date`. The main `finlang` CLI does not currently implement `--since-date`.
 
-**Q: What does `--quote-style` accept?**  
+**Q: What does `--quote-style` accept?**
 A: The **literal** quote character to use in emitted rules: `"` or `'`.
 
-**Q: Do I need a custom mapping?**  
+**Q: Do I need a custom mapping?**
 A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.md` for custom maps and amount synthesis.
 
 ---
 
-## ⚠️ Known Issues (v0.6.4.post2)
+## ⚠️ Known Issues (Active)
 
-- None
+* None
 
 ---
 
 ## Related Documentation
 
-- `docs/install.md`
-- `docs/flags.md`
-- `docs/workflows.md`
-- `docs/mapping_guide.md`
-- `docs/amount_synthesis.md`
-- `docs/rule_language.md`
-- `docs/growth_loop_best_practices.md`
-- `docs/release_notes_v0_6_4.md`
-- `docs/faq.md`
-- `docs/security.md`
+* `docs/install.md`
+* `docs/flags.md`
+* `docs/workflows.md`
+* `docs/mapping_guide.md`
+* `docs/amount_synthesis.md`
+* `docs/rule_language.md`
+* `docs/rulepacks.md`
+* `docs/growth_loop_best_practices.md`
+* `docs/release_notes/v0.7.2.md`
+* `docs/faq.md`

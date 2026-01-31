@@ -1,6 +1,6 @@
-# run_finlang_v0_6_4_rc1.py
+# run_finlang_v0_7_2.py
 # FinLang — Financial Rules DSL
-# Copyright (C) 2025 FinLang Ltd
+# Copyright (C) 2026 FinLang Ltd
 #
 # This file is part of FinLang.
 #
@@ -104,12 +104,14 @@ def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int 
 # Version + Engine import (hardened)
 # --------------------------------------------------------------------------------------
 try:
-    from finlang import __version__ as _pkg_version
+    from finlang import __version__
 except ImportError:
-    _pkg_version = "0.6.4-rc1"  # fallback for local/dev trees
+    __version__ = "0.7.2"  # fallback for standalone script execution
 
-CLI_BUILD_TAG = os.getenv("FINLANG_CLI_BUILD_TAG", "optimized-hardened")
-__version__ = f"{_pkg_version}+cli-{CLI_BUILD_TAG}"
+# Optional: keep the env var override if you ever need it for CI builds,
+# otherwise just use the raw version.
+if os.getenv("FINLANG_CLI_BUILD_TAG"):
+    __version__ = f"{__version__}+{os.getenv('FINLANG_CLI_BUILD_TAG')}"
 
 # Prefer packaged engine; then editable (relative) module; else fail fast (no silent mock)
 try:
@@ -294,10 +296,10 @@ def parse_fin_rules(path: str) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------------------
 
 # Compact regex covering C0, DEL, C1, and common problem format chars (ZW*, LS, PS, BOM)
-_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F\u200B-\u200D\u2028\u2029\uFEFF]")
+_CONTROL_CHARS_RE = re.compile("[\x00-\x1F\x7F-\x9F\u200B-\u200D\u2028\u2029\uFEFF]")
 
 # Currency/NBSP removal
-_CURRENCY_NBSP_RE = re.compile(r"[£€$¥₹\u00A0\u202F]")
+_CURRENCY_NBSP_RE = re.compile("[£€$¥₹\u00A0\u202F]")
 
 
 def _strip_controls_series(series: pd.Series) -> pd.Series:
@@ -809,8 +811,16 @@ def _read_csv_hardened(
                 _validate_headers(df, strict=strict_parse, headless=headless)
 
                 bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
+                
+                # 1. Warn about bad lines (if any)
                 if bad_lines and not headless:
                     print(f"-> Skipped {len(bad_lines)} malformed row(s) (Native Parse - {engine} engine)")
+                
+                # 2. Print the Engine (Always, unless headless) -> DEDENTED to line up with 'if' above
+                if not headless:
+                    print(f"   (Engine: {engine})")
+
+                # 3. Return successfully (Just once!)
                 return df
             except ImportError:
                 if engine == "pyarrow":
@@ -877,7 +887,7 @@ def _read_csv_hardened(
 # Main
 # --------------------------------------------------------------------------------------
 def main(args_list=None):
-    ap = argparse.ArgumentParser(description=f"FinLang Mk6 CLI ({__version__})")
+    ap = argparse.ArgumentParser(description=f"FinLang — High-Performance Financial Rules Engine ({__version__})")
 
     ap.add_argument("--version", action="version", version=f"FinLang {__version__}",
                     help="Show program's version number and exit.")

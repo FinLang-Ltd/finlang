@@ -1,6 +1,6 @@
-# suggest_v0_6_4_rc1a_final_v3.py
-# FinLang — Financial Rules DSL (v0.6.4-rc1a Final v3)
-# Copyright (C) 2025 FinLang Ltd
+# suggest_v0_7_2.py
+# FinLang — Financial Rules DSL
+# Copyright (C) 2026 FinLang Ltd
 #
 # This file is part of FinLang.
 #

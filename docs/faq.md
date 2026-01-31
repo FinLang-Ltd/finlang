@@ -1,5 +1,7 @@
 # ❓ FinLang FAQ
-*Applies to FinLang v0.6.4.post1 (GA Rev 3)*
+> **Applies to:** FinLang v0.7+  
+> **Status:** Active  
+> **Last verified:** v0.7.2
 
 ---
 

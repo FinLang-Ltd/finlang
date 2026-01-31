@@ -1,8 +1,10 @@
 # 📖 Rule Language Reference
-*Applies to FinLang v0.6.x (Stable since v0.6.0) — Rev 2.1*
+> **Applies to:** FinLang v0.6+  
+> **Status:** Stable  
+> **Last verified:** v0.7.2
 
-> **Note:** This DSL is stable. All v0.6.x releases maintain backward compatibility.  
-> Breaking changes (if any) will only occur in v0.7.0+.
+> **Note:** This DSL is stable. All v0.6.x and v0.7.x releases maintain backward compatibility.  
+> Breaking changes (if any) will be clearly documented in release notes.
 
 ---
 
@@ -26,48 +28,66 @@ That's it! Everything else builds on this pattern.
 
 ---
 
-## ✅ Canonical Fields (FinLang v0.6.4)
+## 🔹 Field Match/Set Reference
 
-*These are the only fields supported in the `match:` and `set:` blocks of FinLang rules.*
+This table shows which fields can be used in `match:` conditions and `set:` actions:
 
-### **Matchable Fields**
+| Field | Source | Can Match? | Can Set? | Match Operators | Notes |
+|-------|--------|------------|----------|-----------------|-------|
+| `date` | Input CSV | ❌ No | ❌ No | — | Read-only. Not matchable in current grammar. |
+| `amount` | Input CSV | ✅ Yes | ❌ No | `==`, `in` | Read-only. Use `in` for ranges (e.g., `amount in -100..-10`). |
+| `counterparty` | Input CSV | ✅ Yes | ❌ No | `==`, `~` | Read-only. Use `~` for wildcards (e.g., `counterparty ~ "*TESCO*"`). |
+| `memo` | Input CSV | ✅ Yes | ✅ Yes | `==`, `~` | Free text field. |
+| `category` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | Primary output field. Last matching rule wins. |
+| `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | Append-only. Direct assignment (`=`) not allowed. |
+| `status` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | User-defined workflow state. |
+| `exclude` | Engine | ❌ No | ✅ Yes | — | Marker only; no automatic row filtering in v0.7. |
 
-These fields may appear in the `match:` block:
+**Set operators** (for `set:` actions on settable fields):
+- `=` — direct assignment (e.g., `category = "Groceries"`)
+- `+=` — append (e.g., `flags += "Review"`; **required** for `flags`)
 
-| Field            | Description                                           |
-| ---------------- | ----------------------------------------------------- |
-| **counterparty** | Merchant/payee text. Supports `==` and `~` wildcards. |
-| **amount**       | Numeric field. Supports `==` and `in` range.          |
-| **category**     | Current category value.                               |
-| **flags**        | Tests whether a flag is already present.              |
-| **status**       | Workflow/status metadata.                             |
-| **memo**         | Free-text description.                                |
-
-------
-
-### **Settable Fields**
-
-These fields may appear in the `set:` block:
-
-| Field                  | Description                                               |
-| ---------------------- | --------------------------------------------------------- |
-| **category**           | Assigns or overrides the category.                        |
-| **status**             | Assigns workflow/status metadata.                         |
-| **memo**               | Adds or overrides free-text notes.                        |
-| **flags** (`flags +=`) | Appends a flag (append-only, deduped).                    |
-| **exclude**            | Marks the row as excluded (informational only in v0.6.4). |
-
-------
-
-### **Important Notes**
-
-- **`date` is a required canonical column**, but **cannot be matched or set** in v0.6.4.
-- **`exclude` does not filter rows**; it is only a marker in v0.6.4.
-- **`flags` may only use `+=`** — assignments like `flags =` are not allowed.
-- **`amount`, `counterparty`, and `date` cannot be modified** by rules.
+**Key points:**
+- **Read-only fields** (`date`, `amount`, `counterparty`) come from your input data and cannot be modified by rules.
+- **Engine fields** (`category`, `flags`, `status`, `exclude`) are managed by the rule engine.
 - **`currency` is not supported** in any match or set operation.
 
+---
 
+## 🔹 When Do Engine Fields Exist?
+
+Fields like `category`, `flags`, and `status` are **not part of the default bank mapping**. They only exist in your data if:
+
+1. **Present in your input CSV** — Some exports include a `category` column.
+2. **Created by a previous FinLang run** — When you process a file, FinLang adds these columns to the output.
+3. **Set by an earlier rule in the same run** — Rules execute top-to-bottom; later rules can match fields set by earlier rules.
+
+**Practical implications:**
+
+| Scenario | Can you match `category`? |
+|----------|---------------------------|
+| First run on raw bank export | ❌ No (column doesn't exist yet) |
+| Re-processing FinLang output | ✅ Yes (column exists from previous run) |
+| Later rule in same file | ✅ Yes (if earlier rule set it) |
+
+**Example: Chained rules in the same file**
+```fin
+# Rule 1: Sets category
+rule "Retail: Tesco" {
+  match:
+    - counterparty ~ "*TESCO*"
+  set:
+    - category = "Groceries"
+}
+
+# Rule 2: Matches category set by Rule 1
+rule "Flag all groceries" {
+  match:
+    - category == "Groceries"
+  set:
+    - flags += "food_expense"
+}
+```
 
 ---
 
@@ -89,42 +109,61 @@ rule "Transport: Uber" {
 
 ---
 
-## 🔹 Match Conditions
+## 🔹 Match Operators
 
 Conditions check fields against values. **All conditions must match** (AND logic).
 
 > **Important:** If you need OR logic, write separate rules.
 
-### Supported Operators
+### The `==` Operator (Exact Match)
 
-**Compatible Operators in v0.6.4:**
+Case-insensitive exact match for text fields, numeric equality for `amount`.
 
-**MATCH operators** (line 40):
+```fin
+match:
+  - counterparty == "TESCO STORES LTD"    # Must match exactly
+  - amount == -45.99                       # Numeric equality
+```
 
-- `==` — exact match (case-insensitive for text, numeric for amount)
-- `~` — wildcard match (supports `*` glob patterns)
-- `in` — numeric range, e.g. `amount in 10.00..50.00` (amount field only)
+### The `~` Operator (Wildcard Match)
 
-**SET operators** (line 60):
+The `~` operator enables **wildcard matching** using `*` as a glob pattern. All matches are **case-insensitive**.
 
-- `=` — direct assignment (not allowed for `flags`)
-- `+=` — append (text fields only; `flags` must use this)
+| Pattern | Behavior | Example Matches |
+|---------|----------|-----------------|
+| `~ "Tesco"` | **Exact match** (same as `==`) | `"Tesco"` only |
+| `~ "Tesco*"` | Prefix match | `"Tesco"`, `"Tesco Store 123"` |
+| `~ "*Tesco"` | Suffix match | `"Tesco"`, `"Big Tesco"` |
+| `~ "*Tesco*"` | Contains/substring | `"Tesco"`, `"Big Tesco Store"` |
+| `~ "A*B*C"` | Complex pattern | `"ABC"`, `"A123B456C"` |
 
-**Valid fields:**
+> ⚠️ **Important:** Without wildcards, `~` behaves exactly like `==`. If you want substring matching, use `~ "*TESCO*"` not `~ "TESCO"`.
 
-- **Match:** counterparty, amount, category, flags, status, memo
-- **Set:** category, status, memo, flags, exclude
+### The `in` Operator (Numeric Range)
 
-**Example (AND logic):**
+For the `amount` field only. Matches values within an inclusive range.
+
+```fin
+match:
+  - amount in -100..-10      # Debits between £10 and £100
+  - amount in 50..500        # Credits between £50 and £500
+```
+
+### AND Logic (Multiple Conditions)
+
+All conditions in a `match:` block must be true:
 
 ```fin
 match:
   - counterparty ~ "*UBER*"
   - amount in -100..0
-# Both must be true
+# Both must be true for the rule to fire
 ```
 
-**For OR logic, use separate rules:**
+### OR Logic (Separate Rules)
+
+For OR logic, write separate rules:
+
 ```fin
 rule "Transport: Uber" {
   match:
@@ -159,10 +198,15 @@ See [i18n_examples.md](i18n_examples.md).
 
 **Prefer wildcards for robustness**
 
+Bank descriptions vary. The same merchant might appear as:
+- `"TESCO STORES 1234 LONDON"`
+- `"TESCO EXPRESS EDINBURGH"`
+- `"TESCO.COM ONLINE"`
+
 **Example:**
-❌ **Too specific:** `counterparty == "TESCO STORE 1234 LONDON"`  
+❌ **Too specific:** `counterparty == "TESCO STORES 1234 LONDON"`  
 ✅ **Better:** `counterparty ~ "*TESCO*"`  
-✅ **Even better:** `counterparty ~ "TESCO*"`
+✅ **Even better:** `counterparty ~ "TESCO*"` (anchored prefix)
 
 ---
 
@@ -188,9 +232,9 @@ rule "Amazon Prime" {
 ```
 
 ### Why This Pattern Works
-1. **Rule 1 casts a wide net** – captures all Amazon transactions.  
-2. **Rule 2 refines specific cases** – recognizes subscriptions.  
-3. **Flags accumulate** – helps track multiple attributes.  
+1. **Rule 1 casts a wide net** — captures all Amazon transactions.  
+2. **Rule 2 refines specific cases** — recognizes subscriptions.  
+3. **Flags accumulate** — multiple flags build up as space-separated values.  
 4. **Later rules overwrite** earlier category values deterministically.
 
 Use case: Start broad, refine as you learn patterns in your data.
@@ -229,7 +273,7 @@ rule "Review: Uncategorised > £1000" {
   *Example:* 10 rules vs 1000 rules ≈ 5% runtime difference
 - **Deterministic** → Same inputs → same outputs, guaranteed
 - **Linear scaling** → Performance scales predictably with dataset size  
-  *Example:* 100K rows ≈ 2.5 s, 5 M rows ≈ 208 s (~24 K rows/sec)
+  *Example:* 100K rows ≈ 2.5 s, 5 M rows ≈ 208 s (~24 K rows/sec)
 
 See [benchmarks.md](benchmarks.md) for details.
 
@@ -269,11 +313,12 @@ echo "✅ All tests passed"
 ## ⚠️ Common Mistakes
 
 | Mistake | Problem | Solution |
-|----------|----------|----------|
+|---------|---------|----------|
 | `flags = "value"` | Overwrites all flags | Use `flags += "value"` |
+| `~ "TESCO"` without wildcards | Exact match, not contains | Use `~ "*TESCO*"` for substring |
 | Missing quotes | Syntax error | Always quote strings: `"value"` |
 | Wrong operator | No match | Use `~` for wildcards, `==` for exact |
-| Order matters | Wrong rule wins | Put specific rules first |
+| Order matters | Wrong rule wins | Put specific rules after broad rules |
 | No audit testing | Silent errors | Use `--audit-mode full` during validation |
 
 ---
@@ -281,15 +326,25 @@ echo "✅ All tests passed"
 ## 📘 Quick Reference
 
 | Keyword | Description |
-|----------|-------------|
+|---------|-------------|
 | `match` | Conditions (all must be true) |
 | `set` | Assignments (category, flags, memo, etc.) |
 | `flags +=` | Append mode (non-destructive) |
-| `in` | Range inclusion |
-| `~` | Wildcard operator |
+| `in` | Numeric range (amount only) |
+| `~` | Wildcard operator (use `*` for patterns) |
 | `==` | Exact match |
 | `#` | Comment line |
 
 ---
 
-© FinLang Ltd — v0.6.x DSL Reference (Rev 2.1)
+## 🔹 Cross-References
+
+- [mapping_guide.md](mapping_guide.md) — Canonical schema and field reference
+- [flags.md](flags.md) — All CLI flags and canonical formats
+- [i18n_examples.md](i18n_examples.md) — Regional format recipes
+- [workflows.md](workflows.md) — Daily run and growth loop patterns
+- [benchmarks.md](benchmarks.md) — Performance data
+
+---
+
+© FinLang Ltd

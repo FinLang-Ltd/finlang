@@ -1,10 +1,12 @@
 # 📖 Core Workflows
-*Applies to FinLang **v0.6.4.post1 (GA Rev 3.2)***
-
+> **Applies to:** FinLang v0.6+  
+> **Status:** Stable  
+> **Last verified:** v0.7.2
 
 
 
 ## 🎯 Quick Navigation
+
 **I want to…**
 - [Run FinLang daily](#-daily-run) → Basic categorization
 - [Improve my rules (feedback loop)](#-growth-loop-feedback-workflow) → Iterative coverage improvement
@@ -13,7 +15,10 @@
 
 ---
 
+
+
 ## ✅ Daily Run
+
 The **Daily Run** applies your personal rules plus optional starter packs to new transaction data.
 
 ### First Time? Quick Setup
@@ -28,14 +33,20 @@ echo "# My FinLang Rules" > my_rules.fin
 finlang --input transactions.csv --output categorized.csv --rules my_rules.fin
 ```
 
+
+
 ### Example (Full Production Command)
+
 ```bash
 finlang --input transactions.csv --output categorized.csv \
   --rules my_rules.fin --include-pack retail,sanity \
   --fastio --audit audit.json --audit-mode lite
 ```
 
+
+
 ### What’s Happening
+
 - `transactions.csv` → raw bank export (**FinLang normalizes headers automatically**).
 - `my_rules.fin` → your personal ruleset (**highest precedence**).
 - `--include-pack retail,sanity` → adds baseline coverage & sanity checks.
@@ -57,19 +68,28 @@ finlang --input transactions.csv --output categorized.csv \
 
 ---
 
+
+
 ## 🔁 Growth Loop (Feedback Workflow)
+
 ![Growth Loop Diagram](assets/finlang_growth_loop.png)
 
-FinLang’s Growth Loop converts **uncategorized** data into **new rules** using three tools:
+FinLang's Growth Loop converts **uncategorized** data into **new rules** using three tools:
 
 - `finlang` → Process transactions
 - `finlang-discover` → Find frequent uncategorized patterns
 - `finlang-suggest` → Generate conservative draft rules
 
 ### Step 1 — Initial Processing
+
+**When to use:** Start of every growth loop cycle, or when processing new transaction data.
+
 Run FinLang as per the Daily Run example above. This produces `categorized.csv`.
 
 ### Step 2 — Discover Candidates
+
+**When to use:** After processing, to identify recurring uncategorized counterparties.
+
 Identify frequently-occurring **uncategorized** counterparties and also export full discovery stats.
 
 ```bash
@@ -80,6 +100,9 @@ finlang-discover --input categorized.csv \
 ```
 
 ### Step 3 — Suggest Draft Rules
+
+**When to use:** When you have candidates worth converting to rules (typically 5+ occurrences).
+
 Generate draft `.fin` rules from the candidates. For production-grade precision, prefer **exact** matching.
 
 ```bash
@@ -92,6 +115,9 @@ finlang-suggest --input candidates.csv --output draft_rules.fin \
 > ⚠️ **Important:** Always review `draft_rules.fin` before merging. The `"Review"` category is intentional—verify logic then update categories.
 
 ### Step 4 — Review & Merge
+
+**When to use:** After reviewing suggested rules for accuracy. Never merge blindly.
+
 ```bash
 # Linux/macOS
 cat draft_rules.fin >> my_rules.fin
@@ -104,6 +130,9 @@ type draft_rules.fin >> my_rules.fin
 ```
 
 ### Step 5 — Re-run with Full Audit
+
+**When to use:** After merging new rules, to validate coverage improvement.
+
 ```bash
 finlang --input transactions.csv --output categorized.csv \
   --rules my_rules.fin --include-pack retail,sanity \
@@ -111,15 +140,19 @@ finlang --input transactions.csv --output categorized.csv \
 ```
 
 ### 📈 Expected Outcomes
-| Iteration | Uncategorized ↓ | Time/Loop | Rules Added |
-|----------:|------------------|-----------|-------------|
-| First loop | 60% → 40% | ~45 min | 15—30 |
-| 3—5 loops | 40% → 15% | ~20 min | 5—10 |
-| Steady state | <5% | ~10 min/mo | Maintenance only |
+
+|    Iteration | Uncategorized ↓ | Time/Loop  | Rules Added      |
+| -----------: | --------------- | ---------- | ---------------- |
+|   First loop | 60% → 40%       | ~45 min    | 15–30            |
+|    3–5 loops | 40% → 15%       | ~20 min    | 5–10             |
+| Steady state | <5%             | ~10 min/mo | Maintenance only |
 
 *Results vary by dataset complexity and team discipline. Most users see **5–10%** improvement per loop.*
 
-### Track Coverage (Cross-Platform)
+### Track Coverage
+
+**Purpose:** Monitor your categorization progress over iterations. The goal is to reduce uncategorized transactions to <5%.
+
 ```bash
 # Linux/macOS
 finlang-discover --input categorized.csv --candidates temp.csv
@@ -134,7 +167,10 @@ finlang-discover --input categorized.csv --candidates temp.csv
 
 ---
 
+
+
 ## 🧪 Benchmarking
+
 **When to benchmark**
 - Validate that FinLang handles your data volume
 - Compare ruleset strategies
@@ -142,6 +178,7 @@ finlang-discover --input categorized.csv --candidates temp.csv
 - After major rule changes (regression check)
 
 **When not to benchmark**
+
 - Routine daily ops (adds noise)
 - Before understanding your data patterns
 - Without a specific performance question
@@ -166,9 +203,11 @@ python /mnt/data/bench_finlang_harness.py \
 | 5M × 20 | ~95 s  | ~52 K rows/s  | Payment gateway | Mid-market |
 | 5M × 50 | ~208 s | ~24 K rows/s  | Enterprise ledger | Enterprise |
 
-See **benchmarks.md** and **release_notes_v0_6_4.md** for detailed data & methodology.
+See **benchmarks.md** and **release_notes_v0_7_2.md** for detailed data & methodology.
 
 ---
+
+
 
 ## 🏢 Enterprise Integration & Workflows
 
@@ -258,7 +297,7 @@ jobs:
 - **growth_loop_best_practices.md** — 3-step discovery workflow  
 - **cli_reference.md** — Complete command reference  
 - **benchmarks.md** — Performance data and methodology  
-- **release_notes_v0_6_4.md** — GA highlights and changes
+- **release_notes_v0_7_2.md** — GA highlights and changes
 
 ---
 

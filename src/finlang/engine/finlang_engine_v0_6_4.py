@@ -1,7 +1,7 @@
 # finlang_engine_v0_6_4_rc1.py
 # FinLang — Financial Rules DSL (v0.6.4-rc1)
 # Strict-aware engine build
-# Copyright (C) 2025 FinLang Ltd
+# Copyright (C) 2026 FinLang Ltd
 #
 # This file is part of FinLang.
 #

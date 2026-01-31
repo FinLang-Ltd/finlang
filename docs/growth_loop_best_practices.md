@@ -1,7 +1,9 @@
 # 🔁 Growth Loop Best Practices
-*Applies to FinLang v0.6.4.post1 (Rev 2)*
+> **Applies to:** FinLang v0.6.4+  
+> **Status:** Recommended  
+> **Last verified:** v0.7.2
 
-The **Growth Loop** is FinLang’s continuous-improvement cycle:  
+The **Growth Loop** is FinLang's continuous-improvement cycle:  
 **Discover → Suggest → Merge → Audit → Refine.**
 
 ---
@@ -24,10 +26,15 @@ The **Growth Loop** is FinLang’s continuous-improvement cycle:
 
 ## 1️⃣ Discover
 
+**Input:** `categorized.csv` (output from a previous `finlang` run)  
+**Output:** `suggestions.csv` (candidate counterparties for new rules)
+
 Surface recurring uncategorized counterparties:
 
 ```bash
-finlang-discover --input categorized.csv --candidates suggestions.csv   --strict-parse --encoding auto --min-count 5 --top-k 50   --since-date 2025-01-01
+finlang-discover --input categorized.csv --candidates suggestions.csv \
+  --strict-parse --encoding auto --min-count 5 --top-k 50 \
+  --since-date 2025-01-01
 ```
 
 > **Date filter:** `--since-date` expects **ISO `YYYY-MM-DD`** (e.g., `2025-01-01`).  
@@ -41,22 +48,61 @@ finlang-discover --input categorized.csv --candidates suggestions.csv   --strict
 
 ## 2️⃣ Suggest
 
+**Input:** `suggestions.csv` (from Discover) + `my_rules.fin` (your existing rules)  
+**Output:** `draft_rules.fin` (new rules to review)
+
 Generate conservative draft rules:
 
 ```bash
-finlang-suggest --input suggestions.csv --output draft_rules.fin   --emit-match exact --category "Review" --append
+finlang-suggest --input suggestions.csv --output draft_rules.fin \
+  --rules my_rules.fin \
+  --emit-match exact --category "Review"
+```
+
+> **Flag clarification:**
+> - `--rules` — Your existing ruleset; used to **deduplicate** (won't suggest patterns already covered)
+> - `--append` / `--overwrite` — Controls what happens to the `--output` file (see below)
+> - `--emit-match exact` — Generates precise 1:1 patterns for production safety
+
+### Output File Behavior
+
+| Scenario | Result |
+|----------|--------|
+| File doesn't exist | Creates new file |
+| File exists, no flags | **Appends** (default) |
+| File exists + `--append` | Appends (explicit) |
+| File exists + `--overwrite` | Overwrites/replaces |
+
+**Example: Accumulating drafts across multiple runs**
+```bash
+# Run 1: Q1 candidates → creates draft_rules.fin
+finlang-suggest --input q1_candidates.csv --output draft_rules.fin \
+  --rules my_rules.fin --emit-match exact --category "Review"
+
+# Run 2: Q2 candidates → appends to same file
+finlang-suggest --input q2_candidates.csv --output draft_rules.fin \
+  --rules my_rules.fin --emit-match exact --category "Review" --append
+
+# Run 3: Fresh start → overwrites with only Q3
+finlang-suggest --input q3_candidates.csv --output draft_rules.fin \
+  --rules my_rules.fin --emit-match exact --category "Review" --overwrite
 ```
 
 ✅ Tips  
-- `--emit-match exact` generates precise 1:1 patterns for production safety.  
+- Always pass `--rules` to avoid suggesting duplicates of patterns you already have.
 - Review drafts manually before merging.
 
-## ⚠️ Important: Fuzzy Mode Limitations
+### ⚠️ Important: Fuzzy Mode Limitations
 The default `--emit-match fuzzy` may generate broad patterns (e.g., `*PLC*`, `*LLC*`). Prefer `exact` in production.
 
 ---
 
 ## 3️⃣ Merge and Audit
+
+**Input:** `draft_rules.fin` (reviewed) + `my_rules.fin` (existing)  
+**Output:** Updated `my_rules.fin`
+
+After reviewing the suggested rules, merge them into your main ruleset:
 
 **Linux/macOS/WSL**
 ```bash
@@ -73,12 +119,14 @@ Get-Content draft_rules.fin | Add-Content my_rules.fin
 type draft_rules.fin >> my_rules.fin
 ```
 
-Then run:
+Then re-run with full audit to validate:
 ```bash
-finlang --input transactions.csv --output categorized.csv   --rules my_rules.fin --include-pack retail,sanity   --audit audit.json --audit-mode full --fastio
+finlang --input transactions.csv --output categorized.csv \
+  --rules my_rules.fin --include-pack retail,sanity \
+  --audit audit.json --audit-mode full --fastio
 ```
 
-Audit output confirms every rule’s effect.  
+Audit output confirms every rule's effect.  
 Re-run `finlang-discover` to measure coverage improvement.
 
 ---
@@ -86,9 +134,9 @@ Re-run `finlang-discover` to measure coverage improvement.
 ## 4️⃣ Iterate and Measure
 
 | Metric | Baseline | After Loop | Change |
-|--------|-----------|------------|--------|
-| Uncategorised % | 41 %  | 17 %  | -58 % |
-| Coverage gain (5 runs) | –  | 97.8 % avg | ✅ Sustained |
+|--------|----------|------------|--------|
+| Uncategorised % | 41 % | 17 % | -58 % |
+| Coverage gain (5 runs) | – | 97.8 % avg | ✅ Sustained |
 
 ---
 
@@ -116,10 +164,10 @@ Re-run `finlang-discover` to measure coverage improvement.
 
 ## 📖 Related Documentation
 
-- [Workflows](workflows.md) – Daily run & enterprise patterns  
-- [CLI Reference](cli_reference.md) – All flags & switches  
-- [i18n Examples](i18n_examples.md) – Regional settings  
-- [Rule Language](rule_language.md) – DSL reference  
-- [Flags](flags.md) – Canonical formats
+- [Workflows](workflows.md) — Daily run & enterprise patterns  
+- [CLI Reference](cli_reference.md) — All flags & switches  
+- [i18n Examples](i18n_examples.md) — Regional settings  
+- [Rule Language](rule_language.md) — DSL reference  
+- [Flags](flags.md) — Canonical formats
 
 © FinLang Ltd

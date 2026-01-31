@@ -1,5 +1,7 @@
 # 📊 FinLang Benchmarks
-*Applies to FinLang **v0.6.4.post1 (GA Rev 3.2)** — final validated release*
+> **Applies to:** FinLang v0.6+  
+> **Status:** Reference  
+> **Last verified:** v0.6.4.post1
 
 This guide presents validated benchmark data for FinLang v0.6.4.post1, tested on a real developer workstation, with updated results, corrected flags, and links to related docs.
 

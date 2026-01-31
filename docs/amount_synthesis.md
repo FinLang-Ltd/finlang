@@ -1,5 +1,7 @@
 # 💰 Amount Synthesis Logic
-*FinLang v0.6.4.post1 (Rev 2)*
+> **Applies to:** FinLang v0.6.4+
+> **Status:** Stable
+> **Last verified:** v0.7.2
 
 FinLang guarantees deterministic numeric resolution even with inconsistent bank exports.
 

@@ -1,6 +1,6 @@
-# discover_v0_6_4_rc1a.py
+# discover_v0_7_2.py
 # FinLang — Financial Rules DSL
-# Copyright (C) 2025 FinLang Ltd
+# Copyright (C) 2026 FinLang Ltd
 #
 # This file is part of FinLang.
 #
@@ -37,10 +37,10 @@ from typing import Tuple, Optional, Any, List
 # --------------------------------------------------------------------------------------
 
 # Compact regex covering C0, DEL, C1, and common problem format chars (ZW*, LS, PS, BOM)
-_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1F\x7F-\x9F\u200B-\u200D\u2028\u2029\uFEFF]")
+_CONTROL_CHARS_RE = re.compile("[\x00-\x1F\x7F-\x9F\u200B-\u200D\u2028\u2029\uFEFF]")
 
 # Currency/NBSP removal (Required by _to_number)
-_CURRENCY_NBSP_RE = re.compile(r"[£€$¥₹\u00A0\u202F]")
+_CURRENCY_NBSP_RE = re.compile("[£€$¥₹\u00A0\u202F]")
 
 def _strip_controls_series(series: pd.Series) -> pd.Series:
     s = series.fillna("").astype(str)     # ✅ fill first, then cast
@@ -262,6 +262,12 @@ def _read_csv_hardened(
                 bad_lines = [m for m in w if issubclass(m.category, pd_errors.ParserWarning)]
                 if bad_lines and not headless:
                     print(f"-> Skipped {len(bad_lines)} malformed row(s) ({engine} engine)")
+                
+                # --- NEW BLOCK START ---
+                if not headless:
+                    print(f"   (Engine: {engine})")
+                # --- NEW BLOCK END ---
+
                 return df
         except ImportError:
             if engine == "pyarrow":

@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.2] - 2026-01-31
+### Fixed
+- **Critical:** Resolved a regex escaping incompatibility that could trigger crashes when the PyArrow backend was active (or installed). All internal patterns are now RE2-compatible across all backends.
+- **Resilience:** Hardened `finlang-discover` against backend variability; improved graceful fallback behavior when optional dependencies are unavailable.
+
+### Added
+- **Transparency:** Added explicit engine reporting `(Engine: ...)` to `finlang-discover`, aligning runtime visibility with the main CLI.
+- **Documentation:** Introduced `docs/runtime_contract.md`, establishing the authoritative runtime, backend, and IO behavior contract.
+
+### Changed
+- **Branding:** Refined CLI help text and version descriptors for a production-quality release.
+- **Housekeeping:** Updated copyright headers to 2026 across the codebase.
+
 ## [0.7.1] - 2026-01-27
 ### Fixed
 - **Engine:** Resolved a critical `RuntimeError` on Python 3.13+ and Pandas 3.0 where passing regex flags conflicted with pre-compiled patterns during fuzzy matching (`~`).

@@ -1,5 +1,9 @@
 # 🧩 Installation Guide
-*Applies to FinLang v0.6.4.post1 (GA Rev 2)*
+> **Applies to:** FinLang v0.7+  
+> **Status:** Active  
+> **Last verified:** v0.7.2
+
+
 
 FinLang can be installed on Windows, macOS, or Linux using `pip`.  
 This guide walks through installation, quick testing, and key configuration notes introduced in **v0.6.4.post1 (GA)**.
