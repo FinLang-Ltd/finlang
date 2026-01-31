@@ -149,7 +149,7 @@ For complex use cases, FinLang Ltd offers commercial rule packs with deeper cove
 - Directional logic (distinguishes funding from spending)
 - Sentinel tagging (`Pack:Banking_v1.0`)
 
-See [Commercial Rulepacks - Banking Pack (Banking Pack v1.0](commercial_rulepacks/banking_pack_v1.md) for full details.
+See [Commercial Rulepacks - Banking Pack (Banking Pack v1.0)](commercial_rulepacks/banking_pack_v1.md) for full details.
 
 **Purchase:** [finlang.io](https://finlang.io)
 
