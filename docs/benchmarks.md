@@ -12,7 +12,7 @@ This guide presents validated benchmark data for FinLang v0.7.2, tested on a rea
 - **CPU:** Intel i7‑12700T (12th Gen)  
 - **RAM:** 48 GB  
 - **OS:** Windows 11 (64‑bit)  
-- **Python:** 3.11 (64‑bit)  
+- **Python:** 3.13.7 (64‑bit)  
 - **Backend:** FastIO (PyArrow)
 
 > Your absolute numbers may differ based on CPU, storage, and OS. Focus on **shape** (linear scaling) and **relative** performance.
