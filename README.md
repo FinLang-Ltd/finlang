@@ -10,17 +10,17 @@ Compliant with the **EU AI Act (effective August 2026)**.
 
 ---
 
-## 🌍 Overview
+## 🌐 Overview
 
 **FinLang** is a domain-specific language (DSL) and high-performance CLI engine for financial transaction processing.  
 It replaces opaque machine-learning categorization with **transparent, deterministic rules** — delivering explainability, auditability, and global compatibility.
 
 > **Built for compliance.**  
-> Designed to meet the **EU AI Act** “high-risk AI” obligations — deterministic, explainable, and fully auditable.
+> Designed to meet the **EU AI Act** "high-risk AI" obligations — deterministic, explainable, and fully auditable.
 
 ---
 
-## 📝 The FinLang DSL
+## 📐 The FinLang DSL
 
 FinLang rules are human-readable, Git-friendly, and designed for precision.  
 The engine processes rules top-to-bottom; the last matching rule sets the category, while flags accumulate.
@@ -48,12 +48,13 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.6.4)
+## ⚙️ Key Features (v0.7.2)
 
 | Feature | Description |
 |:--|:--|
 | **Deterministic DSL** | Human-readable `.fin` rules language — explainable logic, Git-friendly. |
 | **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — 24K+ rows/sec validated throughput. |
+| **Dual Backend** | Standard (`Engine: c`) or FastIO (`Engine: pyarrow`) with automatic fallback. |
 | **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% success on addressable patterns. |
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
 | **Audit Trail System** | Every decision logged (before/after state diffs); stateless for reproducibility. |
@@ -66,7 +67,7 @@ rule "TRAVEL: High Value Flight" {
 
 ## 📦 Installation
 
-**Requirements:** Python 3.10 or later
+**Requirements:** Python 3.10–3.14
 
 **From PyPI (Recommended):**
 ```bash
@@ -92,30 +93,35 @@ pip install -e .[fastio]
 
 1️⃣ **Initial Categorization**
 ```bash
-finlang --input transactions.csv --output baseline.csv   --rules my_rules.fin --include-pack retail,transport
+finlang --input transactions.csv --output baseline.csv \
+  --rules my_rules.fin --include-pack retail,transport
 ```
 
 2️⃣ **Discover Gaps**
 ```bash
-finlang-discover --input baseline.csv   --candidates candidates.csv --all-candidates all_candidates.csv   --min-count 5
+finlang-discover --input baseline.csv \
+  --candidates candidates.csv --all-candidates all_candidates.csv \
+  --min-count 5
 ```
 
 3️⃣ **Suggest Rules (Exact Mode Recommended)**
 ```bash
-finlang-suggest --input candidates.csv --output suggested_rules.fin   --rules my_rules.fin --emit-match exact
+finlang-suggest --input candidates.csv --output suggested_rules.fin \
+  --rules my_rules.fin --emit-match exact
 ```
 
 4️⃣ **Merge and Re-run**
 ```bash
 cat my_rules.fin suggested_rules.fin > merged.fin
-finlang --input transactions.csv --output improved.csv   --rules merged.fin --include-pack retail,transport
+finlang --input transactions.csv --output improved.csv \
+  --rules merged.fin --include-pack retail,transport
 ```
 
 ✅ **Expected Result:** 5–10% coverage improvement; zero duplicates in `exact` mode.
 
 ---
 
-## 📊 Performance Benchmarks (v0.6.4 Validated)
+## 📊 Performance Benchmarks
 
 Measured with `--audit-mode none` (max throughput).
 
@@ -130,7 +136,7 @@ Measured with `--audit-mode none` (max throughput).
 
 ---
 
-## 🌐 Internationalization Matrix
+## 🌍 Internationalization Matrix
 
 | Region | Example Number | Date Order | CLI Flags |
 |:--|:--:|:--:|:--|
@@ -147,7 +153,7 @@ Measured with `--audit-mode none` (max throughput).
 
 > **Discover → Suggest → Categorize → Repeat**
 
-FinLang’s Growth Loop accelerates rule creation through data-driven discovery.
+FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 - **Discover** uncategorized counterparties  
 - **Suggest** new rules in seconds (1:1 mapping in exact mode)  
@@ -159,10 +165,10 @@ FinLang’s Growth Loop accelerates rule creation through data-driven discovery.
 
 ---
 
-## 🧾 Known Limitations (v0.6.4)
+## 🧾 Known Limitations (v0.7.x)
 
 - ⚠️ `--emit-match fuzzy` (default) uses naive tokenization and may produce broad patterns (e.g. `*PLC*`).   
-  → Use `--emit-match exact` for production workflows (improvements planned for v0.6.5).  
+  → Use `--emit-match exact` for production workflows.  
 - ⚠️ Hyphenated/apostrophe names may affect fuzzy matching (< 1% impact).  
 - ⚠️ No support for non-Gregorian calendars or non-Western numerals.
 
@@ -170,7 +176,10 @@ FinLang’s Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
-- [`docs/release_notes_v0_6_4.md`](docs/release_notes_v0_6_4.md)  
+- [`docs/release_notes/v0.7.2.md`](docs/release_notes/v0.7.2.md)  
+- [`docs/runtime_contract.md`](docs/runtime_contract.md)  
+- [`docs/cli_reference.md`](docs/cli_reference.md)  
+- [`docs/rulepacks.md`](docs/rulepacks.md)  
 - [`docs/benchmarks.md`](docs/benchmarks.md)  
 - [`docs/growth_loop_best_practices.md`](docs/growth_loop_best_practices.md)  
 - [`docs/amount_synthesis.md`](docs/amount_synthesis.md)  
@@ -189,7 +198,10 @@ finlang-suggest --help
 ## 🧩 Example CLI Usage
 
 ```bash
-finlang --input bank.csv --output categorized.csv   --rules examples/rules.demo.fin   --include-pack retail,transport,subs   --fastio --audit audit_log.json --audit-mode lite
+finlang --input bank.csv --output categorized.csv \
+  --rules examples/rules.demo.fin \
+  --include-pack retail,transport,subs \
+  --fastio --audit audit_log.json --audit-mode lite
 ```
 
 ---
@@ -210,12 +222,12 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 ---
 
-## 🏁 Version Summary
+## 📌 Version Summary
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine | v0.6.4 | ✅ Production-Ready |
-| CLI Suite | v0.6.4 | ✅ Validated |
-| Discover/Suggest | v0.6.4 | ✅ 97.8% accuracy |
-| Docs | v0.6.4 | ✅ Complete |
-| Next Milestone | v0.6.5 | 🚧 Fuzzy tokenizer & audit optimization |
+| Core Engine | v0.7.2 | ✅ Production-Ready |
+| CLI Suite | v0.7.2 | ✅ Validated |
+| Discover/Suggest | v0.7.2 | ✅ 97.8% accuracy |
+| Docs | v0.7.2 | ✅ Complete |
+| Python Support | 3.10–3.14 | ✅ Tested |
