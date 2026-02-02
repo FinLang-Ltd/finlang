@@ -209,10 +209,5 @@ __marimo__/
 # Benchmark output
 bench_out*/
 
-# Ignore chaos maps and test outputs
-chaos.map.json
-test_suite/
-angus-tests
-
 #Ignore release checklist
 RELEASE_CHECKLIST.md
