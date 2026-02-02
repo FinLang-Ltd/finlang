@@ -28,7 +28,9 @@ def test_cli_writes_back_all_fields(contract):
                     found_writeback_cols = cols
                     break
     
+    # Assertions
     required_outputs = set(contract["engine_output"])
+    assert found_writeback_cols, "AST parsing failed to find write-back loop — did the code structure change?"
     missing = required_outputs - found_writeback_cols
-    
+
     assert not missing, f"CLI is discarding updates to these fields: {missing}"

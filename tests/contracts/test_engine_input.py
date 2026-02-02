@@ -35,6 +35,7 @@ def test_cli_passes_all_fields_to_engine(contract):
     
     # Assertions
     required_inputs = set(contract["engine_input"])
+    assert found_cols, "AST parsing failed to find engine_cols list — did the code structure change?"
     missing = required_inputs - found_cols
     
     assert not missing, f"CLI is failing to pass these fields to Engine: {missing}"
