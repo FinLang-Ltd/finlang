@@ -20,7 +20,7 @@ It replaces opaque machine-learning categorization with **transparent, determini
 
 ---
 
-## 📐 The FinLang DSL
+## 📝 The FinLang DSL
 
 FinLang rules are human-readable, Git-friendly, and designed for precision.  
 The engine processes rules top-to-bottom; the last matching rule sets the category, while flags accumulate.
@@ -53,7 +53,7 @@ rule "TRAVEL: High Value Flight" {
 | Feature | Description |
 |:--|:--|
 | **Deterministic DSL** | Human-readable `.fin` rules language — explainable logic, Git-friendly. |
-| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — 24K+ rows/sec validated throughput. |
+| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — 27K+ rows/sec validated throughput. |
 | **Dual Backend** | Standard (`Engine: c`) or FastIO (`Engine: pyarrow`) with automatic fallback. |
 | **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% success on addressable patterns. |
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
@@ -67,7 +67,7 @@ rule "TRAVEL: High Value Flight" {
 
 ## 📦 Installation
 
-**Requirements:** Python 3.10–3.14
+**Requirements:** Python 3.10—3.14
 
 **From PyPI (Recommended):**
 ```bash
@@ -125,14 +125,29 @@ finlang --input transactions.csv --output improved.csv \
 
 Measured with `--audit-mode none` (max throughput).
 
-| Dataset | Rules | Time (s) | Rows/sec | Notes |
-|:--|:--|:--:|:--:|:--|
-| 100 K (UK Synthetic) | 121 | 2.54 | **39 370 ✅** | Baseline |
-| 100 K (after Growth Loop) | 764 | 4.96 | **20 161 ✅** | +6.3× rules → ≈ 2× slower |
-| **5M × 50 cols** | — | 208.31 | **24 003 ✅** | High volume validation |
+| Dataset | Test | Rules | Time (s) | Rows/sec | Notes |
+|:--|:--|:--:|:--:|:--:|:--|
+| 100 K (UK Synthetic) | Growth Loop | 121 | 2.54 | **39,370** ✅ | Baseline |
+| 100 K (after Growth Loop) | Growth Loop | 764 | 4.96 | **20,161** ✅ | +6.3× rules → ≈ 2× slower |
+| **5M × 50 cols** | Benchmark Harness | — | **187.76** | **26,600** ✅ | High volume validation |
 
->  **Audit Overhead:** Enabling `--audit-mode lite/full` **reduces throughput by ≈ 38%** due to diff calculation; provides full decision provenance.  
+> **v0.7.2 improvement:** 10% faster than v0.6.4 (208s → 188s), +12% throughput.  
+> **Audit Overhead:** Enabling `--audit-mode lite/full` **reduces throughput by ≈38%** due to diff calculation; provides full decision provenance.  
 > See [`docs/benchmarks.md`](docs/benchmarks.md) for details.
+
+---
+
+## 🔐 Cryptographic Integrity Verification
+
+SHA-256 fingerprint validation proves zero data corruption at scale:
+
+| Rows | Full Validation | Engine (FastIO) | Result |
+|:--:|:--:|:--:|:--|
+| 5M | ~5 min | 133K rows/s | ✅ All fingerprints match |
+| 10M | ~10 min | 156K rows/s | ✅ All fingerprints match |
+| **20M** | **~20 min** | **159K rows/s** | **✅ All fingerprints match** |
+
+> **What this proves:** Every row's immutable fields (`date`, `amount`, `counterparty`) are verified via SHA-256 hash before and after engine processing. No cross-row contamination. No data corruption.
 
 ---
 
@@ -229,5 +244,6 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Core Engine | v0.7.2 | ✅ Production-Ready |
 | CLI Suite | v0.7.2 | ✅ Validated |
 | Discover/Suggest | v0.7.2 | ✅ 97.8% accuracy |
+| Integrity Test | v0.7.2 | ✅ 20M rows verified |
 | Docs | v0.7.2 | ✅ Complete |
-| Python Support | 3.10–3.14 | ✅ Tested |
+| Python Support | 3.10—3.14 | ✅ Tested |

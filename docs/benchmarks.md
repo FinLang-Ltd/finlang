@@ -69,6 +69,29 @@ python -m benchmarks.bench_finlang_rulesets `
 
 ---
 
+### 3) Integrity Test — cryptographic verification at scale
+
+Validates data integrity with SHA-256 fingerprinting. Proves zero data corruption or cross-row contamination.
+
+```powershell
+# Default: 5K rows, fingerprint-only (daily use)
+python integrity_test.py
+
+# Full validation: field-by-field + fingerprint
+python integrity_test.py --full
+
+# Scale testing
+python integrity_test.py --rows 20000000 --full
+```
+
+**What it proves:**
+- Row count preserved (no dropped/duplicated rows)
+- Immutable fields unchanged (`date`, `amount`, `counterparty`)
+- SHA-256 fingerprint per row validates no cross-row contamination
+- Both code paths (standard + PyArrow) produce identical results
+
+---
+
 ## 📈 Validated Results (v0.7.2)
 
 ### Single Ruleset Performance — Grid
@@ -115,6 +138,51 @@ python -m benchmarks.bench_finlang_rulesets `
 
 ---
 
+## 🔐 Integrity Test Results
+
+Cryptographic verification using SHA-256 fingerprints on every row.
+
+### Performance by Scale
+
+| Rows | Generation | Engine (std) | Engine (fast) | Validation (full) | Total |
+|------|------------|--------------|---------------|-------------------|-------|
+| 5M | 20s | 39s (128K/s) | 38s (133K/s) | 1.8m | ~5 min |
+| 10M | 43s | 1.4m (122K/s) | 1.1m (156K/s) | 3.2m | ~10 min |
+| **20M** | **1.3m** | **2.4m (138K/s)** | **2.1m (159K/s)** | **6.4m** | **~20 min** |
+
+### 20M Row Validation — Full Output
+
+```
+=== FinLang Data Integrity Test (Python) ===
+  Row count: 20,000,000
+  Validation mode: Full (field-by-field + fingerprint)
+  PyArrow available: Yes
+[1/6] Generating 20,000,000 test rows with fingerprints... OK (1.3m)
+[2/6] Creating test rules... OK
+       Loading input data for validation... OK (21.7s)
+[3/6] Running FinLang engine (standard)... OK (2.4m, 137,728 rows/s)
+[4/6] Validating integrity (standard, full)... OK (20,000,000 categorized, 6.4m)
+[5/6] Running FinLang engine (--fastio)... OK (2.1m, 158,819 rows/s)
+[6/6] Validating integrity (--fastio, full)... OK (20,000,000 categorized, 6.3m)
+=== Integrity Test PASSED ===
+  Rows tested: 20,000,000
+  Immutable fields verified: date, amount, counterparty
+  Fingerprints validated: 20,000,000 (no cross-row contamination)
+```
+
+### Why Integrity Test Shows Higher Throughput
+
+The integrity test uses a **minimal 6-column schema** (date, amount, counterparty, memo, category, fingerprint) versus the benchmark's **50-column enterprise schema**.
+
+| Test Type | Columns | Throughput (FastIO) |
+|-----------|---------|---------------------|
+| Integrity test | 6 | 159K rows/s |
+| Enterprise benchmark | 50 | 27K rows/s |
+
+This is expected: narrower data = less I/O, less memory pressure, faster processing. Both numbers are valid for their respective use cases.
+
+---
+
 ## 📊 v0.7.2 vs v0.6.4 Comparison
 
 | Benchmark | v0.6.4 | v0.7.2 | Improvement |
@@ -154,6 +222,7 @@ python -m benchmarks.bench_finlang_rulesets `
 | Personal finance | 25K × 20 | < 1s |
 | Small business | 500K × 35 | ~15s |
 | Enterprise ledger | 5M × 50 | ~3 min |
+| Full year bank data | 20M × 6 | ~20 min (with integrity verification) |
 
 **Rule of thumb:** FinLang scales linearly — doubling rows ≈ doubling runtime; increasing columns raises evaluation cost predictably.
 
