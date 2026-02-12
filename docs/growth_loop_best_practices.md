@@ -33,6 +33,7 @@ Surface recurring uncategorized counterparties:
 
 ```bash
 finlang-discover --input categorized.csv --candidates suggestions.csv \
+  --all-candidates all_candidates.csv \
   --strict-parse --encoding auto --min-count 5 --top-k 50 \
   --since-date 2025-01-01
 ```

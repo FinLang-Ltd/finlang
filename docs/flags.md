@@ -73,7 +73,8 @@ All definitions verified against the v0.6.4 GA codebase (Nov 2025).
 | Flag | Canonical Input | Meaning |
 |-----|------------------|--------|
 | `--input` | Path to CSV | Source transactions |
-| `--candidates` | Path to CSV | Output candidate patterns |
+| `--candidates` | Path to CSV | Output shortlisted candidate patterns |
+| `--all-candidates` (alias: `--all`) | Path to CSV | Output full candidate set with aggregates |
 | `--min-count` | Integer | Minimum frequency to include |
 | `--min-amount` | Number | Minimum absolute amount |
 | `--top-k` | Integer | Limit top results |
@@ -116,7 +117,7 @@ finlang --input bank.csv --output out.csv --rules rules.fin   --dayfirst --stric
 
 **EU (France/Germany) discovery last 90 days (explicit determinism):**
 ```bash
-finlang-discover --input cat.csv --candidates cand.csv   --since-date 2025-08-01 --decimal , --thousands . --dayfirst --encoding auto   --strict-parse --top-k 50
+finlang-discover --input cat.csv --candidates cand.csv --all-candidates all_cand.csv   --since-date 2025-08-01 --decimal , --thousands . --dayfirst --encoding auto   --strict-parse --top-k 50
 ```
 
 **Suggest exact 1:1 rules from candidates:**
