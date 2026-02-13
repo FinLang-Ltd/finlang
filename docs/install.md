@@ -135,7 +135,3 @@ pip uninstall finlang
 - **[CLI Reference](cli_reference.md)** – Detailed flag and command reference  
 - **[Rule Language](rule_language.md)** – Write deterministic `.fin` rules  
 - **[Workflows](workflows.md)** – Run FinLang day‑to‑day
-
----
-
-© FinLang Ltd — v0.6.4.post1 (GA Rev 2)

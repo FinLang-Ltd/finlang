@@ -273,7 +273,7 @@ rule "Review: Uncategorised > £1000" {
   *Example:* 10 rules vs 1000 rules ≈ 5% runtime difference
 - **Deterministic** → Same inputs → same outputs, guaranteed
 - **Linear scaling** → Performance scales predictably with dataset size  
-  *Example:* 100K rows ≈ 2.5 s, 5 M rows ≈ 208 s (~24 K rows/sec)
+  *Example:* 100K rows ≈ 2.5 s, 5 M rows ≈ 188 s (~27 K rows/sec)
 
 See [benchmarks.md](benchmarks.md) for details.
 
