@@ -201,7 +201,7 @@ python /mnt/data/bench_finlang_harness.py \
 |------------:|--------:|-----------:|--------|--------------|
 | 5M × 5  | ~35 s  | ~140 K rows/s | SME batch | Small business |
 | 5M × 20 | ~95 s  | ~52 K rows/s  | Payment gateway | Mid-market |
-| 5M × 50 | ~208 s | ~24 K rows/s  | Enterprise ledger | Enterprise |
+| 5M × 50 | ~188 s | ~27 K rows/s  | Enterprise ledger | Enterprise |
 
 See **benchmarks.md** and **release_notes_v0_7_2.md** for detailed data & methodology.
 

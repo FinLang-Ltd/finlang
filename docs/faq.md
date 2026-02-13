@@ -160,7 +160,7 @@ This applies to PowerShell only. Bash handles bare separators without quoting.
 ## ⚡ Performance
 
 **Q: How fast is FinLang?**  
-A: Approximately 27 K rows/sec on commodity hardware (5 M rows × 50 cols ≈ 208 seconds). See [benchmarks.md](benchmarks.md) for detailed data.
+A: Approximately 27 K rows/sec on commodity hardware (5 M rows × 50 cols ≈ 188 seconds). See [benchmarks.md](benchmarks.md) for detailed data.
 
 **Q: How can I speed it up?**  
 A: 
