@@ -11,7 +11,7 @@
 A: Probably not. The default map covers most UK/EU banks.
 
 **Q: My amounts look wrong (199,99 → 19999.0)**  
-A: Add `--decimal , --thousands .` to your command. See [i18n_examples.md](i18n_examples.md).
+A: Add `--decimal "," --thousands "."` to your command. See [i18n_examples.md](i18n_examples.md).
 
 **Q: How do I start?**  
 A: `pip install "finlang[fastio]"` then `finlang --input bank.csv --output out.csv --rules rules.fin`
@@ -61,7 +61,7 @@ A: In v0.6.4 it’s **informational only**. You can set it in rules as a marker 
 ## 🌍 I18n & Strictness
 
 **Q: My amounts are wrong (e.g., `199,99` becomes `19999.0`).**  
-A: This is a **locale mismatch**. Your file uses a comma as a decimal. Add `--decimal , --thousands .` to parse it correctly.  
+A: This is a **locale mismatch**. Your file uses a comma as a decimal. Add `--decimal "," --thousands "."` to parse it correctly.  
 ➡️ See [i18n_examples.md](i18n_examples.md).
 
 **Q: My dates are wrong (Jan 12 vs Dec 1).**  
@@ -142,10 +142,25 @@ finlang --input daily.csv --output categorized.csv   --rules production.fin --he
 
 ---
 
+**Q: PowerShell gives “Missing expression after ','” when I use `--thousands ,`**  
+A: PowerShell treats bare commas, apostrophes, and semicolons as operators. Always **quote** separator values:  
+```powershell
+# Wrong (PowerShell interprets the comma)
+finlang --thousands ,
+
+# Correct
+finlang --thousands ","
+finlang --decimal ","
+finlang --thousands "'"
+```
+This applies to PowerShell only. Bash handles bare separators without quoting.
+
+---
+
 ## ⚡ Performance
 
 **Q: How fast is FinLang?**  
-A: Approximately 24 K rows/sec on commodity hardware (5 M rows × 50 cols ≈ 208 seconds). See [benchmarks.md](benchmarks.md) for detailed data.
+A: Approximately 27 K rows/sec on commodity hardware (5 M rows × 50 cols ≈ 208 seconds). See [benchmarks.md](benchmarks.md) for detailed data.
 
 **Q: How can I speed it up?**  
 A: 
@@ -184,7 +199,7 @@ A: Your file might use reversed debit/credit logic. Adjust your custom map or ch
 A: Locale mismatch — use the correct `--decimal` and `--thousands` flags.
 
 **Q: FinLang seems slow on large files.**  
-A: Performance scales linearly. Expect ~24 K rows/s on commodity hardware with full audit mode. Disable `--audit` for faster runs.
+A: Performance scales linearly. Expect ~27 K rows/s on commodity hardware with full audit mode. Disable `--audit` for faster runs.
 
 **Q: Does `--fail-threshold` fail my CI run automatically?**  
 A: Yes, as of v0.6.4.post2. The flag correctly detects when the drop-rate threshold is exceeded, logs a FATAL error, and returns exit code 2.
@@ -198,6 +213,7 @@ finlang --input data.csv --output out.csv --rules rules.fin --fail-threshold 0.0
 ```
 
 **Exit codes:**
+
 - `0` = Success (drop rate within threshold)
 - `2` = Validation failure (drop rate exceeded threshold)
 
@@ -217,4 +233,5 @@ finlang --input data.csv --output out.csv --rules rules.fin --fail-threshold 0.0
 
 ---
 
-© FinLang Ltd — v0.6.4.post1 (GA Rev 3)
+
+

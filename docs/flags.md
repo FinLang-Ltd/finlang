@@ -29,6 +29,16 @@ All definitions verified against the v0.6.4 GA codebase (Nov 2025).
 | `--encoding` | `utf-8-sig` *(default)*, `auto`, `utf-8`, `latin-1`, … | CSV text encoding | `auto` safely detects UTF-8 / Latin-1 in most cases. |
 | `--output-encoding` | `utf-8` *(default)* or any valid codec | Output CSV encoding | Use when downstream tools require a specific codec. |
 
+**Shell safety:** Always quote separator characters to prevent shell interpretation:
+```bash
+--decimal ","   --thousands "."   # EU
+--decimal "."   --thousands ","   # UK/US with explicit thousands
+--thousands "'"                   # Switzerland (apostrophe)
+```
+> **Why?** PowerShell treats bare `,` `;` `'` as operators. Quoting works safely in **all** shells (PowerShell, Bash, CMD).
+>
+> **Bash/Linux users:** Quoting is optional for most separators but recommended for consistency across environments.
+
 **Common pitfalls:**  
 - “199,99 → 19999.0” = wrong `--decimal/--thousands` pairing.  
 - CR/DR suffixes and trailing minus are normalized automatically.
@@ -117,7 +127,7 @@ finlang --input bank.csv --output out.csv --rules rules.fin   --dayfirst --stric
 
 **EU (France/Germany) discovery last 90 days (explicit determinism):**
 ```bash
-finlang-discover --input cat.csv --candidates cand.csv --all-candidates all_cand.csv   --since-date 2025-08-01 --decimal , --thousands . --dayfirst --encoding auto   --strict-parse --top-k 50
+finlang-discover --input cat.csv --candidates cand.csv --all-candidates all_cand.csv   --since-date 2025-08-01 --decimal "," --thousands "." --dayfirst --encoding auto   --strict-parse --top-k 50
 ```
 
 **Suggest exact 1:1 rules from candidates:**
@@ -129,7 +139,7 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 
 ## 🧪 Audit Reference
 Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.  
-All flags validated in FinLang v0.6.4.post1 (GA).
+All flags validated in FinLang v0.7.2.
 
 ---
 

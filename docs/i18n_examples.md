@@ -39,7 +39,7 @@ finlang --dayfirst
 
 ### 🇫🇷 France / 🇩🇪 Germany
 ```bash
-finlang --decimal , --thousands . --dayfirst --encoding auto
+finlang --decimal "," --thousands "." --dayfirst --encoding auto
 ```
 **Why:** EU exports commonly use `,` decimal, `.` thousands, and `DD.MM.YYYY` or ISO `YYYY-MM-DD`. The parser often infers day‑first from dots, but adding `--dayfirst` is **explicit and deterministic** across files.
 
@@ -47,7 +47,7 @@ finlang --decimal , --thousands . --dayfirst --encoding auto
 
 ### 🇨🇭 Switzerland
 ```bash
-finlang --decimal . --thousands "'" --dayfirst
+finlang --decimal "." --thousands "'" --dayfirst
 ```
 **Why:** Swiss formats frequently use **apostrophe `'`** as thousands (e.g., `1'234.56`) and **DD.MM.YYYY** for dates. Explicit `--dayfirst` ensures consistent behaviour across banks.
 
@@ -63,7 +63,7 @@ date,amount
 
 Then run:
 ```bash
-finlang --input test.csv --output test_out.csv   --decimal , --thousands . --dayfirst   --rules empty.fin --headless
+finlang --input test.csv --output test_out.csv   --decimal "," --thousands "." --dayfirst   --rules empty.fin --headless
 ```
 **Expected:** Amount parses to `1234.56`, date is **1 December 2025**.
 
@@ -76,10 +76,10 @@ finlang --input test.csv --output test_out.csv   --decimal , --thousands . --day
 **Solution:** Standardize before import, or split into separate runs:
 ```bash
 # Process US format rows
-finlang --decimal . --thousands , --input us_subset.csv ...
+finlang --decimal "." --thousands "," --input us_subset.csv ...
 
 # Process EU format rows
-finlang --decimal , --thousands . --dayfirst --input eu_subset.csv ...
+finlang --decimal "," --thousands "." --dayfirst --input eu_subset.csv ...
 ```
 FinLang processes with **one locale per run** to ensure determinism.
 
@@ -89,7 +89,7 @@ FinLang processes with **one locale per run** to ensure determinism.
 
 | Symptom | Example | Likely Fix |
 |----------|---------|------------|
-| Amounts 10× too large | 1,234.56 → 123456 | Swap `--decimal` and `--thousands`. |
+| Amounts 10× too large | 1,234.56 → 123456 | Swap `--decimal` and `--thousands`. Always quote values. |
 | Dates wrong by 11 months | 01/12 → Dec 1 instead of 1 Jan | Add `--dayfirst`. |
 | Garbled accents | café → cafÃ© | Use `--encoding utf-8` or `auto`. |
 | Negative amounts positive | -50 shows as 50 | Check CR/DR columns with `--audit-mode full`. |

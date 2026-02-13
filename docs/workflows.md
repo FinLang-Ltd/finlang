@@ -57,7 +57,7 @@ finlang --input transactions.csv --output categorized.csv \
 > ```bash
 > finlang --input transactions.csv --output categorized.csv \
 >   --rules my_rules.fin --include-pack retail,sanity \
->   --decimal , --thousands . --dayfirst --encoding auto --strict-parse
+>   --decimal "," --thousands "." --dayfirst --encoding auto --strict-parse
 > ```
 > See **i18n_examples.md** for regional recipes.
 

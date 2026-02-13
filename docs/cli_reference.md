@@ -167,7 +167,7 @@ Bundled packs provide baseline categorization. Use with `--include-pack`:
 | Task                          | Command                                                      |
 | ----------------------------- | ------------------------------------------------------------ |
 | Minimal run (UK/US)           | `finlang --input bank.csv --output out.csv --rules rules.fin --fastio` |
-| EU/CH locale (comma decimals) | `finlang --input bank.csv --output out.csv --rules rules.fin --decimal , --thousands . --dayfirst --encoding auto` |
+| EU/CH locale (comma decimals) | `finlang --input bank.csv --output out.csv --rules rules.fin --decimal "," --thousands "." --dayfirst --encoding auto` |
 | Strict schema check           | `finlang --input bank.csv --output out.csv --rules rules.fin --strict-parse` |
 | Growth loop (discover)        | `finlang-discover --input out.csv --candidates cand.csv --all all.csv --min-count 3` |
 | Growth loop (suggest)         | `finlang-suggest --input cand.csv --output draft.fin --rules rules.fin --emit-match exact --category "Review"` |
@@ -195,7 +195,7 @@ finlang --input transactions.csv --output categorized.csv \
 
 ```bash
 finlang --input bank_eu.csv --output out.csv --rules rules.fin \
-  --decimal , --thousands . --dayfirst --encoding auto --fastio
+  --decimal "," --thousands "." --dayfirst --encoding auto --fastio
 ```
 
 ### Growth Loop (3-step)

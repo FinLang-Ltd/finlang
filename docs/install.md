@@ -59,7 +59,7 @@ If your CSV uses European number or date formats, you must add locale flags:
 **Example (EU data):**
 ```bash
 finlang --input sample.csv --output out.csv --rules rules.fin \
-  --decimal , --thousands . --dayfirst
+  --decimal "," --thousands "." --dayfirst
 ```
 For full regional recipes, see **[i18n Examples](i18n_examples.md)**.
 
@@ -82,7 +82,7 @@ pip install -e .
 ### Internationalization & Parsing
 
 - **Problem:** Amounts are wrong (e.g., `199,99` → `19999.0`)  
-  **Fix:** Add `--decimal ,` to specify a comma decimal separator.
+  **Fix:** Add `--decimal ","` to specify a comma decimal separator.
 
 - **Problem:** Dates parsed incorrectly (e.g., 01/12 → Jan 12 instead of 1 Dec)  
   **Fix:** Add `--dayfirst` to interpret as `DD/MM/YYYY`.
