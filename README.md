@@ -1,7 +1,7 @@
 # FinLang — The Financial Rules Engine
 
 **Deterministic. Auditable. Global.**  
-Compliant with the **EU AI Act (effective August 2026)**.
+Designed for explainable processing in regulated environments.
 
 [![PyPI version](https://badge.fury.io/py/finlang.svg)](https://badge.fury.io/py/finlang)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
@@ -15,8 +15,8 @@ Compliant with the **EU AI Act (effective August 2026)**.
 **FinLang** is a domain-specific language (DSL) and high-performance CLI engine for financial transaction processing.  
 It replaces opaque machine-learning categorization with **transparent, deterministic rules** — delivering explainability, auditability, and global compatibility.
 
-> **Built for compliance.**  
-> Designed to meet the **EU AI Act** "high-risk AI" obligations — deterministic, explainable, and fully auditable.
+> **Built for audit-friendly logic and deterministic processing.**  
+> A deterministic alternative where explainability and reproducibility matter.
 
 ---
 
@@ -133,13 +133,15 @@ Measured with `--audit-mode none` (max throughput).
 
 > **v0.7.2 improvement:** 10% faster than v0.6.4 (208s → 188s), +12% throughput.  
 > **Audit Overhead:** Enabling `--audit-mode lite/full` **reduces throughput by ≈38%** due to diff calculation; provides full decision provenance.  
+>
+> **Note:** These figures are validated benchmark results from controlled tests (5M × 50 columns). Actual performance varies depending on dataset, ruleset, and audit mode.  
 > See [`docs/benchmarks.md`](docs/benchmarks.md) for details.
 
 ---
 
-## 🔐 Cryptographic Integrity Verification
+## 🔐 Cryptographic Integrity Verification (Benchmark)
 
-SHA-256 fingerprint validation proves zero data corruption at scale:
+SHA-256 fingerprint verification benchmarked on large datasets:
 
 | Rows | Full Validation | Engine (FastIO) | Result |
 |:--:|:--:|:--:|:--|
@@ -147,7 +149,9 @@ SHA-256 fingerprint validation proves zero data corruption at scale:
 | 10M | ~10 min | 156K rows/s | ✅ All fingerprints match |
 | **20M** | **~20 min** | **159K rows/s** | **✅ All fingerprints match** |
 
-> **What this proves:** Every row's immutable fields (`date`, `amount`, `counterparty`) are verified via SHA-256 hash before and after engine processing. No cross-row contamination. No data corruption.
+> **What this benchmark validated:** Every row's immutable fields (`date`, `amount`, `counterparty`) were verified via SHA-256 hash before and after engine processing. Zero cross-row contamination detected. Zero data corruption detected.
+>
+> **Note:** This benchmark was performed in the test suite. SHA-256 verification is not currently part of the standard runtime CLI — it is included for validation purposes and will be available as a CLI flag in a future release.
 
 ---
 
@@ -241,9 +245,9 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine | v0.7.2 | ✅ Production-Ready |
-| CLI Suite | v0.7.2 | ✅ Validated |
-| Discover/Suggest | v0.7.2 | ✅ 97.8% accuracy |
-| Integrity Test | v0.7.2 | ✅ 20M rows verified |
-| Docs | v0.7.2 | ✅ Complete |
-| Python Support | 3.10—3.14 | ✅ Tested |
+| Core Engine      | v0.7.2    | ✅ Production-Ready  |
+| CLI Suite        | v0.7.2    | ✅ Validated         |
+| Discover/Suggest | v0.7.2    | ✅ 97.8% accuracy    |
+| Integrity Test   | v0.7.2    | ✅ 20M rows verified |
+| Docs             | v0.7.2    | ✅ Complete          |
+| Python Support   | 3.10—3.14 | ✅ Tested            |

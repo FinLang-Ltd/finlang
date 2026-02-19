@@ -9,7 +9,8 @@ FinLang’s architecture is **stateless**, **deterministic**, and **idempotent**
 
 ## 🎯 Why Stateless Matters
 
-**For Compliance (EU AI Act):**
+**For Auditability:**
+
 - Every decision is auditable and reproducible
 - No hidden state means no unexplainable behavior
 - Same inputs always produce same outputs
