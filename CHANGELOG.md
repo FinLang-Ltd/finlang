@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.3] - 2026-02-25
+
+### Fixed
+- Rule parser now strictly rejects whitespace in `flags +=` values to prevent silent token splitting. Use underscores or camelCase (e.g. `Large_Tx` or `LargeTx`).
+
 ## [0.7.2] - 2026-01-31
 ### Fixed
 - **Critical:** Resolved a regex escaping incompatibility that could trigger crashes when the PyArrow backend was active (or installed). All internal patterns are now RE2-compatible across all backends.

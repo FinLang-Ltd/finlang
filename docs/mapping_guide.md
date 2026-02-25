@@ -54,11 +54,12 @@ These fields are used if present in your input or set by rules:
 |-------|---------|----------------|-------|
 | `memo` | Free text notes | Any text string | Matchable and settable in rules. |
 | `category` | Category assignment | Any text string | Rules commonly assign this. Last rule wins. |
-| `flags` | Tags for review/analytics | Any text string | Set via `+=` only. Multiple flags accumulate as space-separated values. |
+| `flags` | Tags for review/analytics | Any text string | Set via `+=` only. Multiple flags accumulate as space-separated values.<br />Flag values must be single tokens containing no whitespace (e.g., use `Large_Tx` instead of `Large Tx`) |
 | `status` | Workflow state tracking | Any text string | e.g., `"Pending"`, `"Reviewed"`. Matchable and settable. |
 | `exclude` | Marker for custom filtering | Boolean marker | Set via `exclude` or `exclude = true`. Informational only in v0.7. |
 
 **Examples (rules using optional fields):**
+
 ```fin
 rule "Mark high-value for review" {
   match:

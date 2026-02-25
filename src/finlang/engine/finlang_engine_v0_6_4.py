@@ -153,7 +153,16 @@ def parse_action(action: str) -> Tuple[str, str, Any]:
     if op == "+=" and field not in TEXT_COLS:
         raise TypeError(f"Operator '+=' (append) is only valid for text fields, not '{field}'.")
 
-    return field, op, _unescape_quoted(raw_value)
+    val = _unescape_quoted(raw_value)
+
+    # v0.7.3: Flags are atomic tokens — whitespace causes silent split/dedup corruption
+    if field == "flags" and re.search(r"\s", val):
+        raise ValueError(
+            f"Flag values cannot contain whitespace: '{val}'. "
+            "Use underscores or camelCase (e.g. 'Large_Tx' or 'LargeTx')."
+        )
+
+    return field, op, val
 
 
 def _get_lower_col(df: pd.DataFrame, col: str, cache: Dict[str, pd.Series]) -> pd.Series:

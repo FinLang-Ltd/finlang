@@ -1,7 +1,7 @@
 # 📖 Rule Language Reference
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 > **Note:** This DSL is stable. All v0.6.x and v0.7.x releases maintain backward compatibility.  
 > Breaking changes (if any) will be clearly documented in release notes.
@@ -39,7 +39,7 @@ This table shows which fields can be used in `match:` conditions and `set:` acti
 | `counterparty` | Input CSV | ✅ Yes | ❌ No | `==`, `~` | Read-only. Use `~` for wildcards (e.g., `counterparty ~ "*TESCO*"`). |
 | `memo` | Input CSV | ✅ Yes | ✅ Yes | `==`, `~` | Free text field. |
 | `category` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | Primary output field. Last matching rule wins. |
-| `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | Append-only. Direct assignment (`=`) not allowed. |
+| `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | Append-only. Direct assignment (`=`) not allowed. Flag values must be single tokens (no whitespace); use underscores or camelCase (e.g. `Large_Tx`, `LargeTx`). |
 | `status` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | User-defined workflow state. |
 | `exclude` | Engine | ❌ No | ✅ Yes | — | Marker only; no automatic row filtering in v0.7. |
 
@@ -315,6 +315,7 @@ echo "✅ All tests passed"
 | Mistake | Problem | Solution |
 |---------|---------|----------|
 | `flags = "value"` | Overwrites all flags | Use `flags += "value"` |
+| `flags += "Large Tx"` | Whitespace splits into two flags | Use `flags += "Large_Tx"` or `flags += "LargeTx"` |
 | `~ "TESCO"` without wildcards | Exact match, not contains | Use `~ "*TESCO*"` for substring |
 | Missing quotes | Syntax error | Always quote strings: `"value"` |
 | Wrong operator | No match | Use `~` for wildcards, `==` for exact |
