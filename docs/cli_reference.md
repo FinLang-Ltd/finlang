@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -240,7 +240,7 @@ This is useful in CI/CD pipelines to catch data quality issues early.
 A: The **last matching rule wins** for a transaction (deterministic override model). See `docs/rule_language.md`.
 
 **Q: What exit codes does FinLang return?**
-A: `0` = success, `2` = validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns).
+A: `0` = success, `1` = runtime error (e.g., file not found, unexpected exception during rule execution, invalid rule syntax), `2` = configuration/validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns, invalid `--decimal`/`--thousands` values, no valid rules found).
 
 **Q: Can I filter by date in `finlang` directly?**
 A: Date filtering is available in `finlang-discover` via `--since-date`. The main `finlang` CLI does not currently implement `--since-date`.
@@ -269,5 +269,5 @@ A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.
 * `docs/rule_language.md`
 * `docs/rulepacks.md`
 * `docs/growth_loop_best_practices.md`
-* `docs/release_notes/v0.7.2.md`
+* `docs/release_notes/v0.7.3.md`
 * `docs/faq.md`
