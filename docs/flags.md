@@ -1,7 +1,7 @@
 # 🚩 FinLang Flags & Canonical Formats
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.  
 All definitions verified against the v0.6.4 GA codebase (Nov 2025).

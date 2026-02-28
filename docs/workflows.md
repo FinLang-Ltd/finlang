@@ -1,7 +1,7 @@
 # 📖 Core Workflows
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 
 

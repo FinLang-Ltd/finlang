@@ -1,7 +1,7 @@
 # 🔁 Growth Loop Best Practices
 > **Applies to:** FinLang v0.6.4+  
 > **Status:** Recommended  
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 The **Growth Loop** is FinLang's continuous-improvement cycle:  
 **Discover → Suggest → Merge → Audit → Refine.**

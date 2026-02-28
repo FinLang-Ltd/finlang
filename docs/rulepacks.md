@@ -1,7 +1,7 @@
 # 📦 Rule Packs Reference
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 Rule packs are pre-built `.fin` files that provide baseline categorization logic. They save you from writing common rules from scratch.
 

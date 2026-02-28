@@ -1,7 +1,7 @@
 # ❓ FinLang FAQ
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.2
+> **Last verified:** v0.7.3
 
 ---
 
