@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.3
+> **Last verified:** v0.7.4
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -33,7 +33,7 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 - `category` — Optional existing category (rules may override)
 - `status` — Optional: workflow / transaction state
 - `flags` — Internal list field (append-only via `flags +=`)
-- `exclude` — Optional marker only (rows are flagged, not dropped)
+- `exclude` — Boolean marker for downstream filtering (rule-driven, mutable, auditable; rows are flagged, not dropped)
 
 > **Required after mapping/synthesis:** `date`, `amount`, `counterparty`. If missing, FinLang exits with a fatal error.
 
@@ -269,5 +269,5 @@ A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.
 * `docs/rule_language.md`
 * `docs/rulepacks.md`
 * `docs/growth_loop_best_practices.md`
-* `docs/release_notes/v0.7.3.md`
+* `docs/release_notes/v0.7.4.md`
 * `docs/faq.md`

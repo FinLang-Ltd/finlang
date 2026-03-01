@@ -1,4 +1,4 @@
-# discover_v0_7_2.py
+# discover.py
 # FinLang — Financial Rules DSL
 # Copyright (C) 2026 FinLang Ltd
 #

@@ -1,7 +1,7 @@
 # 📘 Mapping Guide
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.3
+> **Last verified:** v0.7.4
 
 ---
 
@@ -56,7 +56,7 @@ These fields are used if present in your input or set by rules:
 | `category` | Category assignment | Any text string | Rules commonly assign this. Last rule wins. |
 | `flags` | Tags for review/analytics | Any text string | Set via `+=` only. Multiple flags accumulate as space-separated values.<br />Flag values must be single tokens containing no whitespace (e.g., use `Large_Tx` instead of `Large Tx`) |
 | `status` | Workflow state tracking | Any text string | e.g., `"Pending"`, `"Reviewed"`. Matchable and settable. |
-| `exclude` | Marker for custom filtering | Boolean marker | Set via `exclude` or `exclude = true`. Informational only in v0.7. |
+| `exclude` | Marker for custom filtering | Boolean marker | Set via `exclude` or `exclude = true/false`. Mutable — later rules can override. No automatic row filtering. |
 
 **Examples (rules using optional fields):**
 
@@ -94,7 +94,7 @@ This table shows which canonical fields can be used in `match:` conditions and `
 | `category` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | Primary output field. Last matching rule wins. |
 | `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | Append-only. Direct assignment (`=`) not allowed. |
 | `status` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | User-defined workflow state. |
-| `exclude` | Engine | ❌ No | ✅ Yes | — | Marker only; no automatic row filtering in v0.7. |
+| `exclude` | Engine | ❌ No | ✅ Yes | — | Boolean marker. Mutable — later rules can override. No automatic row filtering. |
 
 **Set operators** (for `set:` actions on settable fields):
 - `=` — direct assignment (e.g., `category = "Groceries"`)

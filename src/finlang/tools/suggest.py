@@ -1,4 +1,4 @@
-# suggest_v0_7_2.py
+# suggest.py
 # FinLang — Financial Rules DSL
 # Copyright (C) 2026 FinLang Ltd
 #

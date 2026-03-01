@@ -1,4 +1,4 @@
-# run_finlang_v0_7_2.py
+# run_finlang.py
 # FinLang — Financial Rules DSL
 # Copyright (C) 2026 FinLang Ltd
 #
@@ -106,7 +106,7 @@ def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int 
 try:
     from finlang import __version__
 except ImportError:
-    __version__ = "0.7.3"  # fallback for standalone script execution
+    __version__ = "0.7.4"  # fallback for standalone script execution
 
 # Optional: keep the env var override if you ever need it for CI builds,
 # otherwise just use the raw version.
@@ -115,16 +115,16 @@ if os.getenv("FINLANG_CLI_BUILD_TAG"):
 
 # Prefer packaged engine; then editable (relative) module; else fail fast (no silent mock)
 try:
-    from finlang.engine.finlang_engine_v0_6_4 import run_audit  # packaged install
+    from finlang.engine.finlang_engine import run_audit  # packaged install
 except ImportError:
     try:
         # Editable dev path when running as "python -m finlang.cli.run_finlang"
-        from ..engine.finlang_engine_v0_6_4 import run_audit
+        from ..engine.finlang_engine import run_audit
     except (ImportError, ValueError):
         print(
             "FATAL: FinLang engine not found. Ensure either the packaged engine "
-            "(finlang.engine.finlang_engine_v0_6_4) or a local engine file "
-            "(src/finlang/engine/finlang_engine_v0_6_4.py) is importable.",
+            "(finlang.engine.finlang_engine) or a local engine file "
+            "(src/finlang/engine/finlang_engine.py) is importable.",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -1125,14 +1125,14 @@ def main(args_list=None):
         if not df.empty:
             log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
             # Prepare DF for engine (select relevant columns)
-            engine_cols = [c for c in ["counterparty", "amount", "date", "memo", "category", "flags", "status"] if c in df.columns]
+            engine_cols = [c for c in ["counterparty", "amount", "date", "memo", "category", "flags", "status", "exclude"] if c in df.columns]
             engine_df = df[engine_cols].copy()
             
             # Execute engine
             proc_engine_df, audit_log = run_audit(engine_df, rules, audit_mode=args.audit_mode)
 
             # Assign results back to original df (efficient update)
-            for col in ("category", "flags", "status", "memo"):
+            for col in ("category", "flags", "status", "memo", "exclude"):
                 if col in proc_engine_df.columns:
                     df[col] = proc_engine_df[col]
         else:

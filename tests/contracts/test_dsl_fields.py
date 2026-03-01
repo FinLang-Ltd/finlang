@@ -6,7 +6,7 @@ import pytest
 repo_root = Path(__file__).parents[2]
 sys.path.insert(0, str(repo_root / "src"))
 
-from finlang.engine.finlang_engine_v0_6_4 import CANON_FIELDS_MATCH, CANON_FIELDS_SET
+from finlang.engine.finlang_engine import CANON_FIELDS_MATCH, CANON_FIELDS_SET
 
 def test_engine_match_fields_align_with_contract(contract):
     expected = set(contract["matchable"])

@@ -1,5 +1,5 @@
-# finlang_engine_v0_6_4_rc1.py
-# FinLang — Financial Rules DSL (v0.6.4-rc1)
+# finlang_engine.py
+# FinLang — Financial Rules DSL Engine (v0.7.4)
 # Strict-aware engine build
 # Copyright (C) 2026 FinLang Ltd
 #
@@ -30,7 +30,7 @@ import math # Required for isnan/isinf check (RC1a Polish)
 
 CANON_FIELDS_MATCH = {"counterparty", "amount", "category", "flags", "status", "memo"}
 CANON_FIELDS_SET   = {"category", "status", "memo", "flags", "exclude"}
-TEXT_COLS = ["category", "flags", "status", "memo"]
+TEXT_COLS = ["category", "flags", "status", "memo"]  # exclude is boolean, not text — initialised on demand
 
 CONDITION_PATTERN = re.compile(
     r"""
@@ -275,6 +275,29 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
             # Initialize settable columns if missing (required for +=)
             df[col] = ""
 
+    # v0.7.4: Intent-based exclude initialisation.
+    # Column appears ONLY when the ruleset references exclude (even if no rule fires).
+    # This gives deterministic schema: no exclude rules = no column; exclude rules = full boolean column.
+    uses_exclude = any(
+        parse_action(action)[0] == "exclude"
+        for rule in rules
+        for action in rule.get("set", [])
+    )
+    if uses_exclude:
+        if "exclude" not in df.columns:
+            df["exclude"] = False
+        else:
+            # Input CSV already has exclude column — coerce to boolean
+            df["exclude"] = df["exclude"].map(
+                lambda x: str(x).strip().lower() == "true" if pd.notna(x) else False
+            )
+    elif "exclude" in df.columns:
+        # No exclude rules this pass, but input has exclude from a previous pass —
+        # coerce to boolean so values survive as proper booleans, not raw strings.
+        df["exclude"] = df["exclude"].map(
+            lambda x: str(x).strip().lower() == "true" if pd.notna(x) else False
+        )
+
     # Initialize cache for optimized column access
     cache: Dict[str, pd.Series] = {}
     
@@ -326,9 +349,10 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
             # Apply parsed actions
             for field, op, val in parsed_actions_list:
                 if field == "exclude":
-                     # Handle exclusion logic if implemented
-                     # Placeholder for future implementation (e.g. removing rows)
-                     continue
+                    # v0.7.4: Restore exclude boolean marker (matches v0.5.1 behaviour)
+                    # Handles both shortcut (val=True) and explicit (val="true"/"false")
+                    df.loc[mask, field] = (str(val).strip().lower() == "true") if not isinstance(val, bool) else val
+                    continue
 
                 if op == "=":
                     df.loc[mask, field] = val
@@ -348,6 +372,14 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
                         # Standard append for category/memo/status
                         df.loc[mask, field] = merged
 
+            # v0.7.4: Cache invalidation — clear stale entries for any field we just mutated.
+            # Prevents false negatives when later rules match on fields modified by earlier rules.
+            # Immutable field caches (counterparty, amount) are never affected.
+            for field, op, val in parsed_actions_list:
+                if field in TEXT_COLS:
+                    for suffix in ("_lower", "_str"):
+                        cache.pop(f"{field}{suffix}", None)
+
             # 4. Log audit with DIFF TRACKING (NEW)
             if audit_mode != "none" and not audit_capped:
                 num_matched = len(matched_indices)
@@ -360,7 +392,8 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
                     indices_to_log = matched_indices
                 
                 # Capture AFTER state
-                post_state = df.loc[mask, fields_to_watch] if fields_to_watch else None
+                # v0.7.4: Defensive .copy() prevents future view-mutation issues
+                post_state = df.loc[mask, fields_to_watch].copy() if fields_to_watch else None
                 
                 for idx in indices_to_log:
                     # Ensure index is native int for JSON serialization
@@ -376,9 +409,9 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
                             old_val = pre_state.at[idx, col]
                             new_val = post_state.at[idx, col]
                             
-                            # Convert empty strings to None for cleaner JSON
-                            old_clean = None if old_val == "" else old_val
-                            new_clean = None if new_val == "" else new_val
+                            # Convert empty strings to None, preserve booleans for clean JSON
+                            old_clean = None if old_val == "" else (bool(old_val) if col == "exclude" else old_val)
+                            new_clean = None if new_val == "" else (bool(new_val) if col == "exclude" else new_val)
                             
                             # Only log if actually changed
                             if old_val != new_val:

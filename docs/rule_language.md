@@ -1,7 +1,7 @@
 # 📖 Rule Language Reference
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.3
+> **Last verified:** v0.7.4
 
 > **Note:** This DSL is stable. All v0.6.x and v0.7.x releases maintain backward compatibility.  
 > Breaking changes (if any) will be clearly documented in release notes.
@@ -41,7 +41,7 @@ This table shows which fields can be used in `match:` conditions and `set:` acti
 | `category` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | Primary output field. Last matching rule wins. |
 | `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | Append-only. Direct assignment (`=`) not allowed. Flag values must be single tokens (no whitespace); use underscores or camelCase (e.g. `Large_Tx`, `LargeTx`). |
 | `status` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | User-defined workflow state. |
-| `exclude` | Engine | ❌ No | ✅ Yes | — | Marker only; no automatic row filtering in v0.7. |
+| `exclude` | Engine | ❌ No | ✅ Yes | — | Boolean marker. Set via `exclude` or `exclude = true/false`. Mutable — later rules can override. No automatic row filtering. |
 
 **Set operators** (for `set:` actions on settable fields):
 - `=` — direct assignment (e.g., `category = "Groceries"`)
@@ -264,6 +264,63 @@ rule "Review: Uncategorised > £1000" {
     - category = "Review"
 }
 ```
+
+---
+
+## 🔹 Exclude (Boolean Marker)
+
+The `exclude` field is a **mutable boolean marker** that flags rows for downstream filtering. It does not freeze rows or prevent further rule processing — later rules can still modify excluded rows.
+
+### Basic Syntax
+
+```fin
+# Shorthand (sets exclude = true)
+rule "Exclude internal transfers" {
+  match:
+    - counterparty ~ "*INTERNAL*"
+  set:
+    - exclude
+}
+
+# Explicit true/false
+rule "Exclude Amazon" {
+  match:
+    - counterparty ~ "*AMAZON*"
+  set:
+    - exclude = true
+}
+```
+
+### Exception Pattern (Blacklist then Whitelist)
+
+Because exclude is mutable, later rules can reverse it. This enables blacklist/whitelist patterns:
+
+```fin
+rule "Blacklist Amazon" {
+  match:
+    - counterparty ~ "*AMAZON*"
+  set:
+    - exclude
+}
+
+rule "Whitelist high-value Amazon" {
+  match:
+    - counterparty ~ "*AMAZON*"
+    - amount in 5000..999999
+  set:
+    - exclude = false
+    - flags += "Capital_Expenditure"
+}
+```
+
+**Result:** All Amazon transactions are excluded *except* those over £5,000, which are un-excluded and flagged for capital expenditure review. The audit trail captures the full chain.
+
+### Behaviour Notes
+
+- **Column appears only when needed.** If no rule in your ruleset references `exclude`, the column is omitted from output (clean schema).
+- **Growth loop safe.** Exclude values from a previous pass survive as proper booleans in subsequent passes.
+- **Audit tracked.** Exclude changes appear in the audit log as boolean diffs (`false` → `true` or `true` → `false`).
+- **No automatic row dropping.** FinLang marks rows; your downstream pipeline decides what to do with them.
 
 ---
 

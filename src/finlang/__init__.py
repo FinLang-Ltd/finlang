@@ -1,5 +1,5 @@
 # FinLang — Financial Rules DSL
-# Copyright (C) 2025 FinLang Ltd
+# Copyright (C) 2026 FinLang Ltd
 #
 # This file is part of FinLang.
 #
@@ -23,4 +23,4 @@
 from importlib.metadata import version, PackageNotFoundError
 
 __all__ = ["__version__"]
-__version__ = "0.7.3"
+__version__ = "0.7.4"

@@ -48,7 +48,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.7.3)
+## ⚙️ Key Features (v0.7.4)
 
 | Feature | Description |
 |:--|:--|
@@ -58,6 +58,7 @@ rule "TRAVEL: High Value Flight" {
 | **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% success on addressable patterns. |
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
 | **Audit Trail System** | Every decision logged (before/after state diffs); stateless for reproducibility. |
+| **Exclude Marker** | Boolean `exclude` column — rule-driven, auditable, supports blacklist/whitelist exception patterns. |
 | **CR/DR Semantics** | Case-insensitive CR/DR, accounting negatives `(123.45)`, trailing minus `123.45-`. |
 | **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)` across 9 edge cases. |
 | **Strict Parsing** | Locale-aware normalization with configurable thresholds (`--strict-parse`). |
@@ -195,7 +196,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
-- [`docs/release_notes/v0.7.3.md`](docs/release_notes/v0.7.3.md)  
+- [`docs/release_notes/v0.7.4.md`](docs/release_notes/v0.7.4.md)  
 - [`docs/runtime_contract.md`](docs/runtime_contract.md)  
 - [`docs/cli_reference.md`](docs/cli_reference.md)  
 - [`docs/rulepacks.md`](docs/rulepacks.md)  
@@ -245,9 +246,9 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine      | v0.7.3    | ✅ Production-Ready  |
-| CLI Suite        | v0.7.3    | ✅ Validated         |
-| Discover/Suggest | v0.7.3    | ✅ 97.8% accuracy    |
-| Integrity Test   | v0.7.3    | ✅ 20M rows verified |
-| Docs             | v0.7.3    | ✅ Complete          |
+| Core Engine      | v0.7.4    | ✅ Production-Ready  |
+| CLI Suite        | v0.7.4    | ✅ Validated         |
+| Discover/Suggest | v0.7.4    | ✅ 97.8% accuracy    |
+| Integrity Test   | v0.7.4    | ✅ 20M rows verified |
+| Docs             | v0.7.4    | ✅ Complete          |
 | Python Support   | 3.10—3.14 | ✅ Tested            |

@@ -1,7 +1,7 @@
 # 📖 Core Workflows
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.3
+> **Last verified:** v0.7.4
 
 
 
@@ -297,7 +297,7 @@ jobs:
 - **growth_loop_best_practices.md** — 3-step discovery workflow  
 - **cli_reference.md** — Complete command reference  
 - **benchmarks.md** — Performance data and methodology  
-- **release_notes_v0_7_2.md** — GA highlights and changes
+- **release_notes_v0_7_4.md** — Latest release highlights and changes
 
 ---
 

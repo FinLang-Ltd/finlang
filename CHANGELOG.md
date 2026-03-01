@@ -6,6 +6,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.4] - 2026-03-01
+
+### Fixed
+- **Critical:** Restored `exclude` functionality (broken since v0.6.4 launch — dead `continue` statement bypassed all exclude logic).
+- **Critical:** Fixed cache staleness in rule chaining — rules matching on fields modified by earlier rules now correctly see updated values.
+- **Engine:** Added defensive `.copy()` on post-state audit snapshots to prevent view-mutation issues.
+- **Engine:** Audit diffs for `exclude` now serialize as JSON booleans (`true`/`false`), not strings (`"True"`/`"False"`).
+- **CLI:** Added `exclude` to engine column selection and write-back loop so the column appears in output CSV.
+
+### Added
+- **Engine:** Intent-based exclude initialisation — column appears only when ruleset references exclude; absent otherwise (clean schema).
+- **Engine:** Second-pass coercion — exclude column from a previous pass survives as proper booleans regardless of current ruleset.
+- **Testing:** `test_rule_interactions.py` — 12 tests, 55 assertions covering cache invalidation, exclude semantics, exception pattern (blacklist/whitelist), audit modes, boolean serialisation, idempotency, and Option 2 contract (exclude does not freeze rows).
+- **Testing:** Rule interaction tests integrated into `quick_check.ps1` daily gate (now 4 stages, 68 total assertions).
+
+### Changed
+- **Engine:** Renamed `finlang_engine_v0_6_4.py` → `finlang_engine.py` (imports updated across CLI, tests, and documentation).
+
 ## [0.7.3] - 2026-02-25
 
 ### Fixed
@@ -111,7 +129,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Restored before/after **diff auditing** in both `lite` and `full` modes.
   - `lite`: logs one entry per **changed row** → `{index, rule, changes{old,new}}`.
   - `full`: adds rule context (`match[]`, `set[]`) plus per-row `changes`.
-- Deep audit verification confirming deterministic, “machine-grade” operation.
+- Deep audit verification confirming deterministic, "machine-grade" operation.
 
 ### Improved
 - **Internationalisation (I18n)**: locale-aware numeric parsing, CR/DR semantics,
