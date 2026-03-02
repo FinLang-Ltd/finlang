@@ -85,20 +85,20 @@ rule "Flag pending items" {
 
 This table shows which canonical fields can be used in `match:` conditions and `set:` actions:
 
-| Field | Source | Can Match? | Can Set? | Match Operators | Notes |
-|-------|--------|------------|----------|-----------------|-------|
-| `date` | Input CSV | ❌ No | ❌ No | — | Read-only. Not matchable in current grammar. |
-| `amount` | Input CSV | ✅ Yes | ❌ No | `==`, `in` | Read-only. Use `in` for ranges (e.g., `amount in -100..-10`). |
-| `counterparty` | Input CSV | ✅ Yes | ❌ No | `==`, `~` | Read-only. Use `~` for wildcards (e.g., `counterparty ~ "*TESCO*"`). |
-| `memo` | Input CSV | ✅ Yes | ✅ Yes | `==`, `~` | Free text field. |
-| `category` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | Primary output field. Last matching rule wins. |
-| `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | Append-only. Direct assignment (`=`) not allowed. |
-| `status` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | User-defined workflow state. |
-| `exclude` | Engine | ❌ No | ✅ Yes | — | Boolean marker. Mutable — later rules can override. No automatic row filtering. |
+| Field | Source | Can Match? | Can Set? | Match Operators | Set Operators | Notes |
+|-------|--------|------------|----------|-----------------|---------------|-------|
+| `date` | Input CSV | ❌ No | ❌ No | — | — | Read-only. Not matchable in current grammar. |
+| `amount` | Input CSV | ✅ Yes | ❌ No | `==`, `in` | — | Read-only. Use `in` for ranges (e.g., `amount in -100..-10`). |
+| `counterparty` | Input CSV | ✅ Yes | ❌ No | `==`, `~` | — | Read-only. Use `~` for wildcards (e.g., `counterparty ~ "*TESCO*"`). |
+| `memo` | Input CSV | ✅ Yes | ✅ Yes | `==`, `~` | `=`, `+=` | Free text field. |
+| `category` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | `=`, `+=` | Primary output field. Last matching rule wins. |
+| `flags` | Engine | ✅ Yes | ✅ Yes (`+=` only) | `==`, `~` | `+=` only | Append-only. Direct assignment (`=`) not allowed. |
+| `status` | Engine | ✅ Yes | ✅ Yes | `==`, `~` | `=`, `+=` | User-defined workflow state. |
+| `exclude` | Engine | ❌ No | ✅ Yes | — | `=` | Boolean marker. Mutable — later rules can override. No automatic row filtering. |
 
 **Set operators** (for `set:` actions on settable fields):
 - `=` — direct assignment (e.g., `category = "Groceries"`)
-- `+=` — append (e.g., `flags += "Review"`; **required** for `flags`)
+- `+=` — append (e.g., `flags += "Review"`; **required** for `flags`, also supported on `category`, `status`, and `memo`)
 
 **Key points:**
 - **Read-only fields** (`date`, `amount`, `counterparty`) come from your input data and cannot be modified by rules.

@@ -89,6 +89,7 @@ All definitions verified against the v0.6.4 GA codebase (Nov 2025).
 | `--min-amount` | Number | Minimum absolute amount |
 | `--top-k` | Integer | Limit top results |
 | `--since-date` | **ISO** `YYYY-MM-DD` | Time-bounded discovery |
+| `--include-excluded` | switch | Include `exclude=True` rows (default: skip) |
 | `--strict-parse` | switch | Hardened parsing |
 | `--fail-threshold` | **fraction `0.0–1.0`** | Guardrail on drops |
 | `--fastio` / `--headless` | switches | I/O speed / quiet mode |

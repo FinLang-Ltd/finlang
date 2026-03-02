@@ -304,7 +304,8 @@ def discover_candidates(
     min_count: int = 5,
     min_amount: Optional[float] = None,
     since_date: Optional[str] = None,
-    top_k: Optional[int] = None
+    top_k: Optional[int] = None,
+    include_excluded: bool = False,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Discover uncategorized counterparty candidates from a canonical DataFrame.
@@ -314,6 +315,13 @@ def discover_candidates(
     # 1. Isolate uncategorized transactions for analysis.
     # Ensure NA/None handling robustness (v0.6.4)
     uncategorized_mask = df[category_col].isna() | (df[category_col].astype(str).str.strip() == '')
+
+    # v0.7.4: Exclude-aware discovery. Rows with exclude=True are not categorisation
+    # gaps — they were intentionally marked out of scope. Skip unless --include-excluded.
+    if not include_excluded and "exclude" in df.columns:
+        _exc = df["exclude"].fillna("").astype(str).str.strip().str.lower()
+        uncategorized_mask &= (~_exc.isin(("true", "1", "yes")))
+
     work_df = df[uncategorized_mask].copy()
 
     if since_date:
@@ -507,6 +515,8 @@ def main(args_list=None):
     parser.add_argument("--top-k", type=int, help="Limit output to the top K most frequent candidates.")
     parser.add_argument("--fastio", action="store_true", help="Use pyarrow engine for fast CSV IO (if installed).")
     parser.add_argument("--headless", action="store_true", help="Suppress console status messages.")
+    parser.add_argument("--include-excluded", action="store_true",
+                        help="Include exclude=True rows in discovery (default: skip them).")
 
     # Strict Parsing Flags (RC1 Requirement)
     parser.add_argument("--strict-parse", action="store_true", help="Fail fast on mixed delimiters, bad headers, or excessive drops.")
@@ -639,7 +649,8 @@ def main(args_list=None):
             min_count=args.min_count,
             min_amount=args.min_amount,
             since_date=args.since_date,
-            top_k=args.top_k
+            top_k=args.top_k,
+            include_excluded=args.include_excluded,
         )
 
         # 5. Write the output CSVs.

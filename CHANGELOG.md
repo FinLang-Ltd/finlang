@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.4.post1] - 2026-03-02
+
+### Fixed
+- discover.py: string "False" from CSV round-trip incorrectly filtered as excluded (silent data drop)
+- suggest.py: Unicode emoji crashed on Windows cp1252 console encoding
+
 ## [0.7.4] - 2026-03-01
 
 ### Fixed

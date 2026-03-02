@@ -20,13 +20,7 @@
 #
 # FinLang™ is a trademark of FinLang Ltd.
 
-
 # suggest.py — Generate draft .fin rules from discovery candidates
-#
-# v0.6.4-rc1a Final v3:
-#   - (RC1a Semantic Fix): Corrected exact mode to match example_name (not fingerprint).
-#   - (Optimization): Optimized exact de-duplication using a pre-computed set (O(1) lookup).
-#   - (Robustness): Added re.DOTALL to pattern extraction regexes.
 
 import argparse
 import csv
@@ -398,7 +392,7 @@ def main() -> int:
         print(f"FATAL: Failed to write to output file {args.output}: {e}", file=sys.stderr)
         return 1
 
-    print(f"✅ {'Appended' if write_mode == 'a' else 'Wrote'} {len(blocks)} draft rule(s) to {args.output}")
+    print(f"{'Appended' if write_mode == 'a' else 'Wrote'} {len(blocks)} draft rule(s) to {args.output}")
     return 0
 
 if __name__ == "__main__":

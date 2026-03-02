@@ -92,6 +92,8 @@ Run FinLang as per the Daily Run example above. This produces `categorized.csv`.
 
 Identify frequently-occurring **uncategorized** counterparties and also export full discovery stats.
 
+> **Exclude-aware (v0.7.4):** Rows marked `exclude=True` are skipped by default — they are intentionally out of scope, not categorisation gaps. To include them (e.g., for audit or review), add `--include-excluded`.
+
 ```bash
 finlang-discover --input categorized.csv \
   --candidates candidates.csv \

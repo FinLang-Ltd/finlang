@@ -77,6 +77,7 @@ Scan a processed CSV to find frequently-occurring, **uncategorized** counterpart
 | `--min-amount A`                         | Minimum absolute amount filter (optional).         |
 | `--top-k N`                              | Limit to top-N by frequency/weight (optional).     |
 | `--since-date YYYY-MM-DD`                | Only consider rows on/after this date.             |
+| `--include-excluded`                     | Include `exclude=True` rows in discovery (default: skip them). |
 | `--encoding NAME`                        | Input encoding or `auto`.                          |
 | `--strict-parse`                         | Fail fast on malformed input.                      |
 
@@ -97,6 +98,8 @@ Scan a processed CSV to find frequently-occurring, **uncategorized** counterpart
 - `total_value` — Sum of all transaction amounts
 
 > **Note:** `finlang-discover` also supports standard locale flags (`--decimal`, `--thousands`, `--dayfirst`, `--date-format`) and performance flags (`--fastio`, `--headless`, `--fail-threshold`). See Main CLI for details.
+
+> **Exclude-aware (v0.7.4):** By default, rows with `exclude=True` are skipped during discovery — they are intentionally out of scope, not categorisation gaps. Use `--include-excluded` to surface them (e.g., for review workflows).
 
 ---
 
