@@ -130,9 +130,10 @@ Measured with `--audit-mode none` (max throughput).
 |:--|:--|:--:|:--:|:--:|:--|
 | 100 K (UK Synthetic) | Growth Loop | 121 | 2.54 | **39,370** ✅ | Baseline |
 | 100 K (after Growth Loop) | Growth Loop | 764 | 4.96 | **20,161** ✅ | +6.3× rules → ≈ 2× slower |
-| **5M × 50 cols** | Benchmark Harness | — | **187.76** | **26,600** ✅ | High volume validation |
+| **5M × 50 cols** | Benchmark Harness | — | **187.90** | **26,600** ✅ | High volume validation |
 
-> **v0.7.2 improvement:** 10% faster than v0.6.4 (208s → 188s), +12% throughput.  
+> **v0.7.4 improvement:** Cache invalidation fix delivered 3–5% faster runtimes across most data shapes; ~5% integrity test improvement. Headline enterprise throughput: ~27K rows/sec (peak observed: 28.4K).  
+> **Cumulative:** 10% faster than v0.6.4 (208s → 188s), +12% throughput.  
 > **Audit Overhead:** Enabling `--audit-mode lite/full` **reduces throughput by ≈38%** due to diff calculation; provides full decision provenance.  
 >
 > **Note:** These figures are validated benchmark results from controlled tests (5M × 50 columns). Actual performance varies depending on dataset, ruleset, and audit mode.  
@@ -148,7 +149,7 @@ SHA-256 fingerprint verification benchmarked on large datasets:
 |:--:|:--:|:--:|:--|
 | 5M | ~5 min | 133K rows/s | ✅ All fingerprints match |
 | 10M | ~10 min | 156K rows/s | ✅ All fingerprints match |
-| **20M** | **~20 min** | **159K rows/s** | **✅ All fingerprints match** |
+| **20M** | **~18 min** | **167K rows/s** | **✅ All fingerprints match** |
 
 > **What this benchmark validated:** Every row's immutable fields (`date`, `amount`, `counterparty`) were verified via SHA-256 hash before and after engine processing. Zero cross-row contamination detected. Zero data corruption detected.
 >

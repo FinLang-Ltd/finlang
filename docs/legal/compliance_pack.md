@@ -1,5 +1,5 @@
 # 📑 FinLang Compliance Pack Summary
-*Version: v0.6.4.post1 GA – November 2025*
+*Version: v0.7.4.post1 — March 2026*
 
 This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s legal, compliance, and governance framework. It is intended for customers, partners, and potential acquirers as a due diligence reference.
 
@@ -22,7 +22,7 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
   - rule_language.md (DSL specification)  
   - mapping_guide.md (canonical field mapping)  
   - faq.md (user Q&A, performance, precedence)  
-  - benchmarks.md + PDF (official v0.6.1 performance results)
+  - benchmarks.md + PDF (official v0.7.4.post1 performance results)
 
 - **Legal Documentation:**  
   - privacy.md (GDPR/ICO aligned privacy policy, no data collection, self-hosted)  

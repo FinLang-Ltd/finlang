@@ -201,11 +201,11 @@ python /mnt/data/bench_finlang_harness.py \
 ### Performance at a Glance
 | Rows × Cols | Runtime | Throughput | Context | Suitable For |
 |------------:|--------:|-----------:|--------|--------------|
-| 5M × 5  | ~35 s  | ~140 K rows/s | SME batch | Small business |
-| 5M × 20 | ~95 s  | ~52 K rows/s  | Payment gateway | Mid-market |
+| 5M × 5  | ~23 s  | ~220 K rows/s | SME batch | Small business |
+| 5M × 20 | ~77 s  | ~65 K rows/s  | Payment gateway | Mid-market |
 | 5M × 50 | ~188 s | ~27 K rows/s  | Enterprise ledger | Enterprise |
 
-See **benchmarks.md** and **release_notes_v0_7_2.md** for detailed data & methodology.
+See **benchmarks.md** for detailed data & methodology.
 
 ---
 

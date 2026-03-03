@@ -5,9 +5,9 @@
 
 ## Summary
 
-v0.7.4 is a correctness-focused release that restores the `exclude` feature (broken since v0.6.4 launch), fixes a cache staleness bug in rule chaining, and introduces a 55-assertion engine contract test suite. The engine module has been renamed from `finlang_engine_v0_6_4.py` to `finlang_engine.py`.
+v0.7.4 is a correctness-focused release that restores the `exclude` feature (broken since v0.6.4 launch), fixes a cache staleness bug in rule chaining, and introduces a comprehensive test suite (81 daily tests across engine contracts, tool validation, and rule acceptance). The engine module has been renamed from `finlang_engine_v0_6_4.py` to `finlang_engine.py`.
 
-No performance regression. All existing benchmarks remain valid.
+No performance regression. Benchmarks re-validated at v0.7.4.post1 show 3–5% improvement across most data shapes, attributed to the cache invalidation fix eliminating redundant evaluation. Integrity test throughput improved ~5% (FastIO: 159K → 167K rows/s at 20M rows). Headline enterprise throughput remains ~27K rows/sec at 5M × 50 columns.
 
 ---
 
@@ -58,7 +58,7 @@ The audit trail captures the full chain: `exclude false→true` (blacklist), the
 
 ## New Tests
 
-### `test_rule_interactions.py` (12 tests, 55 assertions)
+### `test_rule_interactions.py` (22 tests)
 Engine state-transition contract tests covering:
 
 1. Cache invalidation (category and flags chains)
@@ -72,7 +72,25 @@ Engine state-transition contract tests covering:
 9. Idempotency
 10. Edge case: `exclude = false` without prior exclude
 
-Integrated into `quick_check.ps1` daily gate (now 4 stages, 68 total assertions).
+### `test_discover_suggest.py` (20 tests)
+Discover/suggest tool validation covering:
+
+- Exclude-aware discovery (excluded counterparties filtered)
+- Fingerprint dedup (identical descriptions collapsed)
+- Rule generation (suggest produces valid `.fin` syntax)
+- Dedup safety (suggested rules don't duplicate existing rules)
+- End-to-end pipeline (discover → suggest → apply)
+
+### `test_rule_correctness.py` (26 tests)
+Golden-path acceptance tests proving `rules.demo.fin` + bundled packs produce expected output on known data:
+
+- Category correctness (7 tests): matched rows get `Review`, unmatched stay empty
+- Flag correctness (9 tests): token-level verification of Retail, Transport, Fuel, Subscription flags
+- Structural integrity (2 tests): row count preserved, immutable fields (date, amount, counterparty, memo) unchanged
+- Comprehensive sweeps (2 tests): full 16-row sweep for categories and flags
+
+### Daily Gate Integration
+All three test suites integrated into `quick_check.ps1` (6 gates, 81 tests total). Inherited by `full_test_suite.ps1` and `cleanroom_test.ps1`.
 
 ---
 
@@ -113,8 +131,12 @@ finlang --version
 | `src/finlang/cli/run_finlang.py` | Import paths + exclude passthrough + version bump |
 | `src/finlang/__init__.py` | Version bump |
 | `pyproject.toml` | Version bump |
-| `test_rule_interactions.py` | New (12 tests, 55 assertions) |
-| `quick_check.ps1` | Added rule interaction tests as gate 4/4 |
+| `test_rule_interactions.py` | New (22 engine contract tests) |
+| `test_discover_suggest.py` | New (20 discover/suggest tool tests) |
+| `test_rule_correctness.py` | New (26 golden-path acceptance tests) |
+| `quick_check.ps1` | Rewritten: 6 gates, 81 tests, clean single-line display |
+| `full_test_suite.ps1` | New: single-command wrapper for all tiers + contracts |
+| `cleanroom_test.ps1` | New: disposable venv PyPI validation (gates 1–4) |
 
 ---
 
