@@ -117,7 +117,8 @@ Turn discovery candidates into **draft `.fin` rules** for review/merge.
 | `--emit-match MODE` | `exact` or `fuzzy` (default). Use `exact` for production-grade 1:1 rules. |
 | `--category NAME`   | Default category to assign (e.g., `Review`).                 |
 | `--prefix STR`      | Optional rule-name prefix (e.g., `AUTO`).                    |
-| `--append`          | Append to output file if it exists (otherwise overwrites).   |
+| `--append`          | Append to output file if it exists.                          |
+| `--overwrite`       | Overwrite output file (mutually exclusive with `--append`).  |
 | `--quote-style`     | Quote character for emitted rules (`"` or `'`).              |
 
 ### Output

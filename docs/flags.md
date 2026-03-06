@@ -4,7 +4,7 @@
 > **Last verified:** v0.7.4
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.  
-All definitions verified against the v0.6.4 GA codebase (Nov 2025).
+All definitions verified against the v0.7.4 codebase (March 2026).
 
 ---
 
@@ -140,11 +140,11 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 
 ## 🧪 Audit Reference
 Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.  
-All flags validated in FinLang v0.7.2.
+All flags validated in FinLang v0.7.4.
 
 ---
 
-## ⚠️ Known Issues (v0.6.4.post2)
+## ⚠️ Known Issues (v0.7.4.post1)
 
 - None
 
