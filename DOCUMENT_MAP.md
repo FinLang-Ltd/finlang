@@ -1,7 +1,7 @@
 # FinLang Document Map
 *Last updated: 6 March 2026 | v0.7.4.post1*
 
-This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. Claude reads this at session start.
+This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
 ### Version Sync Rule
 Version numbers must remain consistent across these five files on every release:
@@ -21,7 +21,7 @@ FinLang consists of five major components:
 
 ---
 
-## Source Repo (`C:\projects\finlang`)
+## Source Repo (`finlang`)
 
 ### Core Source Files
 
@@ -76,7 +76,7 @@ FinLang consists of five major components:
 
 ---
 
-## Test Suite Repo (`C:\projects\finlang-test_suite`)
+## Test Suite Repo (`finlang-test_suite`)
 
 ### Process Documents
 
@@ -93,6 +93,8 @@ FinLang consists of five major components:
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
+| `finlang_showcase.ps1` | Proof-of-life: disposable venv + tests + demo in one recording | New test gates, demo changes |
+| `run_showcase.cmd` | Double-click launcher for showcase | Rarely |
 
 ### Test Scripts
 
@@ -137,8 +139,8 @@ FinLang consists of five major components:
 
 ## Demo Files
 
-The demo script lives in the **test suite root** (`C:\projects\finlang-test_suite\finlang_demo_v4.ps1`).
-Demo data files live in the **demo subfolder** (`C:\projects\finlang-test_suite\demo\`).
+The demo script lives in the **test suite root** (`finlang-test_suite/finlang_demo_v4.ps1`).
+Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 
 ### Demo Script (test suite root)
 
@@ -146,7 +148,7 @@ Demo data files live in the **demo subfolder** (`C:\projects\finlang-test_suite\
 |------|---------|-------------|
 | `finlang_demo_v4.ps1` | Live demo script (9 steps, spacebar-driven) | Demo flow changes, new demo features |
 
-### Demo Data (`C:\projects\finlang-test_suite\demo`)
+### Demo Data (`./demo`)
 
 | File | Purpose | Update When |
 |------|---------|-------------|
@@ -160,12 +162,13 @@ Demo data files live in the **demo subfolder** (`C:\projects\finlang-test_suite\
 
 ---
 
-## Strategic / Planning Documents (Claude Project)
+## Strategic / Planning Documents
 
 | File | Contains | Update When |
 |------|----------|-------------|
 | `ROADMAP_verify.md` | `finlang --verify` design spec (future feature) | When verify feature is built |
 | `demo_video_pack.md` | Video recording plan and script notes | Before recording demo video |
+| `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase | Before recording showcase video |
 | `finlang_consolidated_roadmap_draft.md` | v0.7.5+ roadmap items (decimal pipeline, streaming audit, GUI builder, SOL-001) | Roadmap review sessions |
 | `finlang_solution_outlines.md` | Solution outlines for enterprise use cases | New vertical/use case work |
 | `finlang_vertical_analysis.md` | Vertical expansion analysis (procurement, healthcare, insurance) + arbitrary column matching spec | When vertical strategy changes or engine modification is built |
