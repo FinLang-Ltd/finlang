@@ -18,7 +18,7 @@ rule "Financial: BANK CHARGE (Memo)" {
 
 rule "Financial: CHARGE (Memo)" {
   match:
-    - memo ~ "*CHARGE*"
+    - memo ~ "*BANK*CHARGE*"
   set:
     - category = "Review"
     - flags += "BankFee"
@@ -50,7 +50,7 @@ rule "Financial: FX FEE (Counterparty)" {
 
 rule "Financial: FX (Memo)" {
   match:
-    - memo ~ "*FX*"
+    - memo ~ "* FX *"
   set:
     - category = "Review"
     - flags += "FX"
@@ -66,7 +66,7 @@ rule "Financial: CASH WITHDRAWAL" {
 
 rule "Financial: ATM" {
   match:
-    - counterparty ~ "*ATM*"
+    - counterparty ~ "ATM*"
   set:
     - category = "Review"
     - flags += "Cash"

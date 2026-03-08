@@ -18,7 +18,7 @@ rule "Transport: TRAINLINE" {
 
 rule "Transport: TFL" {
   match:
-    - counterparty ~ "*TFL*"
+    - counterparty ~ "TFL*"
   set:
     - category = "Review"
     - flags += "Transport"
@@ -34,7 +34,7 @@ rule "Transport: SHELL" {
 
 rule "Transport: BP" {
   match:
-    - counterparty ~ "*BP*"
+    - counterparty ~ "BP*"
   set:
     - category = "Review"
     - flags += "Fuel"

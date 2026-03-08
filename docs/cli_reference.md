@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.4
+> **Last verified:** v0.7.5
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -273,5 +273,4 @@ A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.
 * `docs/rule_language.md`
 * `docs/rulepacks.md`
 * `docs/growth_loop_best_practices.md`
-* `docs/release_notes/v0.7.4.md`
 * `docs/faq.md`

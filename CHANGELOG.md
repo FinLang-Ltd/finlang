@@ -6,6 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.5] - 2026-03-08
+
+### Fixed
+- Bundled rulepacks — wildcard hardening across `02-transport.fin`, `01-vendors-retail.fin`, `05-financial.fin`, `06-compliance.flags.fin`. Unpadded short tokens replaced with space-padded equivalents to prevent false matches on counterparty names.
+
 ## [0.7.4.post1] - 2026-03-02
 
 ### Fixed

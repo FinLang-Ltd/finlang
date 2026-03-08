@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 6 March 2026 | v0.7.4.post1*
+*Last updated: 8 March 2026 | v0.7.5*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -17,7 +17,7 @@ FinLang consists of five major components:
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
 3. **Tools** — Discovery and rule generation (`discover.py`, `suggest.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
-5. **Validation Infrastructure** — 81-test daily suite, integrity verification, cleanroom PyPI validation, golden master baselines
+5. **Validation Infrastructure** — 81-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
 
 ---
 
@@ -55,8 +55,9 @@ FinLang consists of five major components:
 | `docs/growth_loop_best_practices.md` | Discover→Suggest→Merge cycle, time estimates, team tips | Changes to discover/suggest behaviour |
 | `docs/benchmarks.md` | Performance data, harness commands, throughput tables, heatmaps | Re-benchmarked (new version, hardware, or significant perf change) |
 | `docs/faq.md` | User Q&A: precedence, amounts, encoding, exit codes, performance | New common questions, behaviour changes, fixed bugs |
-| `docs/rulepacks.md` | Pack descriptions, pattern lists, commercial pack details (Banking v1.0) | Pack content changes, new packs, pricing changes |
+| `docs/rulepacks.md` | Pack descriptions, pattern lists, commercial pack details (Banking v1.1) | Pack content changes, new packs, pricing changes |
 | `docs/release_notes/release_notes_v0_7_4.md` | v0.7.4 release: what changed, files modified, test counts | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_7_5.md` | v0.7.5 release: rulepack linter, wildcard hardening, test suite fixes | Only for that release (new releases get new files) |
 
 ### Legal (`docs/legal/`)
 
@@ -89,7 +90,7 @@ FinLang consists of five major components:
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `quick_check.ps1` | Daily gate runner (6 gates, 81 tests), single-line-per-gate display | New daily gates, test count changes |
+| `quick_check.ps1` | Daily gate runner (7 gates, 81 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
@@ -100,6 +101,7 @@ FinLang consists of five major components:
 
 | File | Tests | Contains | Update When |
 |------|-------|----------|-------------|
+| `rulepack_linter.py` | Static | Static wildcard safety analyser: detects HIGH/WARN risk patterns in `.fin` files without running the engine. Gate 7 in `quick_check.ps1` (bundled packs) and `full_test_suite.ps1` (commercial pack). | Pack content changes, new packs, KNOWN_SAFE_TOKENS changes |
 | `smoke_test.ps1` | 13 CLI | Format, pack, i18n smoke tests | New CLI flags, new packs |
 | `paranoia_lite.ps1` | (part of gate 2) | Flag, threshold, typo checks | New edge cases |
 | `pyarrow_smoke.ps1` | (part of gate 3) | PyArrow/regex fix validation | PyArrow-related changes |
@@ -185,7 +187,8 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 | **New rule operator** | `finlang_engine.py` (parser + evaluator), `rule_language.md`, possibly `test_rule_interactions.py` |
 | **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
 | **New test added** | Test script, `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` or `full_test_suite.ps1` (if new gate), `RELEASE_CHECKLIST.md` (counts) |
-| **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate) |
+| **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate), re-run `rulepack_linter.py` to verify clean |
+| **Rulepack wildcard change** | `rulepack_linter.py` (re-run to verify clean — exit 0 required before commit), `KNOWN_SAFE_TOKENS` if new safe token needed |
 | **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
 | **Benchmark re-run** | `benchmarks.md`, heatmap PNGs, `workflows.md` (throughput table) |
 | **New demo step** | `finlang_demo_v4.ps1`, possibly new CSV/map files in demo folder |

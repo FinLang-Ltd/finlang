@@ -51,7 +51,7 @@ rule "Example: Amount Range" {
     - flags += "Example"
 }
 
-# 4) Flags are append-only (+=). Overwrite with '=' is invalid in v0.5.2+ and will be skipped.
+# 4) Flags are append-only (+=). Direct assignment with '=' is not permitted and will be skipped.
 rule "Example: Flags Append-Only" {
   match:
     - counterparty ~ "*DEMO*"

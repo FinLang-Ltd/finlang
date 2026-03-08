@@ -27,7 +27,7 @@ rule "Retail: LIDL" {
 
 rule "Retail: ALDI" {
   match:
-    - counterparty ~ "*ALDI*"
+    - counterparty ~ "ALDI*"
   set:
     - category = "Review"
     - flags += "Retail"
@@ -57,9 +57,17 @@ rule "Retail: M&S" {
     - flags += "Retail"
 }
 
-rule "Retail: CO-OP" {
+rule "Retail: CO-OP (hyphen)" {
   match:
-    - counterparty ~ "*CO*OP*"
+    - counterparty ~ "*CO-OP*"
+  set:
+    - category = "Review"
+    - flags += "Retail"
+}
+
+rule "Retail: CO-OP (space)" {
+  match:
+    - counterparty ~ "*CO OP*"
   set:
     - category = "Review"
     - flags += "Retail"

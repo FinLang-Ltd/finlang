@@ -48,7 +48,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.7.4)
+## ⚙️ Key Features (v0.7.5)
 
 | Feature | Description |
 |:--|:--|
@@ -197,7 +197,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
-- [`docs/release_notes/v0.7.4.md`](docs/release_notes/v0.7.4.md)  
+- [`docs/release_notes/v0_7_5.md`](docs/release_notes/v0_7_5.md)  
 - [`docs/runtime_contract.md`](docs/runtime_contract.md)  
 - [`docs/cli_reference.md`](docs/cli_reference.md)  
 - [`docs/rulepacks.md`](docs/rulepacks.md)  
@@ -247,9 +247,9 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine      | v0.7.4    | ✅ Production-Ready  |
-| CLI Suite        | v0.7.4    | ✅ Validated         |
-| Discover/Suggest | v0.7.4    | ✅ 97.8% accuracy    |
-| Integrity Test   | v0.7.4    | ✅ 20M rows verified |
-| Docs             | v0.7.4    | ✅ Complete          |
+| Core Engine      | v0.7.5   | ✅ Production-Ready  |
+| CLI Suite        | v0.7.5   | ✅ Validated         |
+| Discover/Suggest | v0.7.5   | ✅ 97.8% accuracy    |
+| Integrity Test   | v0.7.5   | ✅ 20M rows verified |
+| Docs             | v0.7.5   | ✅ Complete          |
 | Python Support   | 3.10—3.14 | ✅ Tested            |

@@ -24,7 +24,7 @@ rule "Flag: Potential Foreign/FX (Counterparty)" {
 
 rule "Flag: Potential Foreign/FX (Memo)" {
   match:
-    - memo ~ "*FX*"
+    - memo ~ "* FX *"
   set:
     - flags += "FX"
 }
