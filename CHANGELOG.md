@@ -6,6 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.6] - 2026-03-09
+
+### Fixed
+- Bundled rulepacks: reverted over-tightened `* FX *` patterns to `*FX*` in `05-financial.fin` and `06-compliance.flags.fin` — space-padding caused missed matches on FX memo variants
+- Bundled rulepacks: reverted `ALDI*` to `*ALDI*` in `01-vendors-retail.fin` restoring 0.7.2 coverage parity
+
 ## [0.7.5] - 2026-03-08
 
 ### Fixed

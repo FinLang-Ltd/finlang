@@ -27,7 +27,7 @@ rule "Retail: LIDL" {
 
 rule "Retail: ALDI" {
   match:
-    - counterparty ~ "ALDI*"
+    - counterparty ~ "*ALDI*"
   set:
     - category = "Review"
     - flags += "Retail"

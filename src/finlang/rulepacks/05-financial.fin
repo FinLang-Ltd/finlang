@@ -50,7 +50,7 @@ rule "Financial: FX FEE (Counterparty)" {
 
 rule "Financial: FX (Memo)" {
   match:
-    - memo ~ "* FX *"
+    - memo ~ "*FX*"
   set:
     - category = "Review"
     - flags += "FX"

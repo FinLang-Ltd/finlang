@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 8 March 2026 | v0.7.5*
+*Last updated: 9 March 2026 | v0.7.5*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -17,7 +17,7 @@ FinLang consists of five major components:
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
 3. **Tools** — Discovery and rule generation (`discover.py`, `suggest.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
-5. **Validation Infrastructure** — 81-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
+5. **Validation Infrastructure** — 89-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
 
 ---
 
@@ -90,7 +90,7 @@ FinLang consists of five major components:
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `quick_check.ps1` | Daily gate runner (7 gates, 81 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
+| `quick_check.ps1` | Daily gate runner (8 gates, 89 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
@@ -108,6 +108,7 @@ FinLang consists of five major components:
 | `test_rule_interactions.py` | 22 engine | Cache invalidation, exclude lifecycle, flag accumulation, audit modes, idempotency | Engine state-transition changes |
 | `test_discover_suggest.py` | 20 tool | Discover/suggest pipeline, exclude-aware discovery, fuzzy/exact modes | Discover/suggest behaviour changes |
 | `test_rule_correctness.py` | 26 acceptance | Golden-path: categories, flags, structural integrity on known data | Pack content changes, engine output changes |
+| `test_custom_map.py` | 8 map pipeline | Custom --map flag: foreign header resolution, debit/credit synthesis, non-ASCII headers, memo mapping, error paths (malformed/partial map), multi-row throughput | Mapping logic changes, new map error paths, canonical schema changes |
 | `run_test_matrix.ps1` | 6 golden masters | SHA256 baselines for US/UK/EU/debit/pipe/CR-DR formats | New regional formats, output changes |
 | `adversarial_tests.ps1` | 8 edge cases | Mixed delimiters, duplicate headers, CR/DR, pipe delimiter, scientific notation | New edge case support |
 | `integrity_testv2.py` | Scale integrity | SHA-256 fingerprinting at 5K-20M rows | Changes to data hardening or amount normalisation |
@@ -186,7 +187,7 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 | **New canonical field** | `finlang_engine.py` (CANON_FIELDS), `mapping_guide.md` (field table), `rule_language.md` (field reference), `canonical_fields.yaml`, `test_rule_interactions.py` |
 | **New rule operator** | `finlang_engine.py` (parser + evaluator), `rule_language.md`, possibly `test_rule_interactions.py` |
 | **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
-| **New test added** | Test script, `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` or `full_test_suite.ps1` (if new gate), `RELEASE_CHECKLIST.md` (counts) |
+| **New test added** | Test script, `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` or `full_test_suite.ps1` (if new gate), `RELEASE_CHECKLIST.md` (counts), `DOCUMENT_MAP.md` (test scripts table), `cleanroom_test.ps1` + `finlang_showcase.ps1` (if count strings hardcoded) |
 | **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate), re-run `rulepack_linter.py` to verify clean |
 | **Rulepack wildcard change** | `rulepack_linter.py` (re-run to verify clean — exit 0 required before commit), `KNOWN_SAFE_TOKENS` if new safe token needed |
 | **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
