@@ -1,7 +1,7 @@
 # 🌍 Internationalization Examples
 > **Applies to:** FinLang v0.6+  
 > **Status:** Reference  
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.6
 
 FinLang supports locale-specific date and number formats for global datasets.
 
@@ -50,6 +50,82 @@ finlang --decimal "," --thousands "." --dayfirst --encoding auto
 finlang --decimal "." --thousands "'" --dayfirst
 ```
 **Why:** Swiss formats frequently use **apostrophe `'`** as thousands (e.g., `1'234.56`) and **DD.MM.YYYY** for dates. Explicit `--dayfirst` ensures consistent behaviour across banks.
+
+---
+
+### 🇮🇹 Italy
+```bash
+finlang --decimal "," --thousands "." --dayfirst --encoding auto --map italian_bank.map.json
+```
+**Why:** Italian exports use the same EU number formatting as France/Germany (`,` decimal, `.` thousands, semicolon delimiter). Column headers are in Italian — use a custom map to resolve them.
+
+**Example map (`italian_bank.map.json`):**
+```json
+{
+  "date": ["data"],
+  "amount": { "aliases": ["importo"] },
+  "counterparty": ["controparte"],
+  "memo": ["descrizione"]
+}
+```
+
+---
+
+### 🇯🇵 Japan
+```bash
+finlang --encoding utf-8 --map japanese_bank.map.json
+```
+**Why:** Japanese exports typically use UTF-8 encoding, `YYYY-MM-DD` dates, `.` decimal (no special flags needed), and `¥` currency symbols. The `¥` symbol is stripped automatically by the parser. Column headers are in Japanese — use a custom map.
+
+**Example map (`japanese_bank.map.json`):**
+```json
+{
+  "date": ["日付"],
+  "amount": { "aliases": ["金額"] },
+  "counterparty": ["取引先"],
+  "memo": ["摘要"]
+}
+```
+
+**Note:** Japanese wildcard matching works in `.fin` rules: `counterparty ~ "*シェル*"` matches counterparties containing シェル (Shell).
+
+---
+
+### 🇮🇳 India
+```bash
+finlang --dayfirst --encoding utf-8 --map indian_bank.map.json
+```
+**Why:** Indian exports typically use `DD/MM/YYYY` dates and `₹` currency symbols. The `₹` symbol is stripped automatically. Column headers may be in Hindi or English — use a custom map for Hindi headers.
+
+**Example map (`indian_bank.map.json`):**
+```json
+{
+  "date": ["तारीख"],
+  "amount": { "aliases": ["राशि"] },
+  "counterparty": ["प्रतिपक्ष"],
+  "memo": ["विवरण"]
+}
+```
+
+**Note:** Hindi wildcard matching works in `.fin` rules: `counterparty ~ "*बैंक*"` matches counterparties containing बैंक (Bank).
+
+**⚠️ Known limitation:** Indian **lakhs notation** (e.g., `1,25,000` instead of `125,000`) is not currently supported. The non-standard thousands grouping causes parsing errors. Amounts without lakhs formatting work correctly. This is tracked for a future release.
+
+---
+
+## 🔹 Supported Currency Symbols
+
+The parser automatically strips the following currency symbols from amount fields:
+
+| Symbol | Currency | Region |
+|--------|----------|--------|
+| `£` | Pound Sterling | UK |
+| `€` | Euro | EU |
+| `$` | Dollar | US / multiple |
+| `¥` | Yen | Japan |
+| `₹` | Rupee | India |
+
+No CLI flag is needed — currency stripping is automatic. Non-breaking spaces (`\u00A0`, `\u202F`) commonly found in EU-formatted amounts are also stripped.
 
 ---
 

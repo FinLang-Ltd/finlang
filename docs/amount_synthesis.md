@@ -1,7 +1,7 @@
 # 💰 Amount Synthesis Logic
 > **Applies to:** FinLang v0.6.4+
 > **Status:** Stable
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.6
 
 FinLang guarantees deterministic numeric resolution even with inconsistent bank exports.
 
@@ -38,6 +38,20 @@ amount = abs(credit) - abs(debit)
 |  | 1500.00 | +1500.00 |
 | 12.00 | 5.00 | -7.00 |
 |  |  | 0 |
+
+---
+
+## 🔹 Output Behaviour
+
+When synthesis occurs, the original `debit` and `credit` columns are **retained in the output** alongside the synthesised `amount` column. The output is a superset of the input — original data preserved, canonical fields added.
+
+**Example:**
+
+| Input Columns | Output Columns |
+|:---|:---|
+| `date, debit, credit, description` | `date, debit, credit, counterparty, amount, memo, category, flags, status` |
+
+The `description` → `counterparty` rename is handled by the mapping layer, not synthesis. See [Mapping Guide](mapping_guide.md).
 
 ---
 

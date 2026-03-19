@@ -1,7 +1,7 @@
 # 📘 Mapping Guide
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.6
 
 ---
 
@@ -287,6 +287,74 @@ finlang --thousands "'" --decimal .
 ```
 
 See [i18n_examples.md](i18n_examples.md) for complete regional recipes.
+
+---
+
+## 🌏 Non-Latin & International Header Mapping
+
+The mapping layer works with **any Unicode headers** — not just Latin characters. The engine matches header strings exactly as specified in the map file. As long as the file encoding is correct (`--encoding utf-8` or `--encoding auto`), headers in any script are supported.
+
+**Verified examples:**
+
+### 🇯🇵 Japanese
+```json
+{
+  "date": ["日付"],
+  "amount": { "aliases": ["金額"] },
+  "counterparty": ["取引先"],
+  "memo": ["摘要"]
+}
+```
+```bash
+finlang --input jp_export.csv --map jp.map.json --encoding utf-8 --rules rules.fin
+```
+
+### 🇮🇳 Hindi
+```json
+{
+  "date": ["तारीख"],
+  "amount": { "aliases": ["राशि"] },
+  "counterparty": ["प्रतिपक्ष"],
+  "memo": ["विवरण"]
+}
+```
+```bash
+finlang --input india_export.csv --map india.map.json --encoding utf-8 --dayfirst --rules rules.fin
+```
+
+### 🇫🇷 French
+```json
+{
+  "date": ["date"],
+  "amount": { "aliases": ["montant"] },
+  "counterparty": ["contrepartie"],
+  "memo": ["libellé"]
+}
+```
+```bash
+finlang --input fr_export.csv --map france.map.json --decimal "," --thousands "." --dayfirst --rules rules.fin
+```
+
+### 🇮🇹 Italian
+```json
+{
+  "date": ["data"],
+  "amount": { "aliases": ["importo"] },
+  "counterparty": ["controparte"],
+  "memo": ["descrizione"]
+}
+```
+```bash
+finlang --input it_export.csv --map italy.map.json --decimal "," --thousands "." --dayfirst --rules rules.fin
+```
+
+**Note:** Wildcard matching in `.fin` rules also works with non-Latin characters: `counterparty ~ "*シェル*"` (Japanese) and `counterparty ~ "*बैंक*"` (Hindi) are both valid and tested.
+
+Mapping keys are matched **case-insensitively**, so both `description` and `Description` work equally well.
+
+If your bank uses unusual or non-ASCII header names, ensure the file encoding is declared properly (e.g., `--encoding utf-8` or `--encoding auto`).
+
+---
 
 ---
 
