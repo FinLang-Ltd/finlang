@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 9 March 2026 | v0.7.5*
+*Last updated: 04 April 2026 | v0.7.7*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -17,7 +17,7 @@ FinLang consists of five major components:
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
 3. **Tools** — Discovery and rule generation (`discover.py`, `suggest.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
-5. **Validation Infrastructure** — 89-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
+5. **Validation Infrastructure** — 118-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
 
 ---
 
@@ -33,6 +33,7 @@ FinLang consists of five major components:
 | `src/finlang/engine/finlang_engine.py` | Rule parser, condition/action evaluator, `CANON_FIELDS_MATCH`/`CANON_FIELDS_SET`, `TEXT_COLS`, wildcard/range matching | New operators, new matchable/settable fields, rule syntax changes |
 | `src/finlang/tools/discover.py` | Discovery tool: argparse, `_to_number` (synced copy), candidate extraction, exclude-aware filtering | New discover flags, changes to amount parsing, exclude logic changes |
 | `src/finlang/tools/suggest.py` | Rule generator: fuzzy/exact modes, dedup, quote styles, append/overwrite | New suggest flags, output format changes |
+| `src/finlang/tools/verify.py` | Post-engine integrity verification: SHA-256 fingerprinting, fast/full modes, artifact generation | Verification logic changes, new verification modes |
 | `src/finlang/mapping/bank.map.json` | Default header mapping (date, counterparty, memo, amount with aliases + debit/credit) | New bank format support |
 | `src/finlang/rulepacks/*.fin` | 8 bundled packs: retail, transport, subs, travel, financial, compliance, sanity, examples | Pack content changes, new packs added |
 | `src/finlang/utils/resources.py` | Package resource loading helpers | Structural changes to pack/map loading |
@@ -90,7 +91,7 @@ FinLang consists of five major components:
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `quick_check.ps1` | Daily gate runner (8 gates, 89 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
+| `quick_check.ps1` | Daily gate runner (9 gates, 118 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
@@ -101,14 +102,15 @@ FinLang consists of five major components:
 
 | File | Tests | Contains | Update When |
 |------|-------|----------|-------------|
-| `rulepack_linter.py` | Static | Static wildcard safety analyser: detects HIGH/WARN risk patterns in `.fin` files without running the engine. Gate 7 in `quick_check.ps1` (bundled packs) and `full_test_suite.ps1` (commercial pack). | Pack content changes, new packs, KNOWN_SAFE_TOKENS changes |
+| `rulepack_linter.py` | Static | Static wildcard safety analyser: detects HIGH/WARN risk patterns in `.fin` files without running the engine. Gate 9 in `quick_check.ps1` (bundled packs) and `full_test_suite.ps1` (commercial pack). | Pack content changes, new packs, KNOWN_SAFE_TOKENS changes |
 | `smoke_test.ps1` | 13 CLI | Format, pack, i18n smoke tests | New CLI flags, new packs |
 | `paranoia_lite.ps1` | (part of gate 2) | Flag, threshold, typo checks | New edge cases |
 | `pyarrow_smoke.ps1` | (part of gate 3) | PyArrow/regex fix validation | PyArrow-related changes |
 | `test_rule_interactions.py` | 22 engine | Cache invalidation, exclude lifecycle, flag accumulation, audit modes, idempotency | Engine state-transition changes |
-| `test_discover_suggest.py` | 20 tool | Discover/suggest pipeline, exclude-aware discovery, fuzzy/exact modes | Discover/suggest behaviour changes |
-| `test_rule_correctness.py` | 26 acceptance | Golden-path: categories, flags, structural integrity on known data | Pack content changes, engine output changes |
+| `test_discover_suggest.py` | 22 tool | Discover/suggest pipeline, exclude-aware discovery, fuzzy/exact modes, stopword filter, intra-batch dedup | Discover/suggest behaviour changes |
+| `test_rule_correctness.py` | 45 acceptance | Golden-path: categories, flags, structural integrity on known data; _to_number contracts; --dayfirst | Pack content changes, engine output changes |
 | `test_custom_map.py` | 8 map pipeline | Custom --map flag: foreign header resolution, debit/credit synthesis, non-ASCII headers, memo mapping, error paths (malformed/partial map), multi-row throughput | Mapping logic changes, new map error paths, canonical schema changes |
+| `test_verify.py` | 8 verify | Integrity verification: --verify (fast), --verify-full, --verify-output-dir, tampered output detection | Verification logic or CLI integration changes |
 | `run_test_matrix.ps1` | 6 golden masters | SHA256 baselines for US/UK/EU/debit/pipe/CR-DR formats | New regional formats, output changes |
 | `adversarial_tests.ps1` | 8 edge cases | Mixed delimiters, duplicate headers, CR/DR, pipe delimiter, scientific notation | New edge case support |
 | `integrity_testv2.py` | Scale integrity | SHA-256 fingerprinting at 5K-20M rows | Changes to data hardening or amount normalisation |
@@ -169,7 +171,7 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `ROADMAP_verify.md` | `finlang --verify` design spec (future feature) | When verify feature is built |
+| `ROADMAP_verify.md` | `finlang --verify` design spec (implemented in v0.7.6, retained as design reference) | Design changes to verification feature |
 | `demo_video_pack.md` | Video recording plan and script notes | Before recording demo video |
 | `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase | Before recording showcase video |
 | `finlang_consolidated_roadmap_draft.md` | v0.7.5+ roadmap items (decimal pipeline, streaming audit, GUI builder, SOL-001) | Roadmap review sessions |
@@ -205,6 +207,7 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 4. **Pack changes break `test_rule_correctness.py`** by design — it's tightly coupled to pack content.
 5. **Legal docs have own versioning** — don't bump during routine releases unless content actually changes.
 6. **Benchmark docs only update when re-benchmarked** — don't update version headers unless data is re-validated.
+7. **`_normalize_amount_string` in `verify.py` mirrors `_to_number` logic** — keep synced on amount parsing changes.
 
 ---
 

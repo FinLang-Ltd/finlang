@@ -48,7 +48,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.7.5)
+## ⚙️ Key Features (v0.7.7)
 
 | Feature | Description |
 |:--|:--|
@@ -59,10 +59,11 @@ rule "TRAVEL: High Value Flight" {
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
 | **Audit Trail System** | Every decision logged (before/after state diffs); stateless for reproducibility. |
 | **Exclude Marker** | Boolean `exclude` column — rule-driven, auditable, supports blacklist/whitelist exception patterns. |
-| **CR/DR Semantics** | Case-insensitive CR/DR, accounting negatives `(123.45)`, trailing minus `123.45-`. |
+| **CR/DR Semantics** | Case-insensitive CR/DR (with or without space), accounting negatives `(123.45)`, trailing minus `123.45-`. |
 | **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)` across 9 edge cases. |
 | **Strict Parsing** | Locale-aware normalization with configurable thresholds (`--strict-parse`). |
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
+| **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output. |
 
 ---
 
@@ -153,7 +154,7 @@ SHA-256 fingerprint verification benchmarked on large datasets:
 
 > **What this benchmark validated:** Every row's immutable fields (`date`, `amount`, `counterparty`) were verified via SHA-256 hash before and after engine processing. Zero cross-row contamination detected. Zero data corruption detected.
 >
-> **Note:** This benchmark was performed in the test suite. SHA-256 verification is not currently part of the standard runtime CLI — it is included for validation purposes and will be available as a CLI flag in a future release.
+> **Note:** As of v0.7.7, SHA-256 integrity verification is available as a CLI feature via `--verify` (fast fingerprint) and `--verify-full` (fingerprint + field comparison). Use `--verify-output-dir` to save audit artifacts (JSON report + proof CSV). See `docs/cli_reference.md` for details.
 
 ---
 
@@ -188,7 +189,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 🧾 Known Limitations (v0.7.x)
 
-- ⚠️ `--emit-match fuzzy` (default) uses naive tokenization and may produce broad patterns (e.g. `*PLC*`).   
+- ⚠️ `--emit-match fuzzy` (default) filters corporate stopwords (LTD, INC, GROUP, etc.) but may still produce broad patterns on short names.
   → Use `--emit-match exact` for production workflows.  
 - ⚠️ Hyphenated/apostrophe names may affect fuzzy matching (< 1% impact).  
 - ⚠️ No support for non-Gregorian calendars or non-Western numerals.
@@ -197,7 +198,8 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
-- [`docs/release_notes/v0_7_5.md`](docs/release_notes/v0_7_5.md)  
+- [`docs/release_notes/v0_7_7.md`](docs/release_notes/release_notes_v0_7_7.md)
+- [`docs/release_notes/v0_7_6.md`](docs/release_notes/release_notes_v0_7_6.md)  
 - [`docs/runtime_contract.md`](docs/runtime_contract.md)  
 - [`docs/cli_reference.md`](docs/cli_reference.md)  
 - [`docs/rulepacks.md`](docs/rulepacks.md)  
@@ -247,9 +249,10 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine      | v0.7.5   | ✅ Production-Ready  |
-| CLI Suite        | v0.7.5   | ✅ Validated         |
-| Discover/Suggest | v0.7.5   | ✅ 97.8% accuracy    |
-| Integrity Test   | v0.7.5   | ✅ 20M rows verified |
-| Docs             | v0.7.5   | ✅ Complete          |
+| Core Engine      | v0.7.7   | ✅ Production-Ready  |
+| CLI Suite        | v0.7.7   | ✅ Validated (118 tests, 9 gates) |
+| Discover/Suggest | v0.7.7   | ✅ 97.8% accuracy    |
+| Integrity Test   | v0.7.7   | ✅ 20M rows verified |
+| Verify           | v0.7.7   | ✅ Built-in `--verify` / `--verify-full` |
+| Docs             | v0.7.7   | ✅ Complete          |
 | Python Support   | 3.10—3.14 | ✅ Tested            |

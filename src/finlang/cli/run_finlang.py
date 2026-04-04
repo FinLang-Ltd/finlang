@@ -106,7 +106,7 @@ def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int 
 try:
     from finlang import __version__
 except ImportError:
-    __version__ = "0.7.6"  # fallback for standalone script execution
+    __version__ = "0.7.7"  # fallback for standalone script execution
 
 # Optional: keep the env var override if you ever need it for CI builds,
 # otherwise just use the raw version.
@@ -330,8 +330,9 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     # Capture CR/DR indicators (case-insensitive) before stripping
     # Ensure non-capturing groups (?:...) for compatibility/performance
     s_upper = s.str.upper()
-    cr_mask = s_upper.str.contains(r'\b(?:CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
-    dr_mask = s_upper.str.contains(r'\b(?:DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
+    # No \b before token — handles no-space variants like 200DR (v0.7.6 fix)
+    cr_mask = s_upper.str.contains(r'(?:CR|CRED|CREDIT)\.?\s*$', regex=True, na=False)
+    dr_mask = s_upper.str.contains(r'(?:DR|DEB|DEBIT)\.?\s*$', regex=True, na=False)
 
     # Strip CR/DR tokens (case-insensitive)
     # Ensure non-capturing groups (?:...)
@@ -698,7 +699,7 @@ def safe_write_json(obj, path: str, verbose: bool) -> str:
         raise
 
 # --------------------------------------------------------------------------------------
-# Strict Parsing Utilities (Synchronized with discover_v0_6_4_rc1.py)
+# Strict Parsing Utilities (Synchronized with discover.py)
 # --------------------------------------------------------------------------------------
 
 def _assert_delimiter_consistency(path: str, encoding: str, sep: str, sample_bytes: int = 131072) -> None:
@@ -916,6 +917,11 @@ def main(args_list=None):
     ap.add_argument("--date-format", default=None, help="Explicit strftime format for date parsing.")
     ap.add_argument("--output-encoding", default="utf-8", help="Encoding for output CSV (e.g., 'utf-8', 'utf-8-sig').")
 
+    # Verification flags (v0.7.6) — post-engine integrity check
+    ap.add_argument("--verify", action="store_true", help="Fast SHA-256 integrity verification after engine run.")
+    ap.add_argument("--verify-full", action="store_true", help="Full integrity verification (fingerprint + field comparison).")
+    ap.add_argument("--verify-output-dir", default=None, help="Directory for verification artifacts (JSON report + proof CSV). Requires --verify or --verify-full.")
+
     ap.epilog = (
     "Environment Variables:\n"
     "  FINLANG_SAFE_TEXT=0   Disable CSV injection protection (for benchmarking)\n"
@@ -947,6 +953,10 @@ def main(args_list=None):
         print("FATAL: --thousands must be a single character (e.g., ',' or '.').", file=sys.stderr); sys.exit(2)
     if args.decimal and args.thousands and args.decimal == args.thousands:
         print("FATAL: --decimal and --thousands cannot be the same.", file=sys.stderr); sys.exit(2)
+
+    # Validate --verify-output-dir requires --verify or --verify-full
+    if args.verify_output_dir and not (args.verify or args.verify_full):
+        print("FATAL: --verify-output-dir requires --verify or --verify-full.", file=sys.stderr); sys.exit(2)
 
     # Check pyarrow if fastio is requested
     if args.fastio:
@@ -1169,6 +1179,25 @@ def main(args_list=None):
             print(f"     normalize   : {max(0, t_norm - t_read):8.4f}")
             print(f"     engine      : {max(0, t_engine - t_norm):8.4f}")
             print(f"     write       : {max(0, t_write - t_engine):8.4f}")
+
+        # --- Post-engine verification phase (v0.7.6) ---
+        if args.verify or args.verify_full:
+            from finlang.tools.verify import run_verification
+
+            verify_mode = "full" if args.verify_full else "fast"
+            verify_result = run_verification(
+                input_path=args.input,
+                output_path=out_path,
+                mode=verify_mode,
+                output_dir=args.verify_output_dir,
+                headless=args.headless,
+                decimal=args.decimal,
+                thousands=args.thousands,
+                dayfirst=args.dayfirst,
+                date_format=args.date_format,
+            )
+            if not verify_result.success:
+                sys.exit(3)  # Distinct exit code for verification failure
 
     except SystemExit as e:
         # Handle controlled exits

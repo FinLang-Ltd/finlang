@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.7
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -61,6 +61,9 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 | `--output-encoding NAME` | Output encoding (default UTF-8).                             |
 | `--timings`              | Print basic step timings to STDERR.                          |
 | `--fail-threshold F`     | Abort if drop-rate > `F` (fraction `0.0–1.0`).               |
+| `--verify`               | Fast SHA-256 integrity verification after engine run.         |
+| `--verify-full`          | Full verification (fingerprint + field-by-field comparison).  |
+| `--verify-output-dir DIR`| Write verification artifacts (JSON report + proof CSV) to DIR.|
 
 ## 2) `finlang-discover` — Discovery Tool
 
@@ -244,7 +247,7 @@ This is useful in CI/CD pipelines to catch data quality issues early.
 A: The **last matching rule wins** for a transaction (deterministic override model). See `docs/rule_language.md`.
 
 **Q: What exit codes does FinLang return?**
-A: `0` = success, `1` = runtime error (e.g., file not found, unexpected exception during rule execution, invalid rule syntax), `2` = configuration/validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns, invalid `--decimal`/`--thousands` values, no valid rules found).
+A: `0` = success, `1` = runtime error (e.g., file not found, unexpected exception during rule execution, invalid rule syntax), `2` = configuration/validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns, invalid `--decimal`/`--thousands` values, no valid rules found), `3` = integrity verification failure (`--verify` or `--verify-full` detected data mismatch).
 
 **Q: Can I filter by date in `finlang` directly?**
 A: Date filtering is available in `finlang-discover` via `--since-date`. The main `finlang` CLI does not currently implement `--since-date`.

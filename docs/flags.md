@@ -1,10 +1,10 @@
 # 🚩 FinLang Flags & Canonical Formats
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.7
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.  
-All definitions verified against the v0.7.5 codebase (March 2026).
+All definitions verified against the v0.7.7 codebase (April 2026).
 
 ---
 
@@ -28,6 +28,9 @@ All definitions verified against the v0.7.5 codebase (March 2026).
 | `--thousands` | `,` `.` `'` or space (`' '`) | Thousands separator | Switzerland commonly uses **apostrophe `'`**. |
 | `--encoding` | `utf-8-sig` *(default)*, `auto`, `utf-8`, `latin-1`, … | CSV text encoding | `auto` safely detects UTF-8 / Latin-1 in most cases. |
 | `--output-encoding` | `utf-8` *(default)* or any valid codec | Output CSV encoding | Use when downstream tools require a specific codec. |
+| `--verify` | *(flag, no value)* | Fast SHA-256 integrity check | Post-engine fingerprint comparison on immutable fields. |
+| `--verify-full` | *(flag, no value)* | Full integrity check | Fingerprint + field-by-field comparison. |
+| `--verify-output-dir` | Directory path | Verification artifact output | Writes `verify_report.json`, `verify_proof.csv`, and `verify_mismatches.csv` (on failure). Requires `--verify` or `--verify-full`. |
 
 **Shell safety:** Always quote separator characters to prevent shell interpretation:
 ```bash
@@ -140,11 +143,11 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 
 ## 🧪 Audit Reference
 Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.  
-All flags validated in FinLang v0.7.5.
+All flags validated in FinLang v0.7.7.
 
 ---
 
-## ⚠️ Known Issues (v0.7.5)
+## ⚠️ Known Issues (v0.7.7)
 
 - None
 

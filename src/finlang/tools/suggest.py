@@ -103,19 +103,28 @@ _HAS_ALNUM = re.compile(r"[A-Z0-9]")
 _TITLE_SAFE_RE = re.compile(r"[^A-Z0-9&_ '-]+")
 
 
+
+# Corporate stopwords that over-match in fuzzy wildcard patterns (v0.7.6)
+_FUZZY_STOPWORDS = {"LTD", "LLC", "PLC", "INC", "GROUP", "COMPANY", "CO", "SAS", "GMBH", "CORP"}
+
 def _tokenize_for_pattern(name: str) -> Optional[str]:
     """
     (Fuzzy Mode Only) Pick a clean token from the name for a wildcard pattern.
-    Prefers the longest token with >= 3 chars. (Naive implementation for RC1).
+    Prefers the longest token with >= 3 chars. Filters corporate stopwords. (Naive implementation for RC1).
     """
     if not name:
         return None
     up = name.upper()
     up = _ALNUM_AMP.sub(" ", up)
-    
+
     # (RC1a Patch): Added _HAS_ALNUM.search(t) to reject symbol-only tokens (e.g., "&&&")
     tokens = [t for t in up.split() if len(t) >= 3 and not t.isdigit() and _HAS_ALNUM.search(t)]
-    
+
+    # Filter corporate stopwords to avoid over-matching (e.g., *GROUP* matching everything)
+    filtered = [t for t in tokens if t not in _FUZZY_STOPWORDS]
+    # Fall back to unfiltered if stopword removal leaves nothing
+    tokens = filtered or tokens
+
     if not tokens:
         return None
     # Deterministic sorting: primary key length (desc), secondary key alphabetical (asc)
@@ -220,6 +229,7 @@ def generate_rules(
     exist_exact_set = {e.lower() for e in exist_exact}
     
     blocks: List[str] = []
+    seen_patterns: set = set()  # Intra-batch dedup for fuzzy mode (v0.7.6)
 
     for c in cands:
         # (RC1a Robustness): Enforce non-empty fingerprint and example name.
@@ -280,6 +290,9 @@ def generate_rules(
             pattern = f'*{token}*'
             if _already_covered_fuzzy(pattern, exist_fuzzy):
                 continue
+            if pattern in seen_patterns:
+                continue
+            seen_patterns.add(pattern)
             
             # Use the token for the title (naive heuristic for RC1)
             title_escaped = _escape_quotes(f'{prefix}: {token}', quote_char)

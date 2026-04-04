@@ -1,5 +1,5 @@
 # finlang_engine.py
-# FinLang — Financial Rules DSL Engine (v0.7.5)
+# FinLang — Financial Rules DSL Engine (v0.7.7)
 # Strict-aware engine build
 # Copyright (C) 2026 FinLang Ltd
 #

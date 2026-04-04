@@ -6,6 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.7] - 2026-04-04
+
+### Added
+- `--verify` and `--verify-full` CLI flags — SHA-256 integrity verification with optional artifact output (`--verify-output-dir`)
+- Exit code 3 for verification failure
+- Stopword filter in fuzzy suggest mode (LTD, LLC, PLC, INC, GROUP, COMPANY, CO, SAS, GMBH, CORP)
+- Intra-batch dedup in fuzzy suggest mode
+
+### Fixed
+- CR/DR no-space regex bug (`200DR` now correctly parsed as negative)
+- Stale filename references in sync comments
+
 ## [0.7.6] - 2026-03-09
 
 ### Fixed

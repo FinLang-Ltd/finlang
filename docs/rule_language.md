@@ -1,7 +1,7 @@
 # 📖 Rule Language Reference
 > **Applies to:** FinLang v0.6+  
 > **Status:** Stable  
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.7
 
 > **Note:** This DSL is stable. All v0.6.x and v0.7.x releases maintain backward compatibility.  
 > Breaking changes (if any) will be clearly documented in release notes.

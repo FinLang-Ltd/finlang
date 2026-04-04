@@ -1,7 +1,7 @@
 # 📖 Core Workflows
-> **Applies to:** FinLang v0.6+  
+> **Applies to:** FinLang v0.7+  
 > **Status:** Stable  
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.7
 
 
 
@@ -187,7 +187,7 @@ finlang-discover --input categorized.csv --candidates temp.csv
 
 ### Single-Ruleset Harness (CLI)
 ```bash
-python /mnt/data/bench_finlang_harness.py \
+python -m benchmarks.bench_finlang_harness \
   --mode full-cli \
   --run-fin "finlang --fastio --audit-mode none --headless --strict-parse --encoding auto" \
   --rules examples/rules.demo.fin \
@@ -259,6 +259,22 @@ jobs:
 ```
 
 > **Windows note:** Use `NUL` instead of `/dev/null` if running steps on Windows runners.
+
+### Integrity Verification
+FinLang can verify that immutable fields (date, amount, counterparty) are unchanged between input and output using built-in SHA-256 fingerprinting:
+
+```bash
+# Fast verification (fingerprint only, console output)
+finlang --input data.csv --output out.csv --rules rules.fin --verify
+
+# Full verification (fingerprint + field comparison)
+finlang --input data.csv --output out.csv --rules rules.fin --verify-full
+
+# CI/CD pipeline: verify + save artifacts for audit trail
+finlang --input data.csv --output out.csv --rules rules.fin --verify --verify-output-dir ./audit
+```
+
+Exit code `3` indicates a verification failure. Artifacts include `verify_report.json`, `verify_proof.csv`, and `verify_mismatches.csv` (on failure only).
 
 ### ✅ Rollout Checklist
 **Phase 1: Pilot (Week 1–2)**

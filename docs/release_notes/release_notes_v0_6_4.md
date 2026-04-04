@@ -70,9 +70,10 @@ v0.6.4 improves audit output to show **actual changes** (before/after state):
 ```json
 {
   "index": 1,
-  "rule": "Transport: Uber",
+  "rule": "Transport: UBER",
   "changes": {
-    "category": {"old": null, "new": "Transport"}
+    "category": {"old": null, "new": "Review"},
+    "flags": {"old": null, "new": "Transport"}
   }
 }
 ```

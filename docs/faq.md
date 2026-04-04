@@ -1,7 +1,7 @@
 # ❓ FinLang FAQ
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.5
+> **Last verified:** v0.7.7
 
 ---
 
@@ -216,6 +216,7 @@ finlang --input data.csv --output out.csv --rules rules.fin --fail-threshold 0.0
 
 - `0` = Success (drop rate within threshold)
 - `2` = Validation failure (drop rate exceeded threshold)
+- `3` = Integrity verification failure (`--verify` or `--verify-full` detected mismatch)
 
 **Note:** This was fixed in v0.6.4.post2. Earlier versions (v0.6.4, v0.6.4.post1) incorrectly returned exit code 0.
 

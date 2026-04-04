@@ -33,7 +33,7 @@ import os
 from typing import Tuple, Optional, Any, List
 
 # --------------------------------------------------------------------------------------
-# Data Hardening Utilities (Synchronized with run_finlang_v0_6_4_rc1a.py)
+# Data Hardening Utilities (Synchronized with run_finlang.py)
 # --------------------------------------------------------------------------------------
 
 # Compact regex covering C0, DEL, C1, and common problem format chars (ZW*, LS, PS, BOM)
@@ -438,8 +438,9 @@ def _to_number(series: pd.Series, decimal: str, thousands: Optional[str]) -> pd.
     # Capture CR/DR indicators (case-insensitive) before stripping
     # Ensure non-capturing groups (?:...) for compatibility/performance
     s_upper = s.str.upper()
-    cr_mask = s_upper.str.contains(r'\b(?:CR|CRED|CREDIT)\b\.?\s*$', regex=True, na=False)
-    dr_mask = s_upper.str.contains(r'\b(?:DR|DEB|DEBIT)\b\.?\s*$', regex=True, na=False)
+    # No \b before token — handles no-space variants like 200DR (v0.7.6 fix)
+    cr_mask = s_upper.str.contains(r'(?:CR|CRED|CREDIT)\.?\s*$', regex=True, na=False)
+    dr_mask = s_upper.str.contains(r'(?:DR|DEB|DEBIT)\.?\s*$', regex=True, na=False)
 
     # Strip CR/DR tokens (case-insensitive)
     # Ensure non-capturing groups (?:...)
