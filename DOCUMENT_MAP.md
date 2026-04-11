@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 04 April 2026 | v0.7.7*
+*Last updated: 11 April 2026 | v0.7.7*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -169,13 +169,28 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 
 ## Strategic / Planning Documents
 
+> **Note on date-versioned files:** Some planning docs use a date-appended naming pattern (`<filename>_<DDMMYY>.md`). The most recent dated copy is always the active version. Older copies are historical reference, not actively maintained. Current versions are tracked in the **Current Versions** table below.
+
+### Current Versions
+| Pattern | Current Version | Last Updated |
+|---------|-----------------|--------------|
+| `finlang_consolidated_roadmap_<DDMMYY>.md` | `finlang_consolidated_roadmap_110426.md` | 11 Apr 2026 |
+| `finlang_solution_outlines_<DDMMYY>.md` | `finlang_solution_outlines_040426.md` | 4 Apr 2026 |
+| `SANDBOX_PARKING_LOT_<DDMMYY>.md` | `SANDBOX_PARKING_LOT_040426.md` | 4 Apr 2026 |
+
+### File Catalog
 | File | Contains | Update When |
 |------|----------|-------------|
-| `ROADMAP_verify.md` | `finlang --verify` design spec (implemented in v0.7.6, retained as design reference) | Design changes to verification feature |
+| `finlang_consolidated_roadmap_<DDMMYY>.md` | Tier 1/2/3 roadmap, exit paths, post-acquisition items, dependencies | Roadmap review sessions — create new dated copy, update Current Versions table |
+| `finlang_solution_outlines_<DDMMYY>.md` | SOL-001 through SOL-040 specifications | New solution work — create new dated copy, update Current Versions table |
+| `SANDBOX_PARKING_LOT_<DDMMYY>.md` | Deferred items, future hardening notes, post-Rome parking lot | Sandbox port sessions, deferred decisions |
+| `SOL-040_reconcile_specification.md` | `--reconcile` feature spec (think tank reviewed) | Spec changes, post-implementation review |
+| `finlang_roadmap_timeline.mermaid` | Visual roadmap timeline (mermaid diagram) | Major roadmap restructures |
+| `finlang-post-acquisition-roadmap.md` | Post-acquisition product/platform roadmap | Strategic discussions about post-exit phase |
+| `SANDBOX_PORT_PROCEDURE.md` | Step-by-step procedure for porting sandbox work back to prod | Workflow improvements to port process |
+| `RELEASE_PREFLIGHT_SPEC.md` | Pre-release validation specification | Release process changes |
 | `demo_video_pack.md` | Video recording plan and script notes | Before recording demo video |
 | `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase | Before recording showcase video |
-| `finlang_consolidated_roadmap_draft.md` | v0.7.5+ roadmap items (decimal pipeline, streaming audit, GUI builder, SOL-001) | Roadmap review sessions |
-| `finlang_solution_outlines.md` | Solution outlines for enterprise use cases | New vertical/use case work |
 | `finlang_vertical_analysis.md` | Vertical expansion analysis (procurement, healthcare, insurance) + arbitrary column matching spec | When vertical strategy changes or engine modification is built |
 
 ---

@@ -198,12 +198,15 @@ python -m benchmarks.bench_finlang_harness \
   --outdir bench_out
 ```
 
-### Performance at a Glance
+### Performance at a Glance (v0.7.7)
 | Rows × Cols | Runtime | Throughput | Context | Suitable For |
 |------------:|--------:|-----------:|--------|--------------|
-| 5M × 5  | ~23 s  | ~220 K rows/s | SME batch | Small business |
-| 5M × 20 | ~77 s  | ~65 K rows/s  | Payment gateway | Mid-market |
-| 5M × 50 | ~188 s | ~27 K rows/s  | Enterprise ledger | Enterprise |
+| 5M × 5  | ~18 s  | ~283 K rows/s | SME batch | Small business |
+| 5M × 20 | ~72 s  | ~70 K rows/s  | Payment gateway | Mid-market |
+| 5M × 50 | ~179 s | ~28 K rows/s  | Enterprise ledger | Enterprise |
+| 20M × 6 | ~90 s (FastIO) | ~217 K rows/s | Integrity harness | Engine throughput ceiling |
+
+> **v0.7.7 update:** A hot-path bug fix in `_to_number` (removing an unnecessary `\b` word boundary that was misclassifying no-space CR/DR formats) delivered +30-50% throughput on the integrity harness vs v0.7.6. See **benchmarks.md** for the full version comparison and methodology.
 
 See **benchmarks.md** for detailed data & methodology.
 

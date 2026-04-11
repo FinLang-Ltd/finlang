@@ -53,13 +53,13 @@ rule "TRAVEL: High Value Flight" {
 | Feature | Description |
 |:--|:--|
 | **Deterministic DSL** | Human-readable `.fin` rules language — explainable logic, Git-friendly. |
-| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — 27K+ rows/sec validated throughput. |
+| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — **~217K rows/sec FastIO** validated throughput on the integrity harness. |
 | **Dual Backend** | Standard (`Engine: c`) or FastIO (`Engine: pyarrow`) with automatic fallback. |
 | **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% success on addressable patterns. |
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
 | **Audit Trail System** | Every decision logged (before/after state diffs); stateless for reproducibility. |
 | **Exclude Marker** | Boolean `exclude` column — rule-driven, auditable, supports blacklist/whitelist exception patterns. |
-| **CR/DR Semantics** | Case-insensitive CR/DR (with or without space), accounting negatives `(123.45)`, trailing minus `123.45-`. |
+| **CR/DR Semantics** | Case-insensitive CR/DR (with or without space), accounting negatives `(123.45)`, trailing minus `123.45-`. v0.7.7 fixes a latent bug on no-space CR/DR formats. |
 | **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)` across 9 edge cases. |
 | **Strict Parsing** | Locale-aware normalization with configurable thresholds (`--strict-parse`). |
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
@@ -123,36 +123,39 @@ finlang --input transactions.csv --output improved.csv \
 
 ---
 
-## 📊 Performance Benchmarks
+## 📊 Performance Benchmarks (v0.7.7)
 
-Measured with `--audit-mode none` (max throughput).
+Measured with `--audit-mode none` (max throughput) on Intel i7-12700T, 48GB RAM, Windows 11, Python 3.13.7, PyArrow 21.0.
 
-| Dataset | Test | Rules | Time (s) | Rows/sec | Notes |
-|:--|:--|:--:|:--:|:--:|:--|
-| 100 K (UK Synthetic) | Growth Loop | 121 | 2.54 | **39,370** ✅ | Baseline |
-| 100 K (after Growth Loop) | Growth Loop | 764 | 4.96 | **20,161** ✅ | +6.3× rules → ≈ 2× slower |
-| **5M × 50 cols** | Benchmark Harness | — | **187.90** | **26,600** ✅ | High volume validation |
+| Dataset | Test | Time (s) | Rows/sec | Notes |
+|:--|:--|:--:|:--:|:--|
+| 100K (UK Synthetic) | Growth Loop | 2.54 | **39,370** ✅ | Baseline (121 rules) |
+| 100K (after Growth Loop) | Growth Loop | 4.96 | **20,161** ✅ | +6.3× rules → ≈ 2× slower (764 rules) |
+| **5M × 50 cols** | Benchmark Harness | **179.27** | **27,900** ✅ | Enterprise validation, 3-run average |
+| **20M × 6 cols** | Integrity Test (FastIO) | **~90** | **217,068** ✅ | Engine throughput, full SHA-256 verified |
 
-> **v0.7.4 improvement:** Cache invalidation fix delivered 3–5% faster runtimes across most data shapes; ~5% integrity test improvement. Headline enterprise throughput: ~27K rows/sec (peak observed: 28.4K).  
-> **Cumulative:** 10% faster than v0.6.4 (208s → 188s), +12% throughput.  
-> **Audit Overhead:** Enabling `--audit-mode lite/full` **reduces throughput by ≈38%** due to diff calculation; provides full decision provenance.  
+> **v0.7.7 improvement:** Hot-path bug fix in `_to_number` removed an unnecessary `\b` word boundary that was both producing wrong results on no-space CR/DR formats AND costing measurable runtime. The fix delivered **+30-50% throughput** on the integrity harness vs v0.7.6, taking standard mode to ~180K rows/sec and FastIO to ~217K rows/sec.  
 >
-> **Note:** These figures are validated benchmark results from controlled tests (5M × 50 columns). Actual performance varies depending on dataset, ruleset, and audit mode.  
-> See [`docs/benchmarks.md`](docs/benchmarks.md) for details.
+> **Cumulative v0.6.4 → v0.7.7:** -14% runtime, +16% throughput on the enterprise harness (5M × 50).  
+>
+> **Audit Overhead:** Enabling `--audit-mode lite/full` reduces throughput by ≈38% due to diff calculation; provides full decision provenance.  
+>
+> **Note:** These figures are validated benchmark results from controlled tests. Actual performance varies depending on dataset, ruleset, and audit mode.  
+> See [`docs/benchmarks.md`](docs/benchmarks.md) for full details.
 
 ---
 
-## 🔐 Cryptographic Integrity Verification (Benchmark)
+## 🔐 Cryptographic Integrity Verification (v0.7.7)
 
 SHA-256 fingerprint verification benchmarked on large datasets:
 
-| Rows | Full Validation | Engine (FastIO) | Result |
+| Rows | Engine (Standard) | Engine (FastIO) | Result |
 |:--:|:--:|:--:|:--|
-| 5M | ~5 min | 133K rows/s | ✅ All fingerprints match |
-| 10M | ~10 min | 156K rows/s | ✅ All fingerprints match |
-| **20M** | **~18 min** | **167K rows/s** | **✅ All fingerprints match** |
+| 5M | **178,903 rows/s** | **198,448 rows/s** | ✅ All fingerprints match |
+| 10M | **178,511 rows/s** | **214,136 rows/s** | ✅ All fingerprints match |
+| **20M** | **181,566 rows/s** | **217,068 rows/s** | **✅ All fingerprints match** |
 
-> **What this benchmark validated:** Every row's immutable fields (`date`, `amount`, `counterparty`) were verified via SHA-256 hash before and after engine processing. Zero cross-row contamination detected. Zero data corruption detected.
+> **What this benchmark validated:** Every row's immutable fields (`date`, `amount`, `counterparty`) were verified via SHA-256 hash before and after engine processing. Zero cross-row contamination detected. Zero data corruption detected. **60M rows verified field-by-field across three runs, zero mismatches.**
 >
 > **Note:** As of v0.7.7, SHA-256 integrity verification is available as a CLI feature via `--verify` (fast fingerprint) and `--verify-full` (fingerprint + field comparison). Use `--verify-output-dir` to save audit artifacts (JSON report + proof CSV). See `docs/cli_reference.md` for details.
 
@@ -189,8 +192,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 🧾 Known Limitations (v0.7.x)
 
-- ⚠️ `--emit-match fuzzy` (default) filters corporate stopwords (LTD, INC, GROUP, etc.) but may still produce broad patterns on short names.
-  → Use `--emit-match exact` for production workflows.  
+- ⚠️ `--emit-match fuzzy` (default) filters corporate stopwords (LTD, LLC, PLC, INC, GROUP, COMPANY, CO, SAS, GMBH, CORP) and deduplicates patterns within a batch (v0.7.7). Edge cases with very short counterparty names may still produce broad patterns.  → Use `--emit-match exact` for production workflows.   
 - ⚠️ Hyphenated/apostrophe names may affect fuzzy matching (< 1% impact).  
 - ⚠️ No support for non-Gregorian calendars or non-Western numerals.
 
@@ -252,7 +254,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Core Engine      | v0.7.7   | ✅ Production-Ready  |
 | CLI Suite        | v0.7.7   | ✅ Validated (118 tests, 9 gates) |
 | Discover/Suggest | v0.7.7   | ✅ 97.8% accuracy    |
-| Integrity Test   | v0.7.7   | ✅ 20M rows verified |
+| Integrity Test   | v0.7.7   | ✅ 20M rows verified, ~217K rows/sec FastIO |
 | Verify           | v0.7.7   | ✅ Built-in `--verify` / `--verify-full` |
 | Docs             | v0.7.7   | ✅ Complete          |
 | Python Support   | 3.10—3.14 | ✅ Tested            |

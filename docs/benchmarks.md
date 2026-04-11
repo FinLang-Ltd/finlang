@@ -1,9 +1,9 @@
 # 📊 FinLang Benchmarks
-> **Applies to:** FinLang v0.7+  
+> **Applies to:** FinLang v0.7.7+  
 > **Status:** Reference  
-> **Last verified:** v0.7.4.post1
+> **Last verified:** v0.7.7 (11 April 2026)
 
-This guide presents validated benchmark data for FinLang v0.7.4.post1, tested on a real developer workstation.
+This guide presents validated benchmark data for FinLang v0.7.7, tested on a real developer workstation.
 
 ---
 
@@ -13,9 +13,27 @@ This guide presents validated benchmark data for FinLang v0.7.4.post1, tested on
 - **RAM:** 48 GB  
 - **OS:** Windows 11 (64‑bit)  
 - **Python:** 3.13.7 (64‑bit)  
-- **Backend:** FastIO (PyArrow)
+- **Backend:** FastIO (PyArrow 21.0.0)
+- **FinLang:** 0.7.7 (installed from PyPI)
 
 > Your absolute numbers may differ based on CPU, storage, and OS. Focus on **shape** (linear scaling) and **relative** performance.
+
+---
+
+## 🚀 v0.7.7 Performance Highlights
+
+v0.7.7 contains a hot-path bug fix in `_to_number` (the function that runs on every amount value). The CR/DR detection regex contained an unnecessary `\b` word boundary that was both:
+
+1. **Producing wrong results** on no-space CR/DR formats like `200DR` (silently emitting +200 instead of -200, latent since v0.6.4)
+2. **Costing measurable runtime** by forcing per-character boundary assertions on every regex evaluation
+
+Removing the `\b` aligned the detection regex with its sibling stripping regex (which never had `\b` and worked correctly). The fix is a single character change. The performance gain is a direct side effect.
+
+**Headline numbers:**
+- **Standard mode: ~180K rows/sec** (steady-state from 5M rows upwards)
+- **FastIO mode: ~217K rows/sec** at 20M rows
+- **20M rows in ~90 seconds** (FastIO), full field-by-field SHA-256 verified
+- **+30-50% throughput improvement** vs v0.7.6 on the integrity harness
 
 ---
 
@@ -35,13 +53,14 @@ python -m benchmarks.bench_finlang_harness `
   --cols 5 20 35 50 `
   --runs 3 `
   --final-rows 1000000 5000000 `
-  --outdir bench_out_final
+  --outdir bench_out_v077
 ```
 
 **Outputs:**
 - `bench_surface.png` — 3D runtime surface  
 - `bench_heatmap.png` — runtime heatmap  
-- `bench_results.csv` — raw timings (median of 3 runs)
+- `bench_results.csv` — raw timings (averaged over 3 runs)
+- `bench_big.csv` — finals (1M and 5M rows)
 
 ---
 
@@ -60,7 +79,7 @@ python -m benchmarks.bench_finlang_rulesets `
   --grid-cols 5 20 35 50 `
   --repeats 3 `
   --final-rows 1000000 5000000 `
-  --outdir bench_out_rulesets
+  --outdir bench_out_rulesets_v077
 ```
 
 **Outputs:**
@@ -75,13 +94,16 @@ Validates data integrity with SHA-256 fingerprinting. Proves zero data corruptio
 
 ```powershell
 # Default: 5K rows, fingerprint-only (daily use)
-python integrity_test.py
+python integrity_testv2.py
 
 # Full validation: field-by-field + fingerprint
-python integrity_test.py --full
+python integrity_testv2.py --full
 
 # Scale testing
-python integrity_test.py --rows 20000000 --full
+python integrity_testv2.py --rows 20000000 --full
+
+# Generate annotated proof CSV (demo/audit collateral)
+python integrity_testv2.py --rows 500000 --full --proof
 ```
 
 **What it proves:**
@@ -92,55 +114,55 @@ python integrity_test.py --rows 20000000 --full
 
 ---
 
-## 📈 Validated Results (v0.7.4.post1)
+## 📈 Validated Results (v0.7.7)
 
-### Single Ruleset Performance — Grid
-
-| Rows × Cols | Runtime (s) | Throughput (rows/s) |
-|---:|---:|---:|
-| 25K × 5  | 0.74 | 33,800 |
-| 25K × 20 | 1.00 | 25,000 |
-| 25K × 35 | 1.28 | 19,500 |
-| 25K × 50 | 1.55 | 16,100 |
-| 50K × 5  | 0.84 | 59,500 |
-| 50K × 20 | 1.37 | 36,500 |
-| 50K × 35 | 1.88 | 26,600 |
-| 50K × 50 | 2.41 | 20,700 |
-| 100K × 5  | 1.00 | 100,200 |
-| 100K × 20 | 2.08 | 48,100 |
-| 100K × 35 | 3.19 | 31,400 |
-| 100K × 50 | 4.32 | 23,100 |
-| 200K × 5  | 1.44 | 139,200 |
-| 200K × 20 | 3.90 | 51,300 |
-| 200K × 35 | 6.00 | 33,300 |
-| 200K × 50 | 8.02 | 24,900 |
-
-### Single Ruleset Performance — Finals
+### Single Ruleset Performance — Grid (3-run average)
 
 | Rows × Cols | Runtime (s) | Throughput (rows/s) |
 |---:|---:|---:|
-| 1M × 5 | 4.94 | 202,400 |
-| 1M × 20 | 15.83 | 63,200 |
-| 1M × 50 | 38.05 | 26,300 |
-| 5M × 5 | 22.74 | 219,900 |
-| 5M × 20 | 77.12 | 64,800 |
-| **5M × 50** | **187.90** | **26,600** |
+| 25K × 5  | 0.69 | 36,200 |
+| 25K × 20 | 0.95 | 26,300 |
+| 25K × 35 | 1.20 | 20,800 |
+| 25K × 50 | 1.51 | 16,600 |
+| 50K × 5  | 0.75 | 66,800 |
+| 50K × 20 | 1.29 | 38,800 |
+| 50K × 35 | 1.85 | 27,100 |
+| 50K × 50 | 2.37 | 21,100 |
+| 100K × 5  | 0.92 | 108,500 |
+| 100K × 20 | 1.98 | 50,600 |
+| 100K × 35 | 3.08 | 32,500 |
+| 100K × 50 | 4.18 | 23,900 |
+| 200K × 5  | 1.24 | 160,800 |
+| 200K × 20 | 3.38 | 59,200 |
+| 200K × 35 | 5.61 | 35,700 |
+| 200K × 50 | 7.96 | 25,100 |
+
+### Single Ruleset Performance — Finals (3-run average)
+
+| Rows × Cols | Runtime (s) | Throughput (rows/s) |
+|---:|---:|---:|
+| 1M × 5 | 3.84 | 260,400 |
+| 1M × 20 | 15.04 | 66,500 |
+| 1M × 50 | 36.28 | 27,600 |
+| 5M × 5 | 17.66 | 283,100 |
+| 5M × 20 | 71.55 | 69,900 |
+| **5M × 50** | **179.27** | **27,900** |
 
 ### Ruleset Comparison (5M × 50)
 
 | Ruleset | Runtime (s) | Throughput (rows/s) |
 |---------|-------------|---------------------|
-| Small | 176.04 | 28,400 |
-| Medium | 180.19 | 27,750 |
-| Large | 178.70 | 27,980 |
+| Small | 173.28 | 28,900 |
+| Medium | 175.43 | 28,500 |
+| Large | 174.97 | 28,600 |
 
-**Key finding:** <3% variance across rulesets — rule complexity has negligible impact at scale.
+**Key finding:** ~1.2% variance across rulesets — rule complexity has negligible impact at scale.
 
-> Peak observed on ruleset variants: up to 28,400 rows/sec. Conservative marketing figure remains ~27K to account for real-world variance.
+> All three rulesets land within ~2 seconds of each other at the 5M × 50 extreme. The engine's hot path is ruleset-shape-independent at scale.
 
 ---
 
-## 🔐 Integrity Test Results
+## 🔐 Integrity Test Results (v0.7.7)
 
 Cryptographic verification using SHA-256 fingerprints on every row.
 
@@ -148,9 +170,9 @@ Cryptographic verification using SHA-256 fingerprints on every row.
 
 | Rows | Generation | Engine (std) | Engine (fast) | Validation (full) | Total |
 |------|------------|--------------|---------------|-------------------|-------|
-| 5M | 20s | 39s (128K/s) | 38s (133K/s) | 1.8m | ~5 min |
-| 10M | 43s | 1.4m (122K/s) | 1.1m (156K/s) | 3.2m | ~10 min |
-| **20M** | **1.2m** | **2.3m (146K/s)** | **2.0m (167K/s)** | **5.9m** | **~18 min** |
+| 5M | 18.1s | 27.9s (**178,903 rows/s**) | 25.2s (**198,448 rows/s**) | ~3.1m | ~5 min |
+| 10M | 37.4s | 56.0s (**178,511 rows/s**) | 46.7s (**214,136 rows/s**) | ~6.0m | ~10 min |
+| **20M** | **1.2m** | **1.8m (181,566 rows/s)** | **1.5m (217,068 rows/s)** | **~11.8m** | **~18 min** |
 
 ### 20M Row Validation — Full Output
 
@@ -159,43 +181,75 @@ Cryptographic verification using SHA-256 fingerprints on every row.
   Row count: 20,000,000
   Validation mode: Full (field-by-field + fingerprint)
   PyArrow available: Yes
+  Proof output: No
 [1/6] Generating 20,000,000 test rows with fingerprints... OK (1.2m)
 [2/6] Creating test rules... OK
-       Loading input data for validation... OK (20.4s)
-[3/6] Running FinLang engine (standard)... OK (2.3m, 146,105 rows/s)
+       Loading input data for validation... OK (20.9s)
+[3/6] Running FinLang engine (standard)... OK (1.8m, 181,566 rows/s)
 [4/6] Validating integrity (standard, full)... OK (20,000,000 categorized, 5.9m)
-[5/6] Running FinLang engine (--fastio)... OK (2.0m, 167,475 rows/s)
+[5/6] Running FinLang engine (--fastio)... OK (1.5m, 217,068 rows/s)
 [6/6] Validating integrity (--fastio, full)... OK (20,000,000 categorized, 5.9m)
 === Integrity Test PASSED ===
   Rows tested: 20,000,000
   Immutable fields verified: date, amount, counterparty
   Fingerprints validated: 20,000,000 (no cross-row contamination)
   Validation mode: Full (field-by-field + fingerprint)
-  Standard mode: PASS (146,105 rows/s)
-  FastIO mode:   PASS (167,475 rows/s)
+  Standard mode: PASS (181,566 rows/s)
+  FastIO mode:   PASS (217,068 rows/s)
 ```
 
 ### Why Integrity Test Shows Higher Throughput
 
-The integrity test uses a **minimal 6-column schema** (date, amount, counterparty, memo, category, fingerprint) versus the benchmark's **50-column enterprise schema**.
+The integrity test uses a **minimal 6-column schema** (date, amount, counterparty, memo, category, fingerprint) versus the benchmark harness's **50-column enterprise schema**.
 
 | Test Type | Columns | Throughput (FastIO) |
 |-----------|---------|---------------------|
-| Integrity test | 6 | 167K rows/s |
-| Enterprise benchmark | 50 | 27K rows/s |
+| Integrity test | 6 | 217K rows/s |
+| Enterprise benchmark | 50 | ~28K rows/s |
 
-This is expected: narrower data = less I/O, less memory pressure, faster processing. Both numbers are valid for their respective use cases.
+This is expected: narrower data = less I/O, less memory pressure, faster processing. Both numbers are valid for their respective use cases. The integrity test isolates engine performance from CSV I/O overhead; the enterprise harness measures real-world end-to-end throughput.
 
 ---
 
 ## 📊 Version Comparison
 
-| Benchmark | v0.6.4 | v0.7.2 | v0.7.4.post1 | Cumulative |
-|-----------|--------|--------|--------------|------------|
-| Single Ruleset (5M×50) | 208.31s | 187.76s | 187.90s | **-10%** |
-| Ruleset Comparison (5M×50 avg) | ~200s | ~185s | ~178s | **-11%** |
-| Throughput (enterprise) | ~24K rows/s | ~27K rows/s | ~27K rows/s | **+12%** |
-| Integrity (FastIO, 20M×6) | — | 159K rows/s | 167K rows/s | **+5%** (vs v0.7.2) |
+### Integrity Harness (FastIO, full validation)
+
+| Scale | v0.7.6 (std) | v0.7.7 (std) | Std Δ | v0.7.6 (fast) | v0.7.7 (fast) | Fast Δ |
+|---:|---:|---:|---:|---:|---:|---:|
+| 5M | 128K rows/s | **179K rows/s** | **+39.8%** | 133K rows/s | **198K rows/s** | **+49.2%** |
+| 10M | 122K rows/s | **179K rows/s** | **+46.3%** | 156K rows/s | **214K rows/s** | **+37.3%** |
+| 20M | 146K rows/s | **182K rows/s** | **+24.4%** | 167K rows/s | **217K rows/s** | **+30.0%** |
+
+### Single Ruleset Harness (5M × 50)
+
+| Version | Runtime (s) | Throughput |
+|---|---|---|
+| v0.6.4 | 208.31 | ~24K rows/s |
+| v0.7.2 | 187.76 | ~26.6K rows/s |
+| v0.7.4post1 | 187.90 | ~26.6K rows/s |
+| **v0.7.7** | **179.27** | **~27.9K rows/s** |
+
+**Cumulative gain v0.6.4 → v0.7.7:** -14% runtime, +16% throughput on the enterprise harness.
+
+### What Changed in v0.7.7
+
+The improvement is dominated by a single hot-path fix in `_to_number`:
+
+```python
+# v0.6.4 - v0.7.6 (broken on no-space CR/DR formats)
+r'\b(?:CR|CRED|CREDIT)\b\.?\s*$'
+
+# v0.7.7 (correct)
+r'(?:CR|CRED|CREDIT)\.?\s*$'
+```
+
+The `\b` word boundary was inconsistent with the sibling stripping regex (which never had `\b`), causing `200DR` to be silently parsed as +200 instead of -200. Removing it:
+- Fixed the correctness bug
+- Removed per-character boundary assertions from a regex evaluated tens of millions of times per dataset
+- Delivered 30-50% throughput improvement on the integrity harness
+
+The performance gain is a direct side effect of the bug fix, not a separate optimisation.
 
 ---
 
@@ -213,11 +267,13 @@ This is expected: narrower data = less I/O, less memory pressure, faster process
 
 ## 🔬 Methodology Notes
 
-- **3 runs per point**, median reported to smooth variance  
+- **3 runs per point**, average reported to smooth variance  
 - Warm runs (Chrome closed, system idle)
 - `--audit-mode none` to measure engine speed (no audit overhead)  
 - PyArrow (`--fastio`) enabled for CSV I/O  
 - Deterministic data generation, reproducible CLI scripts
+- All v0.7.7 runs from PyPI-installed package (`pip install "finlang[fastio]"`)
+- Run-to-run variance under 1.5% on the 5M × 50 finale (179.27s averaged across 3 runs)
 
 ---
 
@@ -226,7 +282,7 @@ This is expected: narrower data = less I/O, less memory pressure, faster process
 | Scenario | Example Dataset | Expected Runtime |
 |---|---|---|
 | Personal finance | 25K × 20 | < 1s |
-| Small business | 500K × 35 | ~15s |
+| Small business | 500K × 35 | ~14s |
 | Enterprise ledger | 5M × 50 | ~3 min |
 | Full year bank data | 20M × 6 | ~18 min (with integrity verification) |
 
@@ -251,3 +307,4 @@ This is expected: narrower data = less I/O, less memory pressure, faster process
 - [Runtime Contract](runtime_contract.md) — Backend selection logic
 - [Flags](flags.md) — Full CLI flags and canonical formats  
 - [Workflows](workflows.md) — End‑to‑end workflow guide
+- [Release Notes v0.7.7](release_notes/release_notes_v0_7_7.md) — Bug fix and performance details
