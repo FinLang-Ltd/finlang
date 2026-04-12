@@ -1,11 +1,17 @@
 # FinLang Document Map
-*Last updated: 11 April 2026 | v0.7.7*
+*Last updated: 12 April 2026 | v0.7.7*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
+**Post-restructure note (12 April 2026):** FinLang now lives in a dev/prod workspace at `C:\projects\finlang\` with subfolders `prod\` (this repo), `dev\` (editable sandbox), `test-suite\` (external validation), `commercial\` (rulepacks, partitioned), and `scratch\` (disposable). This document describes files in `prod\` and `..\..\test-suite\` from the perspective of `prod\`. Top-level workspace docs live at `C:\projects\finlang\` — see the "Top-Level Workspace Documents" section below. For the full layout see `..\..\PROJECT_FOLDER_STRUCTURE.md`.
+
+**Persistence model for `dev\CLAUDE.md`:** the canonical source lives at `prod\dev_CLAUDE.md` (this folder, **gitignored**, internal tooling — same category as `RELEASE_CHECKLIST.md`). It rides through Phase 12 robocopy (which is filesystem-level, not git-level, so the gitignored status doesn't affect the copy) and is renamed to `CLAUDE.md` inside `dev\` by step 12.5a of `RELEASE_CHECKLIST.md`. Any updates to the sandbox contract are made to `prod\dev_CLAUDE.md`, never to the live `dev\CLAUDE.md` (which is overwritten on the next refresh).
+
 ### Version Sync Rule
-Version numbers must remain consistent across these five files on every release:
-`__init__.py`, `pyproject.toml`, `run_finlang.py` (fallback), `canonical_fields.yaml`, `CHANGELOG.md`
+Version numbers must remain consistent across these **five** files on every release:
+`__init__.py`, `pyproject.toml`, `run_finlang.py` (fallback), `canonical_fields.yaml`, `dev_CLAUDE.md` (header canary line — gitignored, edit lives on local disk only)
+
+`CHANGELOG.md` also gets a new entry every release but doesn't carry the version string in the same way.
 
 ---
 
@@ -15,13 +21,13 @@ FinLang consists of five major components:
 
 1. **Engine** — Rule parsing and deterministic execution (`finlang_engine.py`)
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
-3. **Tools** — Discovery and rule generation (`discover.py`, `suggest.py`)
+3. **Tools** — Discovery, rule generation, and integrity verification (`discover.py`, `suggest.py`, `verify.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
 5. **Validation Infrastructure** — 118-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
 
 ---
 
-## Source Repo (`finlang`)
+## Source Repo (`finlang`) — lives at `C:\projects\finlang\prod\`
 
 ### Core Source Files
 
@@ -38,6 +44,16 @@ FinLang consists of five major components:
 | `src/finlang/rulepacks/*.fin` | 8 bundled packs: retail, transport, subs, travel, financial, compliance, sanity, examples | Pack content changes, new packs added |
 | `src/finlang/utils/resources.py` | Package resource loading helpers | Structural changes to pack/map loading |
 | `tests/contracts/canonical_fields.yaml` | Version string, engine input/output field lists for AST contract tests | Version bump, new canonical fields |
+
+### Internal Process Files (in `prod\`, gitignored — never ship)
+
+These files live in `prod\` because they reference prod-side files extensively, but they are gitignored — they don't ship to GitHub or PyPI. They're internal maintainer tooling.
+
+| File | Contains | Visibility | Update When |
+|------|----------|-----------|-------------|
+| `RELEASE_CHECKLIST.md` | Step-by-step release process, version bump locations, test commands, Phase 12 post-release dev refresh, quick reference table | **Gitignored** — internal-only | New release steps, new version bump locations, test process changes |
+| `dev_CLAUDE.md` | **Canonical source** for `dev\CLAUDE.md` — sandbox behavioural contract for Claude Code. Critical safety rules, mandatory first step, workflow, scope/language/git discipline, Rule 4 (test extend-don't-restructure), header canary line (`Tests: N (G gates)`), current focus. Robocopied to `dev\` and renamed to `CLAUDE.md` by Phase 12.5a. | **Gitignored** — internal-only | Every release (header canary line), behaviour rule changes, current focus shift |
+| `DOCUMENT_MAP.md` | This file — authoritative map of every file, version sync rules, change scenarios | **Tracked** — ships with repo | New files, new change scenarios, structural changes |
 
 ### Documentation (`docs/`)
 
@@ -59,6 +75,8 @@ FinLang consists of five major components:
 | `docs/rulepacks.md` | Pack descriptions, pattern lists, commercial pack details (Banking v1.1) | Pack content changes, new packs, pricing changes |
 | `docs/release_notes/release_notes_v0_7_4.md` | v0.7.4 release: what changed, files modified, test counts | Only for that release (new releases get new files) |
 | `docs/release_notes/release_notes_v0_7_5.md` | v0.7.5 release: rulepack linter, wildcard hardening, test suite fixes | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_7_6.md` | v0.7.6 release: rulepack patch, linter fix, cleanroom seal | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_7_7.md` | v0.7.7 release: `--verify`, CR/DR regex fix, suggest improvements | Only for that release (new releases get new files) |
 
 ### Legal (`docs/legal/`)
 
@@ -76,16 +94,33 @@ FinLang consists of five major components:
 | `benchmarks/bench_finlang_rulesets.py` | Multi-ruleset comparison harness | Benchmark methodology changes |
 | `docs/assets/bench_heatmap*.png` | Heatmap visualisations | Re-benchmarked |
 
+**Benchmark output note:** Harness *scripts* live in `prod\benchmarks\` (tracked, shipped). Benchmark *output* (generated CSVs, run-specific PNGs) goes to `..\..\scratch\benchmarks\v##\`, never into `prod\` or `dev\`. See `..\..\PROJECT_FOLDER_STRUCTURE.md`.
+
+### Tests in prod (`tests/`)
+
+| File | Contains | Update When |
+|------|----------|-------------|
+| `tests/test_cli_smoke.py` | CLI subprocess smoke tests — runs `finlang` as installed entry point | CLI entry point changes, packaging changes |
+| `tests/contracts/conftest.py` | Session-scoped fixture loading `canonical_fields.yaml` | Contract test infrastructure changes |
+| `tests/contracts/test_dsl_fields.py` | AST analysis of `CANON_FIELDS_MATCH`/`CANON_FIELDS_SET` against YAML contract | Engine field set changes |
+| `tests/contracts/test_engine_input.py` | AST analysis of `engine_cols` list in `run_finlang.py` against `engine_input` contract | CLI engine input contract changes |
+| `tests/contracts/test_engine_output.py` | AST analysis of write-back loop in `run_finlang.py` against `engine_output` contract | CLI engine output contract changes |
+| `tests/data/drcr.csv` | 2-row debit/credit synthesis test fixture | Synthesis logic changes |
+| `tests/data/onecol.csv` | 2-row missing-required-field test fixture | Required field changes |
+
+**Note:** `prod/tests/` only contains the small ship-with-the-repo tests (CLI smoke + AST contracts). The bulk of FinLang's testing lives in `..\..\test-suite\` (sibling folder, internal tooling). See the External Test Suite section below.
+
 ---
 
-## Test Suite Repo (`finlang-test_suite`)
+## Test Suite Repo (`test-suite`) — lives at `C:\projects\finlang\test-suite\`
+
+The bulk of FinLang's tests live here as internal validation tooling (not shipped with the PyPI package). `prod\tests\` only contains the small ship-with-the-repo tests (`test_cli_smoke.py` and `tests/contracts/*.py`).
 
 ### Process Documents
 
 | File | Contains | Update When |
 |------|----------|-------------|
 | `TEST_SUITE.md` | Test counts, gate counts, script descriptions, fixture details, expected timings, troubleshooting | New tests added, scripts renamed/added, timing changes, gate changes |
-| `RELEASE_CHECKLIST.md` | Step-by-step release process, version bump locations, test commands, quick reference table | New release steps, new version bump locations, test process changes |
 
 ### Test Runners
 
@@ -93,16 +128,18 @@ FinLang consists of five major components:
 |------|----------|-------------|
 | `quick_check.ps1` | Daily gate runner (9 gates, 118 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
-| `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes |
+| `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes, **test count strings in header (always)** |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
-| `finlang_showcase.ps1` | Proof-of-life: disposable venv + tests + demo in one recording | New test gates, demo changes |
+| `finlang_showcase.ps1` | Proof-of-life: disposable venv + tests + demo in one recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
+| `finlang_showcase_public.ps1` | Path-masked showcase variant for public recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
 | `run_showcase.cmd` | Double-click launcher for showcase | Rarely |
+| `run_showcase_public.cmd` | Double-click launcher for public showcase | Rarely |
 
 ### Test Scripts
 
 | File | Tests | Contains | Update When |
 |------|-------|----------|-------------|
-| `rulepack_linter.py` | Static | Static wildcard safety analyser: detects HIGH/WARN risk patterns in `.fin` files without running the engine. Gate 9 in `quick_check.ps1` (bundled packs) and `full_test_suite.ps1` (commercial pack). | Pack content changes, new packs, KNOWN_SAFE_TOKENS changes |
+| `rulepack_linter.py` | Static (Gate 9) | Static wildcard safety analyser: detects HIGH/WARN risk patterns in `.fin` files without running the engine. Gate 9 in `quick_check.ps1` (bundled packs) and `full_test_suite.ps1` (commercial pack). | Pack content changes, new packs, KNOWN_SAFE_TOKENS changes |
 | `smoke_test.ps1` | 13 CLI | Format, pack, i18n smoke tests | New CLI flags, new packs |
 | `paranoia_lite.ps1` | (part of gate 2) | Flag, threshold, typo checks | New edge cases |
 | `pyarrow_smoke.ps1` | (part of gate 3) | PyArrow/regex fix validation | PyArrow-related changes |
@@ -114,6 +151,7 @@ FinLang consists of five major components:
 | `run_test_matrix.ps1` | 6 golden masters | SHA256 baselines for US/UK/EU/debit/pipe/CR-DR formats | New regional formats, output changes |
 | `adversarial_tests.ps1` | 8 edge cases | Mixed delimiters, duplicate headers, CR/DR, pipe delimiter, scientific notation | New edge case support |
 | `integrity_testv2.py` | Scale integrity | SHA-256 fingerprinting at 5K-20M rows | Changes to data hardening or amount normalisation |
+| `validate_sandbox_port.py` | Port validation | Targeted validation for sandbox-to-production ports — proves specific changes landed correctly, independent of full suite | Port procedure changes |
 
 ### Test Support Files
 
@@ -144,8 +182,8 @@ FinLang consists of five major components:
 
 ## Demo Files
 
-The demo script lives in the **test suite root** (`finlang-test_suite/finlang_demo_v4.ps1`).
-Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
+The demo script lives in the **test suite root** (`test-suite/finlang_demo_v4.ps1`).
+Demo data files live in the **demo subfolder** (`test-suite/demo/`).
 
 ### Demo Script (test suite root)
 
@@ -167,16 +205,39 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 
 ---
 
+## Top-Level Workspace Documents — live at `C:\projects\finlang\`
+
+These sit one level above `prod\` and span multiple subdirectories. They are workspace governance, not part of the published repo.
+
+| File | Purpose | Update When |
+|------|---------|-------------|
+| `..\..\CLAUDE.md` | Top-level project orientation — visitor map, dev/prod model summary, where to find what | Project structure changes, new top-level files |
+| `..\..\PROJECT_FOLDER_STRUCTURE.md` | Canonical dev/prod/test-suite/commercial/scratch folder pattern, operational rules, two-CLAUDE.md pattern, migration history, dev_CLAUDE.md persistence + gitignored visibility model | Structure changes, new operational rules |
+| `..\..\SANDBOX_PARKING_LOT.md` | Live engineering backlog from cross-AI reviews — items with file/line/severity/fix | Items added by reviews, items completed |
+| `..\..\RELEASE_PREFLIGHT_SPEC.md` | Combined automation spec for `port.ps1`, `release_preflight.ps1`, `sandbox_reset.ps1` (none built yet) | Spec changes, scripts built |
+| `..\..\ANGUS_OS_CANDIDATES.md` | Curated list of FinLang process & discipline files that are candidates for lifting into angus-os. Filtered, not a complete inventory. | When angus-os scaffolding evolves, when new top-level discipline files are added |
+| `..\..\ANGUS_OS_ENGINEERING_CANDIDATES.md` | Curated list of FinLang engineering patterns (source layout, test contracts, CI templates, workspace patterns) that are candidates for lifting into angus-os. Filtered, not a complete code inventory. | When angus-os scaffolding evolves, when new transferable patterns emerge |
+
+### Sandbox-only mirror (`..\..\dev\`)
+
+| File | Purpose | Update When |
+|------|---------|-------------|
+| `..\..\dev\CLAUDE.md` | Live sandbox behavioural contract for Claude Code. **Mirror of `prod\dev_CLAUDE.md`** (which is gitignored, internal-only) — restored on every release by Phase 12.5a (Move-Item rename). Edits to this file directly are lost on the next refresh. To update, edit `prod\dev_CLAUDE.md`. | Never edited directly — sourced from `prod\dev_CLAUDE.md` |
+
+---
+
 ## Strategic / Planning Documents
 
 > **Note on date-versioned files:** Some planning docs use a date-appended naming pattern (`<filename>_<DDMMYY>.md`). The most recent dated copy is always the active version. Older copies are historical reference, not actively maintained. Current versions are tracked in the **Current Versions** table below.
+
+> **Note on accessibility:** These files live in Google Drive at `(private path scrubbed from history 27 April 2026)` and are NOT directly readable from `prod\`, `dev\`, or `test-suite\`. Sandbox sessions must ask the human to paste contents if needed.
 
 ### Current Versions
 | Pattern | Current Version | Last Updated |
 |---------|-----------------|--------------|
 | `finlang_consolidated_roadmap_<DDMMYY>.md` | `finlang_consolidated_roadmap_110426.md` | 11 Apr 2026 |
 | `finlang_solution_outlines_<DDMMYY>.md` | `finlang_solution_outlines_040426.md` | 4 Apr 2026 |
-| `SANDBOX_PARKING_LOT_<DDMMYY>.md` | `SANDBOX_PARKING_LOT_040426.md` | 4 Apr 2026 |
+| `SANDBOX_PARKING_LOT_<DDMMYY>.md` | `SANDBOX_PARKING_LOT_040426.md` | 4 Apr 2026 (Drive copy; live copy at `..\..\SANDBOX_PARKING_LOT.md`) |
 
 ### File Catalog
 | File | Contains | Update When |
@@ -188,9 +249,8 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 | `finlang_roadmap_timeline.mermaid` | Visual roadmap timeline (mermaid diagram) | Major roadmap restructures |
 | `finlang-post-acquisition-roadmap.md` | Post-acquisition product/platform roadmap | Strategic discussions about post-exit phase |
 | `SANDBOX_PORT_PROCEDURE.md` | Step-by-step procedure for porting sandbox work back to prod | Workflow improvements to port process |
-| `RELEASE_PREFLIGHT_SPEC.md` | Pre-release validation specification | Release process changes |
 | `demo_video_pack.md` | Video recording plan and script notes | Before recording demo video |
-| `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase | Before recording showcase video |
+| `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase. **Human-managed** — count-sweep target but not reachable from sandbox | Before recording showcase video, after test count changes |
 | `finlang_vertical_analysis.md` | Vertical expansion analysis (procurement, healthcare, insurance) + arbitrary column matching spec | When vertical strategy changes or engine modification is built |
 
 ---
@@ -203,14 +263,15 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 | **New discover/suggest flag** | `discover.py` or `suggest.py` (argparse), `cli_reference.md`, `flags.md`, `test_discover_suggest.py` if testable |
 | **New canonical field** | `finlang_engine.py` (CANON_FIELDS), `mapping_guide.md` (field table), `rule_language.md` (field reference), `canonical_fields.yaml`, `test_rule_interactions.py` |
 | **New rule operator** | `finlang_engine.py` (parser + evaluator), `rule_language.md`, possibly `test_rule_interactions.py` |
-| **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
-| **New test added** | Test script, `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` or `full_test_suite.ps1` (if new gate), `RELEASE_CHECKLIST.md` (counts), `DOCUMENT_MAP.md` (test scripts table), `cleanroom_test.ps1` + `finlang_showcase.ps1` (if count strings hardcoded) |
+| **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `dev_CLAUDE.md` (header canary — gitignored, edit lives on local disk only), `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
+| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `..\..\dev\CLAUDE.md` Rule 4), `cleanroom_test.ps1` (counts in header — always), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored, edit on local disk only), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `dev_CLAUDE.md` (header canary line — gitignored). **Drive-only, human-managed:** `showcase_narration_script.md`. |
 | **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate), re-run `rulepack_linter.py` to verify clean |
 | **Rulepack wildcard change** | `rulepack_linter.py` (re-run to verify clean — exit 0 required before commit), `KNOWN_SAFE_TOKENS` if new safe token needed |
-| **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
-| **Benchmark re-run** | `benchmarks.md`, heatmap PNGs, `workflows.md` (throughput table) |
+| **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `verify.py` (`_normalize_amount_string` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
+| **Benchmark re-run** | `benchmarks.md`, heatmap PNGs, `workflows.md` (throughput table). Output goes to `..\..\scratch\benchmarks\v##\`, never into `prod\` or `dev\`. |
 | **New demo step** | `finlang_demo_v4.ps1`, possibly new CSV/map files in demo folder |
 | **New regional format** | Test CSV, `run_test_matrix.ps1` (new case), golden baselines, `i18n_examples.md`, possibly `mapping_guide.md` |
+| **Sandbox contract change** (CC behaviour rules, current focus, etc) | `prod\dev_CLAUDE.md` (gitignored canonical source — never edit `dev\CLAUDE.md` directly, it's overwritten by Phase 12.5a) |
 
 ---
 
@@ -223,6 +284,36 @@ Demo data files live in the **demo subfolder** (`finlang-test_suite/demo/`).
 5. **Legal docs have own versioning** — don't bump during routine releases unless content actually changes.
 6. **Benchmark docs only update when re-benchmarked** — don't update version headers unless data is re-validated.
 7. **`_normalize_amount_string` in `verify.py` mirrors `_to_number` logic** — keep synced on amount parsing changes.
+8. **Count sweep is unconditional** for `cleanroom_test.ps1`, `finlang_showcase.ps1`, and `finlang_showcase_public.ps1` — these were the most-missed files during the v0.7.7 release. The old "if count strings hardcoded" qualifier was the loophole that caused them to be missed. They always have hardcoded counts.
+9. **`dev\CLAUDE.md` is sourced from `prod\dev_CLAUDE.md`** — never edited directly. Phase 12.5a of `RELEASE_CHECKLIST.md` does the rename via `Move-Item` after robocopy. Any change to the sandbox contract is a change to `prod\dev_CLAUDE.md`. The fact that `prod\dev_CLAUDE.md` is gitignored doesn't reduce this discipline — it's still authoritative for what CC reads on every session.
+10. **Internal process files in `prod\` are gitignored**, not committed. Applies to `RELEASE_CHECKLIST.md` and `dev_CLAUDE.md`. They live in `prod\` for path coherence (they reference prod files extensively) but they don't ship. The `prod\.gitignore` must list both filenames explicitly. They survive Phase 12 dev refreshes via robocopy because robocopy is filesystem-level, not git-level — `.gitignore` doesn't affect what exists on disk, only what git tracks.
+
+---
+
+## Restructure note (12 April 2026)
+
+This document was updated as part of the dev/prod workspace restructure. Key changes from the 11 April version:
+
+- Header date updated, v0.7.7 baseline reaffirmed
+- Restructure context note added below title
+- **`dev_CLAUDE.md` persistence model documented** — canonical source in `prod\` (gitignored), restored to `dev\CLAUDE.md` by Phase 12.5a `Move-Item` rename
+- **`dev_CLAUDE.md` and `RELEASE_CHECKLIST.md` flagged as gitignored throughout** — both are internal maintainer tooling, live in `prod\` for path coherence but never ship. New Sync Rule 10 covers the general principle.
+- Version Sync Rule expanded to 5 files (added `dev_CLAUDE.md` header canary, with gitignored-on-disk note)
+- New "Internal Process Files" subsection under Source Repo for `RELEASE_CHECKLIST.md`, `dev_CLAUDE.md`, and `DOCUMENT_MAP.md` with explicit visibility column
+- "Source Repo" and "Test Suite Repo" headers annotated with new absolute paths
+- Test Runners section: `cleanroom_test.ps1`, `finlang_showcase.ps1` counts marked as unconditional; `finlang_showcase_public.ps1` and `run_showcase_public.cmd` added
+- Test Scripts section: `test_custom_map.py`, `test_verify.py`, `validate_sandbox_port.py` added (were present in 11 April scan but missing from that version of this doc)
+- Release notes section: v0.7.6 and v0.7.7 entries added
+- Benchmark output note added (scripts ship, output goes to scratch)
+- New "Top-Level Workspace Documents" section for files at `C:\projects\finlang\` (above prod), referencing the renamed `ANGUS_OS_*_CANDIDATES.md` files
+- New "Sandbox-only mirror" subsection clarifying `dev\CLAUDE.md` is mirror, not source
+- Strategic / Planning Documents section: accessibility note added (Drive-only, not sandbox-reachable); `showcase_narration_script.md` flagged as human-managed
+- "New test added" row rewritten: removed the "if count strings hardcoded" qualifier; added `finlang_showcase_public.ps1`, `README.md`, `dev_CLAUDE.md` (with gitignored note); added note that gate addition requires explicit human approval per Rule 4
+- "Version bump" row updated to include `dev_CLAUDE.md` header canary with gitignored note
+- New "Sandbox contract change" row pointing all edits at `prod\dev_CLAUDE.md` (gitignored)
+- Sync Rule 8 added (unconditional count sweep)
+- Sync Rule 9 added (dev\CLAUDE.md sourced from prod\dev_CLAUDE.md)
+- Sync Rule 10 added (internal process files gitignored, robocopy is filesystem-level)
 
 ---
 

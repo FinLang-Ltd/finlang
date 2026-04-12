@@ -211,3 +211,6 @@ bench_out*/
 
 #Ignore release checklist
 RELEASE_CHECKLIST.md
+
+#Ignore dev_claude.md
+dev_CLAUDE.md
