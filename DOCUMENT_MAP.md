@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 12 April 2026 | v0.7.7*
+*Last updated: 13 April 2026 | v0.7.7*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -287,6 +287,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 8. **Count sweep is unconditional** for `cleanroom_test.ps1`, `finlang_showcase.ps1`, and `finlang_showcase_public.ps1` — these were the most-missed files during the v0.7.7 release. The old "if count strings hardcoded" qualifier was the loophole that caused them to be missed. They always have hardcoded counts.
 9. **`dev\CLAUDE.md` is sourced from `prod\dev_CLAUDE.md`** — never edited directly. Phase 12.5a of `RELEASE_CHECKLIST.md` does the rename via `Move-Item` after robocopy. Any change to the sandbox contract is a change to `prod\dev_CLAUDE.md`. The fact that `prod\dev_CLAUDE.md` is gitignored doesn't reduce this discipline — it's still authoritative for what CC reads on every session.
 10. **Internal process files in `prod\` are gitignored**, not committed. Applies to `RELEASE_CHECKLIST.md` and `dev_CLAUDE.md`. They live in `prod\` for path coherence (they reference prod files extensively) but they don't ship. The `prod\.gitignore` must list both filenames explicitly. They survive Phase 12 dev refreshes via robocopy because robocopy is filesystem-level, not git-level — `.gitignore` doesn't affect what exists on disk, only what git tracks.
+11. **Internal process file snapshots live in `..\..\scratch\internal_snapshots\v##\`** — one folder per release, containing `dev_CLAUDE.md` and `RELEASE_CHECKLIST.md` as of that release. Written by step 12.0a of Phase 12. Not tracked by git (scratch is disposable) but preserved via Drive backup for version archaeology. This is the recovery mechanism that makes the gitignored-internal-tooling pattern (Sync Rule 10) stable — without it, there's no way to answer "what did the sandbox contract look like at v0.7.5?". The rule and its corollary come from Lesson 5 of the angus-os case study (12 April 2026 restructure, thinktank-reviewed).
 
 ---
 
@@ -314,6 +315,7 @@ This document was updated as part of the dev/prod workspace restructure. Key cha
 - Sync Rule 8 added (unconditional count sweep)
 - Sync Rule 9 added (dev\CLAUDE.md sourced from prod\dev_CLAUDE.md)
 - Sync Rule 10 added (internal process files gitignored, robocopy is filesystem-level)
+- **Sync Rule 11 added** (13 April 2026): internal process file snapshots live in `scratch\internal_snapshots\v##\`, written by Phase 12 step 12.0a. Closes the recoverability gap identified by the thinktank review of the gitignore decision.
 
 ---
 
