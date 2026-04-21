@@ -213,7 +213,9 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 |------|---------|-------------|
 | `..\..\CLAUDE.md` | Top-level project orientation — visitor map, dev/prod model summary, where to find what | Project structure changes, new top-level files |
 | `..\..\PROJECT_FOLDER_STRUCTURE.md` | Canonical dev/prod/test-suite/commercial/scratch folder pattern, operational rules, two-CLAUDE.md pattern, migration history, dev_CLAUDE.md persistence + gitignored visibility model | Structure changes, new operational rules |
-| `..\..\SANDBOX_PARKING_LOT.md` | Live engineering backlog from cross-AI reviews — items with file/line/severity/fix | Items added by reviews, items completed |
+| `..\strategy-backlog\BACKLOG.md` | Tactical project backlog (Now / Next / Later / Done). Canonical source for in-flight work. | When items move between horizons, are shipped, or new items land |
+| `..\strategy-backlog\ROADMAP.md` | Living strategic roadmap. Quarterly horizons + exit calibration. | On strategic shifts, portfolio rebalances |
+| `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | **Archived** 21 April 2026. Historical engineering backlog from v0.7.7 cycle. Not maintained — see BACKLOG.md for current work. | Never (archived) |
 | `..\..\RELEASE_PREFLIGHT_SPEC.md` | Combined automation spec for `port.ps1`, `release_preflight.ps1`, `sandbox_reset.ps1` (none built yet) | Spec changes, scripts built |
 | `..\..\ANGUS_OS_CANDIDATES.md` | Curated list of FinLang process & discipline files that are candidates for lifting into angus-os. Filtered, not a complete inventory. | When angus-os scaffolding evolves, when new top-level discipline files are added |
 | `..\..\ANGUS_OS_ENGINEERING_CANDIDATES.md` | Curated list of FinLang engineering patterns (source layout, test contracts, CI templates, workspace patterns) that are candidates for lifting into angus-os. Filtered, not a complete code inventory. | When angus-os scaffolding evolves, when new transferable patterns emerge |
@@ -235,19 +237,22 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 ### Current Versions
 | Pattern | Current Version | Last Updated |
 |---------|-----------------|--------------|
-| `finlang_consolidated_roadmap_<DDMMYY>.md` | `finlang_consolidated_roadmap_110426.md` | 11 Apr 2026 |
-| `finlang_solution_outlines_<DDMMYY>.md` | `finlang_solution_outlines_040426.md` | 4 Apr 2026 |
-| `SANDBOX_PARKING_LOT_<DDMMYY>.md` | `SANDBOX_PARKING_LOT_040426.md` | 4 Apr 2026 (Drive copy; live copy at `..\..\SANDBOX_PARKING_LOT.md`) |
+| Living roadmap | `..\strategy-backlog\ROADMAP.md` | 21 Apr 2026 |
+| Frozen roadmap snapshot | `..\strategy-backlog\ROADMAP-detailed-110426.md` | 11 Apr 2026 |
+| Solution outlines (archived) | `..\strategy-backlog\archive\SOLUTIONS_ARCHIVED_040426.md` | 4 Apr 2026 (archived; SOL-040 + future SOL-041 are standalone specs in `..\strategy-backlog\`) |
+| Engineering parking lot (archived) | `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | 21 Apr 2026 (archived; current work in BACKLOG.md) |
 
 ### File Catalog
 | File | Contains | Update When |
 |------|----------|-------------|
-| `finlang_consolidated_roadmap_<DDMMYY>.md` | Tier 1/2/3 roadmap, exit paths, post-acquisition items, dependencies | Roadmap review sessions — create new dated copy, update Current Versions table |
-| `finlang_solution_outlines_<DDMMYY>.md` | SOL-001 through SOL-040 specifications | New solution work — create new dated copy, update Current Versions table |
-| `SANDBOX_PARKING_LOT_<DDMMYY>.md` | Deferred items, future hardening notes, post-Rome parking lot | Sandbox port sessions, deferred decisions |
-| `SOL-040_reconcile_specification.md` | `--reconcile` feature spec (think tank reviewed) | Spec changes, post-implementation review |
-| `finlang_roadmap_timeline.mermaid` | Visual roadmap timeline (mermaid diagram) | Major roadmap restructures |
-| `finlang-post-acquisition-roadmap.md` | Post-acquisition product/platform roadmap | Strategic discussions about post-exit phase |
+| `..\strategy-backlog\BACKLOG.md` | Tactical Now / Next / Later / Done items | Items ship, new items land, horizons shift |
+| `..\strategy-backlog\ROADMAP.md` | Living strategic narrative | Strategic shifts, portfolio rebalances |
+| `..\strategy-backlog\ROADMAP-detailed-110426.md` | Frozen 11 Apr 2026 detailed snapshot | Never (frozen) |
+| `..\strategy-backlog\archive\SOLUTIONS_ARCHIVED_040426.md` | SOL-001 through SOL-039 historical specs | Never (archived) |
+| `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | v0.7.7 parking-lot items with mapping to current BACKLOG | Never (archived) |
+| `..\strategy-backlog\SOL-040_reconcile_specification.md` | `--reconcile` feature spec (think tank reviewed) | Spec changes, post-implementation review |
+| `..\strategy-backlog\finlang-post-acquisition-roadmap.md` | Post-acquisition product/platform roadmap | Strategic discussions about post-exit phase |
+| `..\strategy-backlog\archive\roadmap_timeline_050426.mermaid` | Pre-16-April visual roadmap timeline (archived) | Never (archived) |
 | `SANDBOX_PORT_PROCEDURE.md` | Step-by-step procedure for porting sandbox work back to prod | Workflow improvements to port process |
 | `demo_video_pack.md` | Video recording plan and script notes | Before recording demo video |
 | `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase. **Human-managed** — count-sweep target but not reachable from sandbox | Before recording showcase video, after test count changes |
