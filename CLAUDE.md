@@ -1,5 +1,5 @@
 # FinLang Development Sandbox
-*For Claude Code sessions in `C:\projects\finlang\dev\`*
+*For Claude Code sessions in `{workspace}\prod\`*
 *Baseline: v0.7.7 (shipped 4 April 2026) | Tests: 118 (9 gates) | Current focus: SOL-040 `--reconcile`*
 *Last updated: 20 April 2026 (v1.1 — explicit full-path Standards section added; portfolio-wide refresh for CC-session discoverability)*
 
@@ -32,7 +32,7 @@ Standards live in `(private angus-os workspace) `. Work from these canonical pat
 - `(private angus-os workspace) anti-patterns\anti-patterns-CHANGELOG.md` (refresh trigger)
 
 **Project-specific:**
-- `C:\projects\finlang\strategy-backlog\BACKLOG-finlang.md` (migration in flight; may rename to `BACKLOG.md` — reader handles both)
+- `{workspace}\strategy-backlog\BACKLOG.md`
 - `(private angus-os workspace) MANIFEST.md`
 - `(private angus-os workspace) projects.yaml`
 
@@ -140,7 +140,7 @@ If you are uncertain whether a file or change falls into the MAY or MUST NOT cat
 
 Before any changes:
 
-1. Activate the dev venv: `cd C:\projects\finlang\dev && .\.venv\Scripts\Activate.ps1`
+1. Activate the dev venv: `cd {workspace}\dev && .\.venv\Scripts\Activate.ps1`
 2. Run `cd ..\test-suite && .\quick_check.ps1`
 3. Confirm all 9 gates PASS
 
@@ -194,10 +194,10 @@ The bulk of the test suite lives at `..\test-suite\` (one level up, sibling of d
 
 | Action | Command | Where |
 |--------|---------|-------|
-| Activate venv | `.\.venv\Scripts\Activate.ps1` | `C:\projects\finlang\prod\` |
-| Daily gate (must pass 9/9) | `.\quick_check.ps1` | `C:\projects\finlang\test-suite\` |
-| Single pytest file | `python -m pytest test_rule_interactions.py -v` | `C:\projects\finlang\test-suite\` |
-| Full pre-release suite | `.\full_test_suite.ps1` | `C:\projects\finlang\test-suite\` |
+| Activate venv | `.\.venv\Scripts\Activate.ps1` | `{workspace}\prod\` |
+| Daily gate (must pass 9/9) | `.\quick_check.ps1` | `{workspace}\test-suite\` |
+| Single pytest file | `python -m pytest test_rule_interactions.py -v` | `{workspace}\test-suite\` |
+| Full pre-release suite | `.\full_test_suite.ps1` | `{workspace}\test-suite\` |
 | Run FinLang | `finlang --input <csv> --output <out> --rules <fin> --headless` | anywhere with venv active |
 | Check version | `finlang --version` (should show `FinLang 0.7.7`) | anywhere with venv active |
 
@@ -284,7 +284,7 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 
 ## Reference Docs
 
-**Note on external files:** Drive files and any files outside `C:\projects\finlang\` are not directly readable from this sandbox. If a reference below points at such a file and you need its contents, ask the human to paste it. Do not silently guess based on the filename.
+**Note on external files:** Drive files and any files outside `{workspace}\` are not directly readable from this sandbox. If a reference below points at such a file and you need its contents, ask the human to paste it. Do not silently guess based on the filename.
 
 **In this directory (`prod\`):**
 - `DOCUMENT_MAP.md` — authoritative file map and change scenarios
@@ -293,7 +293,7 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 - `CLAUDE.md` — this file (working contract, tracked in git)
 - `RELEASE_CHECKLIST.md` — manual release procedure (gitignored, internal-only per Rule 6 of folder-structure-package)
 
-**Workspace level (`C:\projects\finlang\`):**
+**Workspace level (`{workspace}\`):**
 - `..\strategy-backlog\BACKLOG.md` — tactical project backlog (Now / Next / Later / Done). The canonical source for in-flight and queued work.
 - `..\strategy-backlog\ROADMAP.md` — living strategic narrative.
 - `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` — historical engineering backlog from the v0.7.7 release cycle, archived 21 April 2026.
