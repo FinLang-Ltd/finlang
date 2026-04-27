@@ -1,7 +1,6 @@
-# FinLang Development Sandbox
+# FinLang — Working Contract
 *For Claude Code sessions in `{workspace}\prod\`*
 *Baseline: v0.7.7 (shipped 4 April 2026) | Tests: 118 (9 gates) | Current focus: SOL-040 `--reconcile`*
-*Last updated: 20 April 2026 (v1.1 — explicit full-path Standards section added; portfolio-wide refresh for CC-session discoverability)*
 
 ---
 
@@ -77,7 +76,7 @@ If a request from the human seems to conflict with any of these rules, surface t
 
 ## RULE 4: Test files — extend, don't restructure
 
-The bulk of FinLang's tests live in `..\test-suite\`, not in `dev\tests\`. `dev\tests\` only contains the small ship-with-the-repo tests (`test_cli_smoke.py` and `tests/contracts/*.py` AST contract tests). The 118-test daily suite — `test_rule_interactions.py`, `test_discover_suggest.py`, `test_rule_correctness.py`, `test_custom_map.py`, `test_verify.py` plus the orchestration scripts — lives in `..\test-suite\`.
+The bulk of FinLang's tests live in `..\test-suite\`, not in `tests\` here. The local `tests\` directory only contains the small ship-with-the-repo tests (`test_cli_smoke.py` and `tests/contracts/*.py` AST contract tests). The 118-test daily suite — `test_rule_interactions.py`, `test_discover_suggest.py`, `test_rule_correctness.py`, `test_custom_map.py`, `test_verify.py` plus the orchestration scripts — lives in `..\test-suite\`.
 
 This means CC needs to write tests there. But test infrastructure also lives there — golden masters, gate orchestration, integrity harness, linter — and that infrastructure is the *contract* the test suite enforces. Modifying it changes what "passing" means. Adding to it requires deliberate human review.
 
@@ -92,7 +91,7 @@ The rule splits what CC can and cannot do:
 
 ### CC MUST (when adding tests)
 
-- **Update test counts in EVERY file that displays them.** The count sweep is mandatory, not optional. See `DOCUMENT_MAP.md` "New test added" change scenario for the canonical list. At minimum: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_pypi.ps1`, `..\test-suite\TEST_SUITE.md`, `RELEASE_CHECKLIST.md`, `DOCUMENT_MAP.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). **Showcase scripts and cleanroom were the most-missed during v0.7.7 — check them explicitly even if you think you've got them all.**
+- **Update test counts in EVERY file that displays them.** The count sweep is mandatory, not optional. See `DOCUMENT_MAP.md` "New test added" change scenario for the canonical list. At minimum: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `..\test-suite\TEST_SUITE.md`, `RELEASE_CHECKLIST.md`, `DOCUMENT_MAP.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). **Showcase scripts and cleanroom were the most-missed during v0.7.7 — check them explicitly even if you think you've got them all.**
 
 ### CC MUST NOT (without explicit human approval)
 
@@ -140,9 +139,10 @@ If you are uncertain whether a file or change falls into the MAY or MUST NOT cat
 
 Before any changes:
 
-1. Activate the dev venv: `cd {workspace}\dev && .\.venv\Scripts\Activate.ps1`
-2. Run `cd ..\test-suite && .\quick_check.ps1`
-3. Confirm all 9 gates PASS
+1. Confirm you are NOT on `main`: `git -C {workspace}\prod rev-parse --abbrev-ref HEAD` (if it returns `main`, switch to a feature branch first via `git switch -c feat/<name>`)
+2. Activate the venv: `cd {workspace}\prod && .\.venv\Scripts\Activate.ps1`
+3. Run `cd ..\test-suite && .\quick_check.ps1`
+4. Confirm all 9 gates PASS
 
 Only then begin work. If the gates are red on entry, the cause is upstream — surface it, do not start adding to it.
 
@@ -154,10 +154,10 @@ FinLang is a deterministic financial transaction categorisation engine — a Pyt
 
 ---
 
-## Directory Layout (within `dev\`)
+## Directory Layout (within `prod\`)
 
 ```
-dev\
+prod\
 ├── src/finlang/
 │   ├── cli/run_finlang.py       — main CLI entry point
 │   ├── engine/finlang_engine.py — rule engine core
@@ -225,7 +225,7 @@ The bulk of the test suite lives at `..\test-suite\` (one level up, sibling of d
 5. Review existing tests in affected files — do any assertions need updating to reflect the change? If so, update them with justification.
 6. Run `quick_check` 9/9
 7. Update docs (per `DOCUMENT_MAP.md` "Common Change Scenarios" table)
-8. **Run the count sweep.** New test → update test counts in: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_pypi.ps1` (was cleanroom_test.ps1, renamed in Phase 3 post-consolidation), `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `RELEASE_CHECKLIST.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom were consistently missed during v0.7.7 — check them explicitly. **Note:** the showcase narration script (`showcase_narration_script.md`) lives in Google Drive and is not reachable from this workspace. The human is responsible for updating it.
+8. **Run the count sweep.** New test → update test counts in: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `RELEASE_CHECKLIST.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom were consistently missed during v0.7.7 — check them explicitly. **Note:** the showcase narration script (`showcase_narration_script.md`) lives in Google Drive and is not reachable from this workspace. The human is responsible for updating it.
 9. Run `quick_check` 9/9 again
 10. Show the exact files changed and a short summary of why
 11. Single commit, staging files explicitly (no `git add .`)
@@ -275,8 +275,8 @@ Grouped by theme. All three groups apply at all times.
 `DOCUMENT_MAP.md` (in this directory) is the authoritative source for "what files need updating when X changes". Before completing any task, consult its "Common Change Scenarios" table to identify ALL files that need updating. The pattern is:
 
 - **CLI flag changes**: `run_finlang.py`, `cli_reference.md`, `flags.md`, `workflows.md`, `faq.md`, smoke tests
-- **Test count/gate changes**: `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_pypi.ps1`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `RELEASE_CHECKLIST.md`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom are the most-missed — check them explicitly. The showcase narration script (Drive only) is human-managed.
-- **Version bumps**: handled in prod, not here. Don't.
+- **Test count/gate changes**: `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `RELEASE_CHECKLIST.md`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom are the most-missed — check them explicitly. The showcase narration script (Drive only) is human-managed.
+- **Version bumps**: happen on a `release/v<version>` feature branch, merged to main per `release-promotion-package.md` Phase 4. Not direct on main.
 
 When updating docs, use **"can"** not **"will"**. After any doc update pass, update `DOCUMENT_MAP.md` itself (header date, changed counts).
 
@@ -284,7 +284,7 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 
 ## Reference Docs
 
-**Note on external files:** Drive files and any files outside `{workspace}\` are not directly readable from this sandbox. If a reference below points at such a file and you need its contents, ask the human to paste it. Do not silently guess based on the filename.
+**Note on external files:** files outside `{workspace}\` (Drive, other workspaces) are not directly readable from this session. If a reference below points at such a file and you need its contents, ask the human to paste it. Do not silently guess based on the filename.
 
 **In this directory (`prod\`):**
 - `DOCUMENT_MAP.md` — authoritative file map and change scenarios
@@ -310,10 +310,14 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 - `DRAFT-release-gate-package-v1.md` — release gate spec (8 conditions)
 - `DRAFT-release-promotion-package-v1.md` — release flow phase-by-phase
 
-**In Google Drive (strategic, not in repo, not directly readable — ask the human):**
-- `finlang_consolidated_roadmap_*.md` — strategic roadmap with tiered priorities
-- `finlang_solution_outlines_*.md` — implementation specs for roadmap items (`SOL-###`)
-- `SOL-040_reconcile_specification.md` — current focus, full spec
+**Strategic docs — workspace-readable since 21 April 2026 reorganisation:**
+- `..\strategy-backlog\ROADMAP.md` — living strategic narrative
+- `..\strategy-backlog\ROADMAP-detailed-110426.md` — frozen detailed roadmap snapshot
+- `..\strategy-backlog\SOL-040_reconcile_specification.md` — current focus, full spec
+- `..\strategy-backlog\archive\SOLUTIONS_ARCHIVED_*.md` — archived solution outlines (`SOL-###`)
+- `..\strategy-backlog\archive\` — historical strategic docs
+
+**Drive-only / human-managed (not workspace-readable):**
 - `showcase_narration_script.md` — video narration script (count-sweep target, human-updated)
 
 ---
@@ -322,7 +326,7 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 
 **Next feature to build: `--reconcile` (SOL-040)**
 
-The full specification lives in Google Drive at `SOL-040_reconcile_specification.md`. Summary:
+The full specification lives at `..\strategy-backlog\SOL-040_reconcile_specification.md` (workspace-readable since 21 April 2026 reorganisation; previously Drive-hosted). Summary:
 
 - Independent ML validation layer for FinLang
 - Compares FinLang's deterministic output against an external ML system row by row
@@ -335,12 +339,12 @@ The full specification lives in Google Drive at `SOL-040_reconcile_specification
 
 **Test placement and gate ordering for SOL-040 specifically:**
 
-- `test_reconcile.py` goes in `..\test-suite\`, not `dev\tests\`
+- `test_reconcile.py` goes in `..\test-suite\`, not the local `tests\` directory
 - Gate ordering is **chronological** (new gates appended). The current Gate 9 is `rulepack_linter.py` and stays as Gate 9. `test_reconcile.py` becomes **Gate 10**, appended after the linter.
 - Adding Gate 10 to `quick_check.ps1` is one of the orchestration changes that requires explicit human approval per Rule 4 — surface the gate addition as a deliberate step, not a side-effect of dropping the test file.
 - **Count sweep for SOL-040 covers TWO separate string types**: test counts (118 → ~130) AND gate counts (9 → 10). These are distinct strings in most files and are easy to miss because docs often conflate them in copy. When sweeping for SOL-040, grep for both `118` and `9 gates` (and any equivalent variants like `9/9`) — fixing one without the other is a partial sweep and will leave the system inconsistent.
 
-Read the SOL-040 spec in full before starting. Ask the human to paste it if you can't access Drive directly.
+Read the SOL-040 spec in full before starting (it's at `..\strategy-backlog\SOL-040_reconcile_specification.md` — directly accessible from this session).
 
 ---
 
@@ -348,10 +352,12 @@ Read the SOL-040 spec in full before starting. Ask the human to paste it if you 
 
 Once `--reconcile` ships, the next sources of work are:
 
-1. **`..\strategy-backlog\BACKLOG.md`** — current tactical backlog. Now / Next / Later items (the formerly-parking-lot items that remain open are here under Later: Paranoia Pipeline v2 and H-075 hardening are parked; `--lakhs` flag is Later; verify vectorisation SOL-039 is Later). Historical record: `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md`.
-2. **Roadmap Tier 2 items** in `..\strategy-backlog\ROADMAP.md` (living) / `..\strategy-backlog\ROADMAP-detailed-110426.md` (frozen detailed snapshot) — `--lakhs` flag, new operators, decimal pipeline, streaming audit, etc.
+1. **`..\strategy-backlog\BACKLOG.md`** — canonical tactical backlog (Now / Next / Later / Done / Won't build). Read directly to see current state — specific item names evolve.
+2. **`..\strategy-backlog\ROADMAP.md`** — living strategic narrative.
+3. **`..\strategy-backlog\ROADMAP-detailed-110426.md`** — frozen detailed roadmap snapshot for cross-reference.
+4. **`..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md`** — historical engineering backlog from the v0.7.7 release cycle.
 
-Do not start on these without explicit human direction. The parking lot is the backlog, not the next-task list.
+Do not start on these without explicit human direction. The BACKLOG is the source of next-task choices, not a self-serve list.
 
 ---
 
@@ -363,7 +369,7 @@ The pre-consolidation post-release dev refresh procedure is retired (no dev fold
 2. Version bump on `release/v<version>` branch → merge to main → tag
 3. Validation against tagged HEAD: `quick_check`, `full_test_suite`, `python -m build`, `cleanroom_local`
 4. Release gate (`..\test-suite\release_preflight.ps1`) — 8 conditions, owns `twine upload`
-5. Post-publish smoke: `cleanroom_pypi.ps1`
+5. Post-publish smoke: `cleanroom_test.ps1` (rename to `cleanroom_pypi.ps1` is planned as part of Phase 3 follow-on, paired with new `cleanroom_local.ps1` for pre-publish wheel validation)
 6. Snapshot internal files to `..\scratch\internal_snapshots\v<version>\`
 
 What this means for you:
