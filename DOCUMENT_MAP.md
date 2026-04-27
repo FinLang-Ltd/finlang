@@ -3,7 +3,7 @@
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
-**Post-consolidation note (27 April 2026):** FinLang lives in a single-tree workspace at `C:\projects\finlang\` with subfolders `prod\` (this repo, the tracked codebase), `test-suite\` (external validation + release gate), `commercial\` (rulepacks, partitioned), `scratch\` (disposable), `strategy-backlog\` (BACKLOG/ROADMAP/SOL specs). This document describes files in `prod\` and `..\..\test-suite\` from the perspective of `prod\`. Workspace-level docs live at `C:\projects\finlang\` — see the "Top-Level Workspace Documents" section below. For the full layout see `..\..\PROJECT_FOLDER_STRUCTURE.md`.
+**Post-consolidation note (27 April 2026):** FinLang lives in a single-tree workspace at `{workspace}\` with subfolders `prod\` (this repo, the tracked codebase), `test-suite\` (external validation + release gate), `commercial\` (rulepacks, partitioned), `scratch\` (disposable), `strategy-backlog\` (BACKLOG/ROADMAP/SOL specs). This document describes files in `prod\` and `..\..\test-suite\` from the perspective of `prod\`. Workspace-level docs live at `{workspace}\` — see the "Top-Level Workspace Documents" section below. For the full layout see `..\..\PROJECT_FOLDER_STRUCTURE.md`.
 
 **Persistence model for `prod\CLAUDE.md` (post-consolidation, 27 April 2026):** the working contract lives at `prod\CLAUDE.md`, **tracked in git**. Updates happen on feature branches like any other code change. Pre-consolidation pattern (gitignored canonical source mirrored via filesystem refresh) is retired.
 
@@ -27,7 +27,7 @@ FinLang consists of five major components:
 
 ---
 
-## Source Repo (`finlang`) — lives at `C:\projects\finlang\prod\`
+## Source Repo (`finlang`) — lives at `{workspace}\prod\`
 
 ### Core Source Files
 
@@ -112,7 +112,7 @@ These files live in `prod\` because they reference prod-side files extensively, 
 
 ---
 
-## Test Suite Repo (`test-suite`) — lives at `C:\projects\finlang\test-suite\`
+## Test Suite Repo (`test-suite`) — lives at `{workspace}\test-suite\`
 
 The bulk of FinLang's tests live here as internal validation tooling (not shipped with the PyPI package). `prod\tests\` only contains the small ship-with-the-repo tests (`test_cli_smoke.py` and `tests/contracts/*.py`).
 
@@ -205,7 +205,7 @@ Demo data files live in the **demo subfolder** (`test-suite/demo/`).
 
 ---
 
-## Top-Level Workspace Documents — live at `C:\projects\finlang\`
+## Top-Level Workspace Documents — live at `{workspace}\`
 
 These sit one level above `prod\` and span multiple subdirectories. They are workspace governance, not part of the published repo.
 
@@ -232,7 +232,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 
 > **Note on date-versioned files:** Some planning docs use a date-appended naming pattern (`<filename>_<DDMMYY>.md`). The most recent dated copy is always the active version. Older copies are historical reference, not actively maintained. Current versions are tracked in the **Current Versions** table below.
 
-> **Note on accessibility:** These files live in Google Drive at `(private path scrubbed from history 27 April 2026)` and are NOT directly readable from `prod\`, `dev\`, or `test-suite\`. Sandbox sessions must ask the human to paste contents if needed.
+> **Note on accessibility:** These files live in Google Drive (private path) and are NOT directly readable from the workspace. Sessions must ask the human to paste contents if needed.
 
 ### Current Versions
 | Pattern | Current Version | Last Updated |
@@ -311,7 +311,7 @@ This document was updated as part of the dev/prod workspace restructure. Key cha
 - Test Scripts section: `test_custom_map.py`, `test_verify.py`, `validate_sandbox_port.py` added (were present in 11 April scan but missing from that version of this doc)
 - Release notes section: v0.7.6 and v0.7.7 entries added
 - Benchmark output note added (scripts ship, output goes to scratch)
-- New "Top-Level Workspace Documents" section for files at `C:\projects\finlang\` (above prod), referencing the renamed `ANGUS_OS_*_CANDIDATES.md` files
+- New "Top-Level Workspace Documents" section for files at `{workspace}\` (above prod), referencing the renamed `ANGUS_OS_*_CANDIDATES.md` files
 - New "Sandbox-only mirror" subsection clarifying `dev-CLAUDE-pre-consolidation` is mirror, not source
 - Strategic / Planning Documents section: accessibility note added (Drive-only, not sandbox-reachable); `showcase_narration_script.md` flagged as human-managed
 - "New test added" row rewritten: removed the "if count strings hardcoded" qualifier; added `finlang_showcase_public.ps1`, `README.md`, `prod-CLAUDE-pre-consolidation` (with gitignored note); added note that gate addition requires explicit human approval per Rule 4
