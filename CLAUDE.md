@@ -91,7 +91,7 @@ The rule splits what CC can and cannot do:
 
 ### CC MUST (when adding tests)
 
-- **Update test counts in EVERY file that displays them.** The count sweep is mandatory, not optional. See `DOCUMENT_MAP.md` "New test added" change scenario for the canonical list. At minimum: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `..\test-suite\TEST_SUITE.md`, `RELEASE_CHECKLIST.md`, `DOCUMENT_MAP.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). **Showcase scripts and cleanroom were the most-missed during v0.7.7 — check them explicitly even if you think you've got them all.**
+- **Update test counts in EVERY file that displays them.** The count sweep is mandatory, not optional. See `DOCUMENT_MAP.md` "New test added" change scenario for the canonical list. At minimum: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `..\test-suite\TEST_SUITE.md`, `RELEASE_CHECKLIST.md`, `DOCUMENT_MAP.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). **Showcase scripts and cleanroom were the most-missed during v0.7.7 — check them explicitly even if you think you've got them all.** (`showcase_narration_script.md` is no longer count-swept — historical artifact, see § "Historical artifacts".)
 
 ### CC MUST NOT (without explicit human approval)
 
@@ -225,7 +225,7 @@ The bulk of the test suite lives at `..\test-suite\` (one level up, sibling of d
 5. Review existing tests in affected files — do any assertions need updating to reflect the change? If so, update them with justification.
 6. Run `quick_check` 9/9
 7. Update docs (per `DOCUMENT_MAP.md` "Common Change Scenarios" table)
-8. **Run the count sweep.** New test → update test counts in: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `RELEASE_CHECKLIST.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom were consistently missed during v0.7.7 — check them explicitly. **Note:** the showcase narration script (`showcase_narration_script.md`) lives in Google Drive and is not reachable from this workspace. The human is responsible for updating it.
+8. **Run the count sweep.** New test → update test counts in: `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `RELEASE_CHECKLIST.md`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom were consistently missed during v0.7.7 — check them explicitly. **Note:** `showcase_narration_script.md` (in `..\test-suite\`) is a historical artifact from the pre-v0.7.7 demo recording — no longer count-swept, no longer maintained.
 9. Run `quick_check` 9/9 again
 10. Show the exact files changed and a short summary of why
 11. Single commit, staging files explicitly (no `git add .`)
@@ -275,7 +275,7 @@ Grouped by theme. All three groups apply at all times.
 `DOCUMENT_MAP.md` (in this directory) is the authoritative source for "what files need updating when X changes". Before completing any task, consult its "Common Change Scenarios" table to identify ALL files that need updating. The pattern is:
 
 - **CLI flag changes**: `run_finlang.py`, `cli_reference.md`, `flags.md`, `workflows.md`, `faq.md`, smoke tests
-- **Test count/gate changes**: `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `RELEASE_CHECKLIST.md`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom are the most-missed — check them explicitly. The showcase narration script (Drive only) is human-managed.
+- **Test count/gate changes**: `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `RELEASE_CHECKLIST.md`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom are the most-missed — check them explicitly. (`..\test-suite\showcase_narration_script.md` is a historical artifact — not count-swept.)
 - **Version bumps**: happen on a `release/v<version>` feature branch, merged to main per `release-promotion-package.md` Phase 4. Not direct on main.
 
 When updating docs, use **"can"** not **"will"**. After any doc update pass, update `DOCUMENT_MAP.md` itself (header date, changed counts).
@@ -317,8 +317,8 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 - `..\strategy-backlog\archive\SOLUTIONS_ARCHIVED_*.md` — archived solution outlines (`SOL-###`)
 - `..\strategy-backlog\archive\` — historical strategic docs
 
-**Drive-only / human-managed (not workspace-readable):**
-- `showcase_narration_script.md` — video narration script (count-sweep target, human-updated)
+**Historical artifacts (workspace-readable, no longer maintained):**
+- `..\test-suite\showcase_narration_script.md` — voiceover lines for the pre-v0.7.7 demo recording. The demo is recorded; the script reflects that prior state. No longer count-swept, no longer updated.
 
 ---
 
