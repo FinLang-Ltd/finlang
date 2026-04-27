@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
 *$py.class
@@ -212,5 +212,3 @@ bench_out*/
 #Ignore release checklist
 RELEASE_CHECKLIST.md
 
-#Ignore dev_claude.md
-dev_CLAUDE.md

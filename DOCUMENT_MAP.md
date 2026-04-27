@@ -3,13 +3,13 @@
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
-**Post-restructure note (12 April 2026):** FinLang now lives in a dev/prod workspace at `C:\projects\finlang\` with subfolders `prod\` (this repo), `dev\` (editable sandbox), `test-suite\` (external validation), `commercial\` (rulepacks, partitioned), and `scratch\` (disposable). This document describes files in `prod\` and `..\..\test-suite\` from the perspective of `prod\`. Top-level workspace docs live at `C:\projects\finlang\` — see the "Top-Level Workspace Documents" section below. For the full layout see `..\..\PROJECT_FOLDER_STRUCTURE.md`.
+**Post-consolidation note (27 April 2026):** FinLang lives in a single-tree workspace at `C:\projects\finlang\` with subfolders `prod\` (this repo, the tracked codebase), `test-suite\` (external validation + release gate), `commercial\` (rulepacks, partitioned), `scratch\` (disposable), `strategy-backlog\` (BACKLOG/ROADMAP/SOL specs). This document describes files in `prod\` and `..\..\test-suite\` from the perspective of `prod\`. Workspace-level docs live at `C:\projects\finlang\` — see the "Top-Level Workspace Documents" section below. For the full layout see `..\..\PROJECT_FOLDER_STRUCTURE.md`.
 
-**Persistence model for `dev\CLAUDE.md`:** the canonical source lives at `prod\dev_CLAUDE.md` (this folder, **gitignored**, internal tooling — same category as `RELEASE_CHECKLIST.md`). It rides through Phase 12 robocopy (which is filesystem-level, not git-level, so the gitignored status doesn't affect the copy) and is renamed to `CLAUDE.md` inside `dev\` by step 12.5a of `RELEASE_CHECKLIST.md`. Any updates to the sandbox contract are made to `prod\dev_CLAUDE.md`, never to the live `dev\CLAUDE.md` (which is overwritten on the next refresh).
+**Persistence model for `prod\CLAUDE.md` (post-consolidation, 27 April 2026):** the working contract lives at `prod\CLAUDE.md`, **tracked in git**. Updates happen on feature branches like any other code change. Pre-consolidation pattern (gitignored canonical source mirrored via filesystem refresh) is retired.
 
 ### Version Sync Rule
 Version numbers must remain consistent across these **five** files on every release:
-`__init__.py`, `pyproject.toml`, `run_finlang.py` (fallback), `canonical_fields.yaml`, `dev_CLAUDE.md` (header canary line — gitignored, edit lives on local disk only)
+`__init__.py`, `pyproject.toml`, `run_finlang.py` (fallback), `canonical_fields.yaml`, `prod/CLAUDE.md` (header canary line — tracked in git post-consolidation)
 
 `CHANGELOG.md` also gets a new entry every release but doesn't carry the version string in the same way.
 
@@ -51,8 +51,8 @@ These files live in `prod\` because they reference prod-side files extensively, 
 
 | File | Contains | Visibility | Update When |
 |------|----------|-----------|-------------|
-| `RELEASE_CHECKLIST.md` | Step-by-step release process, version bump locations, test commands, Phase 12 post-release dev refresh, quick reference table | **Gitignored** — internal-only | New release steps, new version bump locations, test process changes |
-| `dev_CLAUDE.md` | **Canonical source** for `dev\CLAUDE.md` — sandbox behavioural contract for Claude Code. Critical safety rules, mandatory first step, workflow, scope/language/git discipline, Rule 4 (test extend-don't-restructure), header canary line (`Tests: N (G gates)`), current focus. Robocopied to `dev\` and renamed to `CLAUDE.md` by Phase 12.5a. | **Gitignored** — internal-only | Every release (header canary line), behaviour rule changes, current focus shift |
+| `RELEASE_CHECKLIST.md` | Step-by-step release process, version bump locations, test commands, single-tree release flow per `release-promotion-package.md` (9 phases), quick reference table | **Gitignored** — internal-only (per Rule 6 of folder-structure-package single-tree variant) | New release steps, new version bump locations, test process changes |
+| `CLAUDE.md` | **Working contract** for Claude Code — tracked in git as part of the prod repo post-consolidation. Critical safety rules, mandatory first step, workflow, scope/language/git discipline, Rule 4, header canary line (`Tests: N (G gates)`), current focus. | **Tracked** in git | Every release (header canary line), behaviour rule changes, current focus shift |
 | `DOCUMENT_MAP.md` | This file — authoritative map of every file, version sync rules, change scenarios | **Tracked** — ships with repo | New files, new change scenarios, structural changes |
 
 ### Documentation (`docs/`)
@@ -212,11 +212,11 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | File | Purpose | Update When |
 |------|---------|-------------|
 | `..\..\CLAUDE.md` | Top-level project orientation — visitor map, dev/prod model summary, where to find what | Project structure changes, new top-level files |
-| `..\..\PROJECT_FOLDER_STRUCTURE.md` | Canonical dev/prod/test-suite/commercial/scratch folder pattern, operational rules, two-CLAUDE.md pattern, migration history, dev_CLAUDE.md persistence + gitignored visibility model | Structure changes, new operational rules |
+| `..\..\PROJECT_FOLDER_STRUCTURE.md` | Single-tree folder pattern (post-consolidation 27 April 2026), operational rules, two-CLAUDE.md single-tree variant, FinLang-specific notes (public repo + dual-remote, server-side branch protection, release gate) | Structure changes, new operational rules |
 | `..\strategy-backlog\BACKLOG.md` | Tactical project backlog (Now / Next / Later / Done). Canonical source for in-flight work. | When items move between horizons, are shipped, or new items land |
 | `..\strategy-backlog\ROADMAP.md` | Living strategic roadmap. Quarterly horizons + exit calibration. | On strategic shifts, portfolio rebalances |
 | `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | **Archived** 21 April 2026. Historical engineering backlog from v0.7.7 cycle. Not maintained — see BACKLOG.md for current work. | Never (archived) |
-| `..\..\RELEASE_PREFLIGHT_SPEC.md` | Combined automation spec for `port.ps1`, `release_preflight.ps1`, `sandbox_reset.ps1` (none built yet) | Spec changes, scripts built |
+| `..\..\scratch\archive\RELEASE_PREFLIGHT_SPEC-pre-consolidation-20260427.md` | Pre-consolidation release-preflight spec (archived 27 April — content described retired infrastructure). Active release-gate spec lives at `angus-os/engineering/DRAFT-release-gate-package-v1.md`. | Reference only — superseded |
 | `..\..\ANGUS_OS_CANDIDATES.md` | Curated list of FinLang process & discipline files that are candidates for lifting into angus-os. Filtered, not a complete inventory. | When angus-os scaffolding evolves, when new top-level discipline files are added |
 | `..\..\ANGUS_OS_ENGINEERING_CANDIDATES.md` | Curated list of FinLang engineering patterns (source layout, test contracts, CI templates, workspace patterns) that are candidates for lifting into angus-os. Filtered, not a complete code inventory. | When angus-os scaffolding evolves, when new transferable patterns emerge |
 
@@ -224,7 +224,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 
 | File | Purpose | Update When |
 |------|---------|-------------|
-| `..\..\dev\CLAUDE.md` | Live sandbox behavioural contract for Claude Code. **Mirror of `prod\dev_CLAUDE.md`** (which is gitignored, internal-only) — restored on every release by Phase 12.5a (Move-Item rename). Edits to this file directly are lost on the next refresh. To update, edit `prod\dev_CLAUDE.md`. | Never edited directly — sourced from `prod\dev_CLAUDE.md` |
+| `prod\CLAUDE.md` | Working contract for Claude Code (tracked in git post-consolidation). Critical safety rules, mandatory workflow, scope/language/git discipline. Edit on a feature branch like any code change. | Edit directly via feature-branch flow |
 
 ---
 
@@ -268,15 +268,15 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | **New discover/suggest flag** | `discover.py` or `suggest.py` (argparse), `cli_reference.md`, `flags.md`, `test_discover_suggest.py` if testable |
 | **New canonical field** | `finlang_engine.py` (CANON_FIELDS), `mapping_guide.md` (field table), `rule_language.md` (field reference), `canonical_fields.yaml`, `test_rule_interactions.py` |
 | **New rule operator** | `finlang_engine.py` (parser + evaluator), `rule_language.md`, possibly `test_rule_interactions.py` |
-| **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `dev_CLAUDE.md` (header canary — gitignored, edit lives on local disk only), `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
-| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `..\..\dev\CLAUDE.md` Rule 4), `cleanroom_test.ps1` (counts in header — always), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored, edit on local disk only), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `dev_CLAUDE.md` (header canary line — gitignored). **Drive-only, human-managed:** `showcase_narration_script.md`. |
+| **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `prod/CLAUDE.md` (header canary — tracked in git post-consolidation), `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
+| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `prod\CLAUDE.md` Rule 4), `cleanroom_pypi.ps1` (counts in header — always; renamed from cleanroom_test.ps1 in Phase 3 follow-on), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `prod/CLAUDE.md` (header canary line — tracked). **Drive-only, human-managed:** `showcase_narration_script.md`. |
 | **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate), re-run `rulepack_linter.py` to verify clean |
 | **Rulepack wildcard change** | `rulepack_linter.py` (re-run to verify clean — exit 0 required before commit), `KNOWN_SAFE_TOKENS` if new safe token needed |
 | **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `verify.py` (`_normalize_amount_string` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
 | **Benchmark re-run** | `benchmarks.md`, heatmap PNGs, `workflows.md` (throughput table). Output goes to `..\..\scratch\benchmarks\v##\`, never into `prod\` or `dev\`. |
 | **New demo step** | `finlang_demo_v4.ps1`, possibly new CSV/map files in demo folder |
 | **New regional format** | Test CSV, `run_test_matrix.ps1` (new case), golden baselines, `i18n_examples.md`, possibly `mapping_guide.md` |
-| **Sandbox contract change** (CC behaviour rules, current focus, etc) | `prod\dev_CLAUDE.md` (gitignored canonical source — never edit `dev\CLAUDE.md` directly, it's overwritten by Phase 12.5a) |
+| **Working contract change** (CC behaviour rules, current focus, etc) | `prod\CLAUDE.md` (tracked in git post-consolidation — edit on a feature branch, merge to main like any code change) |
 
 ---
 
@@ -290,9 +290,9 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 6. **Benchmark docs only update when re-benchmarked** — don't update version headers unless data is re-validated.
 7. **`_normalize_amount_string` in `verify.py` mirrors `_to_number` logic** — keep synced on amount parsing changes.
 8. **Count sweep is unconditional** for `cleanroom_test.ps1`, `finlang_showcase.ps1`, and `finlang_showcase_public.ps1` — these were the most-missed files during the v0.7.7 release. The old "if count strings hardcoded" qualifier was the loophole that caused them to be missed. They always have hardcoded counts.
-9. **`dev\CLAUDE.md` is sourced from `prod\dev_CLAUDE.md`** — never edited directly. Phase 12.5a of `RELEASE_CHECKLIST.md` does the rename via `Move-Item` after robocopy. Any change to the sandbox contract is a change to `prod\dev_CLAUDE.md`. The fact that `prod\dev_CLAUDE.md` is gitignored doesn't reduce this discipline — it's still authoritative for what CC reads on every session.
-10. **Internal process files in `prod\` are gitignored**, not committed. Applies to `RELEASE_CHECKLIST.md` and `dev_CLAUDE.md`. They live in `prod\` for path coherence (they reference prod files extensively) but they don't ship. The `prod\.gitignore` must list both filenames explicitly. They survive Phase 12 dev refreshes via robocopy because robocopy is filesystem-level, not git-level — `.gitignore` doesn't affect what exists on disk, only what git tracks.
-11. **Internal process file snapshots live in `..\..\scratch\internal_snapshots\v##\`** — one folder per release, containing `dev_CLAUDE.md` and `RELEASE_CHECKLIST.md` as of that release. Written by step 12.0a of Phase 12. Not tracked by git (scratch is disposable) but preserved via Drive backup for version archaeology. This is the recovery mechanism that makes the gitignored-internal-tooling pattern (Sync Rule 10) stable — without it, there's no way to answer "what did the sandbox contract look like at v0.7.5?". The rule and its corollary come from Lesson 5 of the angus-os case study (12 April 2026 restructure, thinktank-reviewed).
+9. **`prod\CLAUDE.md` is tracked in git** — post-consolidation, the working contract is a first-class tracked artifact. Edit on a feature branch, merge to main like any code change. The pre-consolidation canonical-source-mirror pattern is retired.
+10. **Internal process files in `prod\` are gitignored**, not committed. Applies to `RELEASE_CHECKLIST.md` (and any future maintainer-only tooling). Lives in `prod\` for path coherence but doesn't ship. The `prod\.gitignore` lists the filename explicitly.
+11. **Internal process file snapshots live in `..\..\scratch\internal_snapshots\v##\`** — one folder per release, containing `RELEASE_CHECKLIST.md` (and any other gitignored maintainer-only tooling) as of that release. Written as part of release Phase 8 of `release-promotion-package.md`. Not tracked by git (scratch is disposable) but preserved via external workspace backup for version archaeology. Recovery mechanism for the gitignored-internal-tooling pattern (Rule 6 corollary in folder-structure-package).
 
 ---
 
@@ -302,25 +302,25 @@ This document was updated as part of the dev/prod workspace restructure. Key cha
 
 - Header date updated, v0.7.7 baseline reaffirmed
 - Restructure context note added below title
-- **`dev_CLAUDE.md` persistence model documented** — canonical source in `prod\` (gitignored), restored to `dev\CLAUDE.md` by Phase 12.5a `Move-Item` rename
-- **`dev_CLAUDE.md` and `RELEASE_CHECKLIST.md` flagged as gitignored throughout** — both are internal maintainer tooling, live in `prod\` for path coherence but never ship. New Sync Rule 10 covers the general principle.
-- Version Sync Rule expanded to 5 files (added `dev_CLAUDE.md` header canary, with gitignored-on-disk note)
-- New "Internal Process Files" subsection under Source Repo for `RELEASE_CHECKLIST.md`, `dev_CLAUDE.md`, and `DOCUMENT_MAP.md` with explicit visibility column
+- **`prod-CLAUDE-pre-consolidation` persistence model documented** — canonical source in `prod\` (gitignored), restored to `dev-CLAUDE-pre-consolidation` by the pre-consolidation refresh procedure.5a `Move-Item` rename
+- **`prod-CLAUDE-pre-consolidation` and `RELEASE_CHECKLIST.md` flagged as gitignored throughout** — both are internal maintainer tooling, live in `prod\` for path coherence but never ship. New Sync Rule 10 covers the general principle.
+- Version Sync Rule expanded to 5 files (added `prod-CLAUDE-pre-consolidation` header canary, with gitignored-on-disk note)
+- New "Internal Process Files" subsection under Source Repo for `RELEASE_CHECKLIST.md`, `prod-CLAUDE-pre-consolidation`, and `DOCUMENT_MAP.md` with explicit visibility column
 - "Source Repo" and "Test Suite Repo" headers annotated with new absolute paths
 - Test Runners section: `cleanroom_test.ps1`, `finlang_showcase.ps1` counts marked as unconditional; `finlang_showcase_public.ps1` and `run_showcase_public.cmd` added
 - Test Scripts section: `test_custom_map.py`, `test_verify.py`, `validate_sandbox_port.py` added (were present in 11 April scan but missing from that version of this doc)
 - Release notes section: v0.7.6 and v0.7.7 entries added
 - Benchmark output note added (scripts ship, output goes to scratch)
 - New "Top-Level Workspace Documents" section for files at `C:\projects\finlang\` (above prod), referencing the renamed `ANGUS_OS_*_CANDIDATES.md` files
-- New "Sandbox-only mirror" subsection clarifying `dev\CLAUDE.md` is mirror, not source
+- New "Sandbox-only mirror" subsection clarifying `dev-CLAUDE-pre-consolidation` is mirror, not source
 - Strategic / Planning Documents section: accessibility note added (Drive-only, not sandbox-reachable); `showcase_narration_script.md` flagged as human-managed
-- "New test added" row rewritten: removed the "if count strings hardcoded" qualifier; added `finlang_showcase_public.ps1`, `README.md`, `dev_CLAUDE.md` (with gitignored note); added note that gate addition requires explicit human approval per Rule 4
-- "Version bump" row updated to include `dev_CLAUDE.md` header canary with gitignored note
-- New "Sandbox contract change" row pointing all edits at `prod\dev_CLAUDE.md` (gitignored)
+- "New test added" row rewritten: removed the "if count strings hardcoded" qualifier; added `finlang_showcase_public.ps1`, `README.md`, `prod-CLAUDE-pre-consolidation` (with gitignored note); added note that gate addition requires explicit human approval per Rule 4
+- "Version bump" row updated to include `prod-CLAUDE-pre-consolidation` header canary with gitignored note
+- New "Sandbox contract change" row pointing all edits at `prod\prod-CLAUDE-pre-consolidation` (gitignored)
 - Sync Rule 8 added (unconditional count sweep)
-- Sync Rule 9 added (dev\CLAUDE.md sourced from prod\dev_CLAUDE.md)
-- Sync Rule 10 added (internal process files gitignored, robocopy is filesystem-level)
-- **Sync Rule 11 added** (13 April 2026): internal process file snapshots live in `scratch\internal_snapshots\v##\`, written by Phase 12 step 12.0a. Closes the recoverability gap identified by the thinktank review of the gitignore decision.
+- Sync Rule 9 added (dev-CLAUDE-pre-consolidation sourced from prod\prod-CLAUDE-pre-consolidation)
+- Sync Rule 10 added (internal process files gitignored, filesystem-refresh is filesystem-level)
+- **Sync Rule 11 added** (13 April 2026): internal process file snapshots live in `scratch\internal_snapshots\v##\`, written by the pre-consolidation refresh procedure step 12.0a. Closes the recoverability gap identified by the thinktank review of the gitignore decision.
 
 ---
 
