@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 13 April 2026 | v0.7.7*
+*Last updated: 27 April 2026 | v0.7.7 | post single-env consolidation (Phase 3)*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -220,19 +220,13 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | `..\..\ANGUS_OS_CANDIDATES.md` | Curated list of FinLang process & discipline files that are candidates for lifting into angus-os. Filtered, not a complete inventory. | When angus-os scaffolding evolves, when new top-level discipline files are added |
 | `..\..\ANGUS_OS_ENGINEERING_CANDIDATES.md` | Curated list of FinLang engineering patterns (source layout, test contracts, CI templates, workspace patterns) that are candidates for lifting into angus-os. Filtered, not a complete code inventory. | When angus-os scaffolding evolves, when new transferable patterns emerge |
 
-### Sandbox-only mirror (`..\..\dev\`)
-
-| File | Purpose | Update When |
-|------|---------|-------------|
-| `prod\CLAUDE.md` | Working contract for Claude Code (tracked in git post-consolidation). Critical safety rules, mandatory workflow, scope/language/git discipline. Edit on a feature branch like any code change. | Edit directly via feature-branch flow |
-
 ---
 
 ## Strategic / Planning Documents
 
 > **Note on date-versioned files:** Some planning docs use a date-appended naming pattern (`<filename>_<DDMMYY>.md`). The most recent dated copy is always the active version. Older copies are historical reference, not actively maintained. Current versions are tracked in the **Current Versions** table below.
 
-> **Note on accessibility:** These files live in Google Drive (private path) and are NOT directly readable from the workspace. Sessions must ask the human to paste contents if needed.
+> **Note on accessibility:** Strategic docs live in `..\strategy-backlog\` (workspace-readable) since the 21 April 2026 reorganisation. Historical Drive-hosted versions exist for some items but are no longer the canonical source. Only the showcase narration script (`showcase_narration_script.md`) remains Drive-only and human-managed; sessions need a human paste for it.
 
 ### Current Versions
 | Pattern | Current Version | Last Updated |
@@ -253,10 +247,12 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | `..\strategy-backlog\SOL-040_reconcile_specification.md` | `--reconcile` feature spec (think tank reviewed) | Spec changes, post-implementation review |
 | `..\strategy-backlog\finlang-post-acquisition-roadmap.md` | Post-acquisition product/platform roadmap | Strategic discussions about post-exit phase |
 | `..\strategy-backlog\archive\roadmap_timeline_050426.mermaid` | Pre-16-April visual roadmap timeline (archived) | Never (archived) |
-| `SANDBOX_PORT_PROCEDURE.md` | Step-by-step procedure for porting sandbox work back to prod | Workflow improvements to port process |
-| `demo_video_pack.md` | Video recording plan and script notes | Before recording demo video |
-| `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase. **Human-managed** — count-sweep target but not reachable from sandbox | Before recording showcase video, after test count changes |
-| `finlang_vertical_analysis.md` | Vertical expansion analysis (procurement, healthcare, insurance) + arbitrary column matching spec | When vertical strategy changes or engine modification is built |
+| `..\strategy-backlog\finlang_vertical_analysis.md` | Vertical expansion analysis (procurement, healthcare, insurance) + arbitrary column matching spec | When vertical strategy changes or engine modification is built |
+| `..\strategy-backlog\FinLang_Pricing.html` | Pricing model artefact | When pricing model is revised |
+| `..\strategy-backlog\PitchDeck-April 2026.pptm` | April 2026 pitch deck | When deck is revised for new audience or strategic reframe |
+| Drive-only: `showcase_narration_script.md` | Voiceover lines mapped to every spacebar press in showcase. **Human-managed** — count-sweep target but not workspace-reachable | Before recording showcase video, after test count changes |
+
+*(Note: `SANDBOX_PORT_PROCEDURE.md` and `demo_video_pack.md` were referenced in earlier versions of this catalog. Sandbox port is moot post-consolidation; demo_video_pack was Drive-historical. Both removed from the catalog.)*
 
 ---
 
@@ -269,7 +265,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | **New canonical field** | `finlang_engine.py` (CANON_FIELDS), `mapping_guide.md` (field table), `rule_language.md` (field reference), `canonical_fields.yaml`, `test_rule_interactions.py` |
 | **New rule operator** | `finlang_engine.py` (parser + evaluator), `rule_language.md`, possibly `test_rule_interactions.py` |
 | **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `prod/CLAUDE.md` (header canary — tracked in git post-consolidation), `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
-| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `prod\CLAUDE.md` Rule 4), `cleanroom_pypi.ps1` (counts in header — always; renamed from cleanroom_test.ps1 in Phase 3 follow-on), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `prod/CLAUDE.md` (header canary line — tracked). **Drive-only, human-managed:** `showcase_narration_script.md`. |
+| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `prod\CLAUDE.md` Rule 4), `cleanroom_test.ps1` (counts in header — always; rename to `cleanroom_pypi.ps1` is planned as Phase 3 follow-on), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `prod/CLAUDE.md` (header canary line — tracked). **Drive-only, human-managed:** `showcase_narration_script.md`. |
 | **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate), re-run `rulepack_linter.py` to verify clean |
 | **Rulepack wildcard change** | `rulepack_linter.py` (re-run to verify clean — exit 0 required before commit), `KNOWN_SAFE_TOKENS` if new safe token needed |
 | **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `verify.py` (`_normalize_amount_string` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
@@ -296,31 +292,37 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 
 ---
 
-## Restructure note (12 April 2026)
+## Historical: 12 April 2026 dev/prod restructure
+
+> **This section documents the 12 April 2026 dev/prod restructure, which was retired in the 27 April 2026 single-env consolidation. Preserved as historical reference. For the current model see post-consolidation notes above and `..\PROJECT_FOLDER_STRUCTURE.md`.**
+>
+> *Section cleaned 27 April 2026 — previously contained corruption artifacts from a search-and-replace operation during post-consolidation sanitization. Restored to original pre-consolidation terms (Phase 12, dev_CLAUDE.md, etc.) inside this clearly-marked historical context.*
 
 This document was updated as part of the dev/prod workspace restructure. Key changes from the 11 April version:
 
 - Header date updated, v0.7.7 baseline reaffirmed
 - Restructure context note added below title
-- **`prod-CLAUDE-pre-consolidation` persistence model documented** — canonical source in `prod\` (gitignored), restored to `dev-CLAUDE-pre-consolidation` by the pre-consolidation refresh procedure.5a `Move-Item` rename
-- **`prod-CLAUDE-pre-consolidation` and `RELEASE_CHECKLIST.md` flagged as gitignored throughout** — both are internal maintainer tooling, live in `prod\` for path coherence but never ship. New Sync Rule 10 covers the general principle.
-- Version Sync Rule expanded to 5 files (added `prod-CLAUDE-pre-consolidation` header canary, with gitignored-on-disk note)
-- New "Internal Process Files" subsection under Source Repo for `RELEASE_CHECKLIST.md`, `prod-CLAUDE-pre-consolidation`, and `DOCUMENT_MAP.md` with explicit visibility column
+- **`dev_CLAUDE.md` persistence model documented** — canonical source at `prod\dev_CLAUDE.md` (gitignored), restored to `dev\CLAUDE.md` by Phase 12.5a `Move-Item` rename after robocopy refresh
+- **`dev_CLAUDE.md` and `RELEASE_CHECKLIST.md` flagged as gitignored throughout** — both were internal maintainer tooling, lived in `prod\` for path coherence but never shipped. Sync Rule 10 covered the general principle.
+- Version Sync Rule expanded to 5 files (added `dev_CLAUDE.md` header canary, with gitignored-on-disk note)
+- New "Internal Process Files" subsection under Source Repo for `RELEASE_CHECKLIST.md`, `dev_CLAUDE.md`, and `DOCUMENT_MAP.md` with explicit visibility column
 - "Source Repo" and "Test Suite Repo" headers annotated with new absolute paths
 - Test Runners section: `cleanroom_test.ps1`, `finlang_showcase.ps1` counts marked as unconditional; `finlang_showcase_public.ps1` and `run_showcase_public.cmd` added
 - Test Scripts section: `test_custom_map.py`, `test_verify.py`, `validate_sandbox_port.py` added (were present in 11 April scan but missing from that version of this doc)
 - Release notes section: v0.7.6 and v0.7.7 entries added
 - Benchmark output note added (scripts ship, output goes to scratch)
 - New "Top-Level Workspace Documents" section for files at `{workspace}\` (above prod), referencing the renamed `ANGUS_OS_*_CANDIDATES.md` files
-- New "Sandbox-only mirror" subsection clarifying `dev-CLAUDE-pre-consolidation` is mirror, not source
-- Strategic / Planning Documents section: accessibility note added (Drive-only, not sandbox-reachable); `showcase_narration_script.md` flagged as human-managed
-- "New test added" row rewritten: removed the "if count strings hardcoded" qualifier; added `finlang_showcase_public.ps1`, `README.md`, `prod-CLAUDE-pre-consolidation` (with gitignored note); added note that gate addition requires explicit human approval per Rule 4
-- "Version bump" row updated to include `prod-CLAUDE-pre-consolidation` header canary with gitignored note
-- New "Sandbox contract change" row pointing all edits at `prod\prod-CLAUDE-pre-consolidation` (gitignored)
+- New "Sandbox-only mirror" subsection clarifying `dev\CLAUDE.md` was mirror, not source (subsection itself retired in 27 April consolidation)
+- Strategic / Planning Documents section: accessibility note added (was Drive-only at the time; strategic docs migrated into `strategy-backlog\` on 21 April 2026); `showcase_narration_script.md` flagged as human-managed
+- "New test added" row rewritten: removed the "if count strings hardcoded" qualifier; added `finlang_showcase_public.ps1`, `README.md`, `dev_CLAUDE.md` (with gitignored note); added note that gate addition requires explicit human approval per Rule 4
+- "Version bump" row updated to include `dev_CLAUDE.md` header canary with gitignored note
+- New "Sandbox contract change" row pointing all edits at `prod\dev_CLAUDE.md` (gitignored)
 - Sync Rule 8 added (unconditional count sweep)
-- Sync Rule 9 added (dev-CLAUDE-pre-consolidation sourced from prod\prod-CLAUDE-pre-consolidation)
-- Sync Rule 10 added (internal process files gitignored, filesystem-refresh is filesystem-level)
-- **Sync Rule 11 added** (13 April 2026): internal process file snapshots live in `scratch\internal_snapshots\v##\`, written by the pre-consolidation refresh procedure step 12.0a. Closes the recoverability gap identified by the thinktank review of the gitignore decision.
+- Sync Rule 9 added (mirror file sourced from gitignored canonical in prod)
+- Sync Rule 10 added (internal process files gitignored, robocopy is filesystem-level)
+- **Sync Rule 11 added** (13 April 2026): internal process file snapshots live in `scratch\internal_snapshots\v##\`, written by Phase 12 step 12.0a. Closes the recoverability gap identified by the thinktank review of the gitignore decision.
+
+> **Post-consolidation status (27 April 2026):** Phase 12, robocopy refresh, dev/prod folder split, `dev_CLAUDE.md` mirror pattern, and Sync Rules 9-10 (in their pre-consolidation form) are all retired. Sync Rule 11 partially survives — internal-snapshot-on-release pattern continues for `RELEASE_CHECKLIST.md` only. See current Sync Rules 9-11 in the "Sync Rules" section above for post-consolidation form.
 
 ---
 
