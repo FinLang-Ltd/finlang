@@ -7,34 +7,34 @@
 
 ## Standards this project inherits
 
-Standards live in `C:\projects\angus-os\`. Work from these canonical paths — don't guess or paraphrase from memory.
+Standards live in `(private angus-os workspace) `. Work from these canonical paths — don't guess or paraphrase from memory.
 
 **Session contract (read first):**
-- `C:\projects\angus-os\.claude\AGENTS.md`
+- `(private angus-os workspace) .claude\AGENTS.md`
 
 **Package-structure standards:**
-- `C:\projects\angus-os\engineering\folder-structure-package.md`
-- `C:\projects\angus-os\engineering\dev-prod-promotion-package.md`
-- `C:\projects\angus-os\engineering\ci-cd-package.md`
-- `C:\projects\angus-os\engineering\gitignore-patterns.md`
-- `C:\projects\angus-os\engineering\claude-md-pattern.md`
+- `(private angus-os workspace) engineering\folder-structure-package.md`
+- `(private angus-os workspace) engineering\dev-prod-promotion-package.md`
+- `(private angus-os workspace) engineering\ci-cd-package.md`
+- `(private angus-os workspace) engineering\gitignore-patterns.md`
+- `(private angus-os workspace) engineering\claude-md-pattern.md`
 
 **Code + security (shared):**
-- `C:\projects\angus-os\engineering\coding-standards.md` (FinLang is the pilot-reviewed source; see `case-studies/finlang/coding-standards-pilot-review-18042026.md`)
-- `C:\projects\angus-os\engineering\machine-grade-checklist.md`
-- `C:\projects\angus-os\engineering\secrets-management.md`
-- `C:\projects\angus-os\engineering\security.md`
-- `C:\projects\angus-os\engineering\security-review-package.md`
-- `C:\projects\angus-os\engineering\security-supply-chain.md`
+- `(private angus-os workspace) engineering\coding-standards.md` (FinLang is the pilot-reviewed source)
+- `(private angus-os workspace) engineering\machine-grade-checklist.md`
+- `(private angus-os workspace) engineering\secrets-management.md`
+- `(private angus-os workspace) engineering\security.md`
+- `(private angus-os workspace) engineering\security-review-package.md`
+- `(private angus-os workspace) engineering\security-supply-chain.md`
 
 **Anti-patterns:**
-- `C:\projects\angus-os\anti-patterns\README.md`
-- `C:\projects\angus-os\anti-patterns\anti-patterns-CHANGELOG.md` (refresh trigger)
+- `(private angus-os workspace) anti-patterns\README.md`
+- `(private angus-os workspace) anti-patterns\anti-patterns-CHANGELOG.md` (refresh trigger)
 
 **Project-specific:**
 - `C:\projects\finlang\strategy-backlog\BACKLOG-finlang.md` (migration in flight; may rename to `BACKLOG.md` — reader handles both)
-- `C:\projects\angus-os\MANIFEST.md`
-- `C:\projects\angus-os\projects.yaml`
+- `(private angus-os workspace) MANIFEST.md`
+- `(private angus-os workspace) projects.yaml`
 
 ---
 
@@ -304,7 +304,7 @@ When updating docs, use **"can"** not **"will"**. After any doc update pass, upd
 - `..\ANGUS_OS_CANDIDATES.md` — curated list of FinLang process & discipline files for angus-os scaffolding
 - `..\ANGUS_OS_ENGINEERING_CANDIDATES.md` — curated list of FinLang engineering patterns for angus-os scaffolding
 
-**Inherited standards (in `C:\projects\angus-os\engineering\`):**
+**Inherited standards (in `(private angus-os workspace) engineering\`):**
 - `DRAFT-folder-structure-package-v3.md` — single-tree pattern this project implements
 - `DRAFT-branch-workflow-package-v1.md` — hooks, dual-remote, four-layer control hierarchy
 - `DRAFT-release-gate-package-v1.md` — release gate spec (8 conditions)
