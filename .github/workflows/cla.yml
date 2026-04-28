@@ -32,8 +32,8 @@ jobs:
           # Your CLA document
           path-to-document: https://github.com/FinLang-Ltd/finlang/blob/main/docs/legal/CLA.md          # Branch to commit the signatures into (your default branch)
           branch: main
-          # Ignore bot accounts
-          allowlist: dependabot[bot],github-actions[bot]
+          # Ignore bot accounts and the repo owner (avoids false-alarm failure emails on owner-authored PRs)
+          allowlist: dependabot[bot],github-actions[bot],angusmcnab
           # Use the same repo/org (fine to keep explicit)
           remote-organization-name: FinLang-Ltd
           remote-repository-name: finlang
