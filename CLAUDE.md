@@ -12,11 +12,12 @@ Standards live in `(private angus-os workspace) `. Work from these canonical pat
 - `(private angus-os workspace) .claude\AGENTS.md`
 
 **Package-structure standards:**
-- `(private angus-os workspace) engineering\folder-structure-package.md`
-- `(private angus-os workspace) engineering\dev-prod-promotion-package.md`
+- `(private angus-os workspace) engineering\DRAFT-folder-structure-package-v3.md`
+- `(private angus-os workspace) engineering\DRAFT-branch-workflow-package-v1.md`
+- `(private angus-os workspace) engineering\DRAFT-release-promotion-package-v1.md`
+- `(private angus-os workspace) engineering\DRAFT-claude-md-pattern-v3.md`
+- `(private angus-os workspace) engineering\DRAFT-gitignore-patterns-v2.md`
 - `(private angus-os workspace) engineering\ci-cd-package.md`
-- `(private angus-os workspace) engineering\gitignore-patterns.md`
-- `(private angus-os workspace) engineering\claude-md-pattern.md`
 
 **Code + security (shared):**
 - `(private angus-os workspace) engineering\coding-standards.md` (FinLang is the pilot-reviewed source)
@@ -53,9 +54,38 @@ Post-consolidation (27 April 2026) the file lives once, tracked in git. The pre-
 
 What this means for you:
 
-- **Edits to this file are persistent and tracked.** If you modify it on a feature branch and merge to main, the change is in git history.
+- **Edits to this file are persistent and tracked.** Path A (trivial doc edits) commit directly to main; Path B (substantive or CC-authored rewrites) go on a feature branch. See § "Workflow doctrine" below.
 - **The header line `Tests: N (G gates)` is a canary.** If it doesn't match the actual test count when you read it, surface to the human — do not auto-edit as a side-effect of feature work.
-- **Updating this file is a normal commit on a feature branch.** Branch → edit → test → commit → merge to main. No special promotion path.
+
+---
+
+## Workflow doctrine — Process Lock 280426
+
+*Locked 28 April 2026. Reference: Process Lock 280426 runbook (executed and archived to `..\scratch\archive\` post-completion).*
+
+> **FinLang uses a solo-maintainer trunk workflow with branch isolation for CC-assisted or substantive work. Main is the working truth; PyPI is protected by the release gate.**
+
+**Trigger test (one-line decision rule):**
+
+> If the change requires me to think about it more than once, or if CC is doing the writing, it goes on a branch.
+
+**Three paths:**
+
+**Path A — Angus-driven, lightweight, on main.** Permitted scope: typos, doc updates, roadmap edits, small single-file config corrections, tiny inspected fixes. Never: version bumps, CHANGELOG entries, release notes, tags (those are Path C). Mechanics: edit in `prod/` on main → `git status` / `git diff` → `quick_check.ps1` if functional → commit → push origin main. **Stop rule:** if the edit unexpectedly expands beyond the intended file/scope, stop and branch before continuing.
+
+**Path B — CC-driven or substantive, branched.** Required scope (non-negotiable): anything CC authors (even one-line fixes), multi-file code changes, engine-semantic changes, packaging/dependency changes, test harness changes, release-gate changes, anything where rollback would be annoying. Mechanics: CC creates a `claude/<auto-name>` branch (CC's auto-naming); deliberate Angus branches use `feat/<name>` or `fix/<name>`. Work happens on the branch; Angus reviews full diff via `git diff main..<branch>`; `quick_check.ps1` against branch state; if satisfied: `git switch main && git merge --no-ff <branch> && git branch -d <branch>` then `git push origin main`. If not: `git branch -D <branch>`. `--no-ff` preserves the branch boundary in main history.
+
+**Path C — Release (PyPI publishing).** Reserved for release state: version bumps across `__init__.py`, `pyproject.toml`, `run_finlang.py`, `canonical_fields.yaml`; CHANGELOG entries; release notes; tags; publishing. **Target state** (build pending, Phase 3 follow-on): `release_preflight.ps1` owns `twine upload` per the 8-condition gate (`angus-os/engineering/DRAFT-release-gate-package-v1.md`). **Current state** (until gate built): `RELEASE_CHECKLIST.md` followed step-by-step; manual `twine upload` permitted ONLY after checklist completion + cleanroom validation. Manual `twine upload` outside that flow is forbidden by policy.
+
+**What changed under Process Lock 280426:**
+
+- Layer 4 (server-side branch protection on `origin/main`) was disabled. Conditional reinstatement triggers: (a) FinLang takes on a contributor; (b) the release gate breaks or is removed; (c) the pre-push hook with path-audit is removed.
+- The `wip` remote plan and Phase 3.5 setup were removed from the queue.
+- PR-required workflow for routine work is no longer the default.
+- Pre-commit hook is now permissive (allows direct main commits per Path A). Discipline lives in this contract, not in mechanical enforcement.
+- Pre-push hook gained a new check: only `refs/heads/main` and `refs/tags/*` may be pushed to `origin`. Feature branches stay local; merge to main locally, then push main. Mechanically enforces "merge before push" without relying on Layer 4.
+
+Layers 1–3 (discipline, tooling, hooks), pre-push path-leak/Drive-pattern detection, single-tree consolidation, test-suite at root + editable install, strategy-backlog folder, DOCUMENT_MAP-driven doc updates, anti-elegance discipline, the release gate spec (target state), and the CLA allowlist all stay in place.
 
 ---
 
@@ -63,12 +93,12 @@ What this means for you:
 
 These are non-negotiable. Violating any of them is a stop-and-ask situation, not a "carry on and fix later":
 
-1. **NEVER commit directly to `main`.** Always create a feature branch first: `git switch -c feat/<name>`. Pre-commit hook blocks direct main commits (with `MERGE_HEAD` allowance for merges). Bypass via `git commit --no-verify` is a CLAUDE.md policy violation requiring explicit human approval.
+1. **Match the work to a path before touching code.** See § "Workflow doctrine — Process Lock 280426". Path A (direct main) is permitted ONLY for Angus-driven typos, doc updates, roadmap edits, tiny single-file config fixes. **Anything CC authors goes on a branch (Path B), no exceptions.** If a Path A edit unexpectedly expands beyond a single intended file or trivial scope, stop and branch before continuing. Pre-commit hook is permissive under Process Lock 280426 — discipline lives here in the working contract, not in mechanical enforcement.
 2. **NEVER run `twine upload` directly.** PyPI publishes flow through `test-suite/release_preflight.ps1` (the release gate). Manual `twine upload` outside the gate is a policy violation. The gate refuses to publish unless 8 conditions pass — no override flag.
-3. **NEVER bump the FinLang version outside the release flow.** Version bumps happen on a `release/v<version>` branch as part of the release process per `release-promotion-package.md` Phase 4. Current shipped version is `0.7.7`.
+3. **NEVER bump the FinLang version outside the release flow.** Version bumps happen on a `release/v<version>` branch as part of the release process per `DRAFT-release-promotion-package-v1.md` Phase 4. Current shipped version is `0.7.7`.
 4. **Test files: extend, don't restructure.** See dedicated section below — this is the most nuanced rule and deserves its own block.
 5. **NEVER use `git add .`** — stage files explicitly so the commit is reviewable.
-6. **Public repo discipline:** FinLang's `origin` is public. Feature branches push to `wip` (private remote), NOT origin. Pre-push hook enforces remote routing. Origin accepts main + tags only.
+6. **Public repo discipline:** FinLang's `origin` is public. The pre-push hook blocks any non-`main`, non-tag push to `origin` — feature branches must stay local. Merge feature branches to main locally, then push main. Bypass via `git push --no-verify` is a CLAUDE.md policy violation requiring explicit human approval. (The previously-planned `wip` remote was retracted under Process Lock 280426; the hook check now does the load-bearing work.)
 
 If a request from the human seems to conflict with any of these rules, surface the conflict first. Don't try to satisfy the request by working around the rule.
 
@@ -139,7 +169,7 @@ If you are uncertain whether a file or change falls into the MAY or MUST NOT cat
 
 Before any changes:
 
-1. Confirm you are NOT on `main`: `git -C {workspace}\prod rev-parse --abbrev-ref HEAD` (if it returns `main`, switch to a feature branch first via `git switch -c feat/<name>`)
+1. Identify which path applies (A/B/C — see § "Workflow doctrine"). **CC-authored work is always Path B.** If Path B, switch to a feature branch first: `git switch -c claude/<auto-name>`. If Path A (Angus-driven, trivial), main is permitted but the stop rule applies if scope expands.
 2. Activate the venv: `cd {workspace}\prod && .\.venv\Scripts\Activate.ps1`
 3. Run `cd ..\test-suite && .\quick_check.ps1`
 4. Confirm all 9 gates PASS
@@ -186,7 +216,7 @@ prod\
 └── .venv\                       — editable install lives here
 ```
 
-The bulk of the test suite lives at `..\test-suite\` (one level up, sibling of dev). That's where new behavioural/integration tests go. See Rule 4 above.
+The bulk of the test suite lives at `..\test-suite\` (one level up, sibling of `prod\`). That's where new behavioural/integration tests go. See Rule 4 above.
 
 ---
 
@@ -257,7 +287,7 @@ Grouped by theme. All three groups apply at all times.
 
 - Do NOT use `git add .` — stage files explicitly.
 - Do NOT run `pip install finlang` from PyPI in this venv — use the editable install.
-- Do NOT configure a remote on this folder's git.
+- Do NOT add additional remotes beyond `origin`. The `wip` remote plan was retracted under Process Lock 280426; the augmented pre-push hook now blocks any non-`main`, non-tag push to `origin` (see Rule 6 in CRITICAL SAFETY RULES).
 - Do NOT attempt to bypass the pre-push hook.
 
 ---
@@ -276,7 +306,7 @@ Grouped by theme. All three groups apply at all times.
 
 - **CLI flag changes**: `run_finlang.py`, `cli_reference.md`, `flags.md`, `workflows.md`, `faq.md`, smoke tests
 - **Test count/gate changes**: `..\test-suite\TEST_SUITE.md`, `DOCUMENT_MAP.md`, `..\test-suite\quick_check.ps1`, `..\test-suite\full_test_suite.ps1`, `..\test-suite\cleanroom_test.ps1`, `finlang_showcase.ps1`, `finlang_showcase_public.ps1`, `RELEASE_CHECKLIST.md`, `README.md`, `CLAUDE.md` (this file's header line). Showcase scripts and cleanroom are the most-missed — check them explicitly. (`..\test-suite\showcase_narration_script.md` is a historical artifact — not count-swept.)
-- **Version bumps**: happen on a `release/v<version>` feature branch, merged to main per `release-promotion-package.md` Phase 4. Not direct on main.
+- **Version bumps**: happen on a `release/v<version>` feature branch, merged to main per `DRAFT-release-promotion-package-v1.md` Phase 4. Not direct on main.
 
 When updating docs, use **"can"** not **"will"**. After any doc update pass, update `DOCUMENT_MAP.md` itself (header date, changed counts).
 
@@ -363,7 +393,9 @@ Do not start on these without explicit human direction. The BACKLOG is the sourc
 
 ## How releases work (post-consolidation)
 
-The pre-consolidation post-release dev refresh procedure is retired (no dev folder to refresh). Releases now follow the branch-based flow per `release-promotion-package.md`:
+**Releases are Path C work.** Routine code work uses Path B (CC-driven, branched); doc/typo/config tweaks use Path A (direct main). See § "Workflow doctrine" for the path model. The Path C release flow is described below.
+
+The pre-consolidation post-release dev refresh procedure is retired (no dev folder to refresh). Releases now follow the branch-based flow per `DRAFT-release-promotion-package-v1.md`:
 
 1. Feature branch → review → merge to main
 2. Version bump on `release/v<version>` branch → merge to main → tag
@@ -384,4 +416,4 @@ What this means for you:
 
 This file is the contract for your behaviour in this folder. If anything in it is wrong, surfaced as wrong, or contradicted by another file you've been given, **stop and ask the human before proceeding**. Don't try to reconcile conflicts in your own head — the human is the tiebreaker.
 
-*Last updated: 27 April 2026 (single-env consolidation Phase 3 — promoted from gitignored dev_CLAUDE source to tracked working contract; baseline v0.7.7, 118 tests across 9 gates; release gate build pending)*
+*Last updated: 28 April 2026 (Process Lock 280426 — solo-maintainer trunk workflow with Path A/B/C model added; Layer 4 retracted, wip remote plan dropped, pre-commit permissive, pre-push now blocks non-main/non-tag pushes to origin. Baseline v0.7.7, 118 tests across 9 gates; release gate build pending.)*
