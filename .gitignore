@@ -212,3 +212,9 @@ bench_out*/
 #Ignore release checklist
 RELEASE_CHECKLIST.md
 
+# Internal working contract — operational discipline, doesn't ship in public repo
+# (Process Lock 280426 reasoning: solo-maintainer + public-by-design retraction
+#  applies to working-contract visibility too. CC sessions read this file from
+#  disk; it just doesn't get committed to public history.)
+CLAUDE.md
+
