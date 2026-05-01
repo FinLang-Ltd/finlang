@@ -1,15 +1,20 @@
 # FinLang Document Map
-*Last updated: 28 April 2026 | v0.7.7 | Process Lock 280426 (solo-maintainer trunk workflow; Layer 4 retracted; wip remote plan dropped; pre-push gained origin push restriction)*
+*Last updated: 1 May 2026 | v0.7.7 | CLAUDE.md gitignore alignment (1 May) on top of Process Lock 280426 (28 April — solo-maintainer trunk workflow; Layer 4 retracted; wip remote plan dropped; pre-push gained origin push restriction)*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
 **Post-consolidation note (27 April 2026):** FinLang lives in a single-tree workspace at `{workspace}\` with subfolders `prod\` (this repo, the tracked codebase), `test-suite\` (external validation + release gate), `commercial\` (rulepacks, partitioned), `scratch\` (disposable), `strategy-backlog\` (BACKLOG/ROADMAP/SOL specs). This document describes files in `prod\` and `..\..\test-suite\` from the perspective of `prod\`. Workspace-level docs live at `{workspace}\` — see the "Top-Level Workspace Documents" section below. For the full layout see `..\..\PROJECT_FOLDER_STRUCTURE.md`.
 
-**Persistence model for `prod\CLAUDE.md` (Process Lock 280426, 28 April 2026):** the working contract lives at `prod\CLAUDE.md`, **tracked in git**. Updates follow the workflow doctrine in `prod\CLAUDE.md` § "Workflow doctrine — Process Lock 280426" — Path A (direct main) for trivial doc/typo edits, Path B (branch + merge) for CC-driven or substantive rewrites. Pre-consolidation canonical-source-mirror pattern is retired.
+**Persistence model for `prod\CLAUDE.md` (1 May 2026 update):** the working contract lives at `prod\CLAUDE.md`, **gitignored** (same pattern as `RELEASE_CHECKLIST.md`). It sits in `prod\` for path coherence and is read by every CC session, but does not ship in public git history; recovery relies on external workspace backup. The Path A/B/C branch model from Process Lock 280426 (28 April 2026) doesn't mechanically apply here — there are no commits to gate — but the editing discipline still does: Angus's trivial edits go directly; CC-authored or substantive rewrites get diff-reviewed before save. The pre-consolidation canonical-source-mirror pattern remains retired; the file lives once, in `prod\`, gitignored.
 
 ### Version Sync Rule
-Version numbers must remain consistent across these **five** files on every release:
-`__init__.py`, `pyproject.toml`, `run_finlang.py` (fallback), `canonical_fields.yaml`, `prod/CLAUDE.md` (header canary line — tracked in git post-consolidation)
+Version numbers must remain consistent across these **five** files on every release. Four are tracked, one is gitignored — the gitignored one is the easy one to forget because it won't surface in `git status` or any pre-commit check:
+
+- `__init__.py` — tracked
+- `pyproject.toml` — tracked
+- `run_finlang.py` (fallback `__version__`) — tracked
+- `canonical_fields.yaml` — tracked
+- `prod/CLAUDE.md` (header canary line) — **gitignored** since 1 May 2026; check explicitly on every release
 
 `CHANGELOG.md` also gets a new entry every release but doesn't carry the version string in the same way.
 
@@ -45,14 +50,14 @@ FinLang consists of five major components:
 | `src/finlang/utils/resources.py` | Package resource loading helpers | Structural changes to pack/map loading |
 | `tests/contracts/canonical_fields.yaml` | Version string, engine input/output field lists for AST contract tests | Version bump, new canonical fields |
 
-### Internal Process Files (in `prod\`, gitignored — never ship)
+### Internal Process Files (in `prod\`, mixed visibility)
 
-These files live in `prod\` because they reference prod-side files extensively, but they are gitignored — they don't ship to GitHub or PyPI. They're internal maintainer tooling.
+These files live in `prod\` because they reference prod-side files extensively. Two are **gitignored** maintainer tooling that doesn't ship to GitHub or PyPI (`RELEASE_CHECKLIST.md`, `CLAUDE.md`); one is **tracked** and ships as part of the published repo (`DOCUMENT_MAP.md` — it's the file map for the public codebase).
 
 | File | Contains | Visibility | Update When |
 |------|----------|-----------|-------------|
 | `RELEASE_CHECKLIST.md` | **Operational v0.7.x content** (March 2026 vintage, restored 28 April 2026 from `..\..\scratch\internal_snapshots\v0.7.7\` during Process Lock 280426 sidetrack — replaces the earlier post-consolidation placeholder). 11-step release process: Version Bump → Documentation → Local Dev → Run Tests → Commit & Tag → Build → Lemon Squeezy → Publish PyPI → Clean Room → GitHub Release → Announce. **Targeted updates deferred to separate Path B task post-Process-Lock**: paths reflecting single-tree (no `dev/`), current dates, Path C alignment language (Process Lock 280426 — manual `twine upload` permitted only after checklist completion + cleanroom validation, until release gate is built). The pre-consolidation copy remains archived at `..\..\scratch\archive\RELEASE_CHECKLIST-pre-consolidation-20260427.md`. | **Gitignored** — internal-only (per Rule 6 of folder-structure-package single-tree variant) | When the deferred Path B targeted updates land; or when release steps materially change |
-| `CLAUDE.md` | **Working contract** for Claude Code — tracked in git as part of the prod repo. Workflow doctrine (Process Lock 280426 — Path A/B/C model with key phrase + trigger test), critical safety rules, mandatory first step, Rule 4 (test files), scope/language/git discipline, header canary line (`Tests: N (G gates)`), current focus. | **Tracked** in git | Every release (header canary line), behaviour rule changes, current focus shift, workflow-doctrine changes |
+| `CLAUDE.md` | **Working contract** for Claude Code — gitignored as of 1 May 2026 (same pattern as `RELEASE_CHECKLIST.md`). Workflow doctrine (Process Lock 280426 — Path A/B/C model with key phrase + trigger test), critical safety rules, mandatory first step, Rule 4 (test files), scope/language/git discipline, header canary line (`Tests: N (G gates)`), current focus. | **Gitignored** — internal-only; recovery via external workspace backup (no git history) | Every release (header canary line — manual check, not surfaced by `git status`), behaviour rule changes, current focus shift, workflow-doctrine changes |
 | `DOCUMENT_MAP.md` | This file — authoritative map of every file, version sync rules, change scenarios | **Tracked** — ships with repo | New files, new change scenarios, structural changes |
 
 ### Documentation (`docs/`)
@@ -211,8 +216,8 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 
 | File | Purpose | Update When |
 |------|---------|-------------|
-| `..\..\CLAUDE.md` | Top-level project orientation — visitor map, dev/prod model summary, where to find what | Project structure changes, new top-level files |
-| `..\..\PROJECT_FOLDER_STRUCTURE.md` | Single-tree folder pattern (post-consolidation 27 April 2026), operational rules, two-CLAUDE.md single-tree variant, FinLang-specific notes (public repo + dual-remote, server-side branch protection, release gate) | Structure changes, new operational rules |
+| `..\..\CLAUDE.md` | Top-level project orientation — visitor map, single-tree workspace model summary (post-consolidation 27 April 2026, post-Process-Lock 28 April 2026), where to find what | Project structure changes, new top-level files |
+| `..\..\PROJECT_FOLDER_STRUCTURE.md` | Single-tree folder pattern (post-consolidation 27 April 2026), operational rules, two-CLAUDE.md single-tree variant, solo-maintainer trunk workflow as reasoned deviation (Process Lock 280426, 28 April 2026 — single `origin` remote with augmented pre-push hook blocking non-`main`/non-tag pushes; Layer 4 retracted with conditional reinstatement triggers; release gate as target state) | Structure changes, new operational rules, deviation status changes |
 | `..\strategy-backlog\BACKLOG.md` | Tactical project backlog (Now / Next / Later / Done). Canonical source for in-flight work. | When items move between horizons, are shipped, or new items land |
 | `..\strategy-backlog\ROADMAP.md` | Living strategic roadmap. Quarterly horizons + exit calibration. | On strategic shifts, portfolio rebalances |
 | `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | **Archived** 21 April 2026. Historical engineering backlog from v0.7.7 cycle. Not maintained — see BACKLOG.md for current work. | Never (archived) |
@@ -264,15 +269,15 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | **New discover/suggest flag** | `discover.py` or `suggest.py` (argparse), `cli_reference.md`, `flags.md`, `test_discover_suggest.py` if testable |
 | **New canonical field** | `finlang_engine.py` (CANON_FIELDS), `mapping_guide.md` (field table), `rule_language.md` (field reference), `canonical_fields.yaml`, `test_rule_interactions.py` |
 | **New rule operator** | `finlang_engine.py` (parser + evaluator), `rule_language.md`, possibly `test_rule_interactions.py` |
-| **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `prod/CLAUDE.md` (header canary — tracked in git post-consolidation), `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
-| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `prod\CLAUDE.md` Rule 4), `cleanroom_test.ps1` (counts in header — always; rename to `cleanroom_pypi.ps1` is planned as Phase 3 follow-on), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `prod/CLAUDE.md` (header canary line — tracked). (`showcase_narration_script.md` is no longer count-swept — historical artifact from pre-v0.7.7 demo recording.) |
+| **Version bump** | `__init__.py`, `pyproject.toml`, `run_finlang.py` fallback, `canonical_fields.yaml`, `prod/CLAUDE.md` (header canary — **gitignored** since 1 May 2026; check manually because `git status` won't surface it), `CHANGELOG.md`, release notes, doc `Last verified:` headers, `compliance_pack.md` header |
+| **New test added** | Test script (in `..\..\test-suite\` for behavioural, `tests\contracts\` for AST), `TEST_SUITE.md` (counts, descriptions), `quick_check.ps1` and `full_test_suite.ps1` (counts always; orchestration only if new gate — gate addition needs explicit human approval per `prod\CLAUDE.md` Rule 4), `cleanroom_test.ps1` (counts in header — always; rename to `cleanroom_pypi.ps1` is planned as Phase 3 follow-on), `finlang_showcase.ps1` and `finlang_showcase_public.ps1` (counts in banner + final summary — always), `RELEASE_CHECKLIST.md` (counts in quick reference table — gitignored), `DOCUMENT_MAP.md` (test scripts table), `README.md` (if test counts mentioned), `prod/CLAUDE.md` (header canary line — **gitignored** since 1 May 2026; check manually, `git status` won't surface it). (`showcase_narration_script.md` is no longer count-swept — historical artifact from pre-v0.7.7 demo recording.) |
 | **Pack content change** | Rulepack `.fin` file, `rulepacks.md`, `test_rule_correctness.py` (tightly coupled), golden baselines (regenerate), re-run `rulepack_linter.py` to verify clean |
 | **Rulepack wildcard change** | `rulepack_linter.py` (re-run to verify clean — exit 0 required before commit), `KNOWN_SAFE_TOKENS` if new safe token needed |
 | **Amount parsing change** | `run_finlang.py` (`_to_number`), `discover.py` (`_to_number` synced copy), `verify.py` (`_normalize_amount_string` synced copy), `amount_synthesis.md`, `i18n_examples.md`, adversarial tests, integrity test |
 | **Benchmark re-run** | `benchmarks.md`, heatmap PNGs, `workflows.md` (throughput table). Output goes to `..\..\scratch\benchmarks\v##\`, never into `prod\` or `dev\`. |
 | **New demo step** | `finlang_demo_v4.ps1`, possibly new CSV/map files in demo folder |
 | **New regional format** | Test CSV, `run_test_matrix.ps1` (new case), golden baselines, `i18n_examples.md`, possibly `mapping_guide.md` |
-| **Working contract change** (CC behaviour rules, current focus, etc) | `prod\CLAUDE.md` (tracked in git — Path B if CC-authored or substantive; Path A if Angus-driven typo/clarification per `prod\CLAUDE.md` § "Workflow doctrine") |
+| **Working contract change** (CC behaviour rules, current focus, etc) | `prod\CLAUDE.md` (**gitignored** since 1 May 2026 — no commits to gate, but the editing discipline from `prod\CLAUDE.md` § "Workflow doctrine" still applies: Angus-driven typo/clarification edits go directly; CC-authored or substantive rewrites get diff-reviewed before save) |
 
 ---
 
@@ -286,8 +291,8 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 6. **Benchmark docs only update when re-benchmarked** — don't update version headers unless data is re-validated.
 7. **`_normalize_amount_string` in `verify.py` mirrors `_to_number` logic** — keep synced on amount parsing changes.
 8. **Count sweep is unconditional** for `cleanroom_test.ps1`, `finlang_showcase.ps1`, and `finlang_showcase_public.ps1` — these were the most-missed files during the v0.7.7 release. The old "if count strings hardcoded" qualifier was the loophole that caused them to be missed. They always have hardcoded counts.
-9. **`prod\CLAUDE.md` is tracked in git** — the working contract is a first-class tracked artifact. Edit per the workflow doctrine: Path A for trivial edits, Path B for substantive rewrites or anything CC authors. The pre-consolidation canonical-source-mirror pattern is retired.
-10. **Internal process files in `prod\` are gitignored**, not committed. Applies to `RELEASE_CHECKLIST.md` (and any future maintainer-only tooling). Lives in `prod\` for path coherence but doesn't ship. The `prod\.gitignore` lists the filename explicitly.
+9. **`prod\CLAUDE.md` is gitignored** (1 May 2026) — same pattern as `RELEASE_CHECKLIST.md`. The working contract lives in `prod\` for path coherence and is read by every CC session, but does not ship in public git history. Recovery relies on external workspace backup. The Path A/B/C branch model from Process Lock 280426 doesn't mechanically apply (no commits to gate), but the editing discipline does: Angus-driven trivial edits go directly; CC-authored or substantive rewrites get diff-reviewed before save. The pre-consolidation canonical-source-mirror pattern remains retired.
+10. **Internal process files in `prod\` are gitignored**, not committed. Currently applies to `RELEASE_CHECKLIST.md` and `prod\CLAUDE.md` (and any future maintainer-only tooling). They live in `prod\` for path coherence but don't ship. The `prod\.gitignore` lists each filename explicitly.
 11. **Internal process file snapshots live in `..\..\scratch\internal_snapshots\v##\`** — one folder per release, containing `RELEASE_CHECKLIST.md` (and any other gitignored maintainer-only tooling) as of that release. Written as part of release Phase 8 of `release-promotion-package.md`. Not tracked by git (scratch is disposable) but preserved via external workspace backup for version archaeology. Recovery mechanism for the gitignored-internal-tooling pattern (Rule 6 corollary in folder-structure-package).
 
 ---
