@@ -252,7 +252,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Component | Version | Status |
 |:--|:--|:--|
 | Core Engine      | v0.7.7   | ✅ Production-Ready  |
-| CLI Suite        | v0.7.7   | ✅ Validated (118 tests, 9 gates) |
+| CLI Suite        | v0.7.7   | ✅ Validated (134 tests, 10 gates) |
 | Discover/Suggest | v0.7.7   | ✅ 97.8% accuracy    |
 | Integrity Test   | v0.7.7   | ✅ 20M rows verified, ~217K rows/sec FastIO |
 | Verify           | v0.7.7   | ✅ Built-in `--verify` / `--verify-full` |

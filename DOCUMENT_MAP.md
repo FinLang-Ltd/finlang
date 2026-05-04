@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 1 May 2026 | v0.7.7 | CLAUDE.md gitignore alignment (1 May) on top of Process Lock 280426 (28 April — solo-maintainer trunk workflow; Layer 4 retracted; wip remote plan dropped; pre-push gained origin push restriction)*
+*Last updated: 4 May 2026 | v0.7.7 baseline (v0.7.8 in flight) | SOL-040 Branch 2: Gate 10 added to daily suite (134 tests, 10 gates), `reconcile.py` + `test_reconcile.py` rows added, four demo files filed, sync rule 12 added for reconcile↔run_finlang argparse coupling. Builds on 1 May CLAUDE.md gitignore alignment + Process Lock 280426 (28 April).*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -26,9 +26,9 @@ FinLang consists of five major components:
 
 1. **Engine** — Rule parsing and deterministic execution (`finlang_engine.py`)
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
-3. **Tools** — Discovery, rule generation, and integrity verification (`discover.py`, `suggest.py`, `verify.py`)
+3. **Tools** — Discovery, rule generation, integrity verification, and ML reconciliation (`discover.py`, `suggest.py`, `verify.py`, `reconcile.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
-5. **Validation Infrastructure** — 118-test daily suite + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines
+5. **Validation Infrastructure** — 134-test daily suite (10 gates) + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines, ML reconciliation
 
 ---
 
@@ -45,6 +45,7 @@ FinLang consists of five major components:
 | `src/finlang/tools/discover.py` | Discovery tool: argparse, `_to_number` (synced copy), candidate extraction, exclude-aware filtering | New discover flags, changes to amount parsing, exclude logic changes |
 | `src/finlang/tools/suggest.py` | Rule generator: fuzzy/exact modes, dedup, quote styles, append/overwrite | New suggest flags, output format changes |
 | `src/finlang/tools/verify.py` | Post-engine integrity verification: SHA-256 fingerprinting, fast/full modes, artifact generation | Verification logic changes, new verification modes |
+| `src/finlang/tools/reconcile.py` | Independent ML validation layer (SOL-040, v0.7.8): positional alignment, field comparison, audit linkage from `audit.json`, JSON+CSV artifact generation. Decoupled from engine — post-engine hook called from `run_finlang.py`. | New reconcile flags, alignment modes (Phase 2: key-based), report schema changes, audit-extraction logic changes |
 | `src/finlang/mapping/bank.map.json` | Default header mapping (date, counterparty, memo, amount with aliases + debit/credit) | New bank format support |
 | `src/finlang/rulepacks/*.fin` | 8 bundled packs: retail, transport, subs, travel, financial, compliance, sanity, examples | Pack content changes, new packs added |
 | `src/finlang/utils/resources.py` | Package resource loading helpers | Structural changes to pack/map loading |
@@ -131,7 +132,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `quick_check.ps1` | Daily gate runner (9 gates, 118 tests + rulepack linter), single-line-per-gate display | New daily gates, test count changes |
+| `quick_check.ps1` | Daily gate runner (10 gates, 134 tests + rulepack linter), single-line-per-gate display. Wall-clock ~100–140s typical post-Gate-10. | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes, **test count strings in header (always)** |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
@@ -153,6 +154,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 | `test_rule_correctness.py` | 45 acceptance | Golden-path: categories, flags, structural integrity on known data; _to_number contracts; --dayfirst | Pack content changes, engine output changes |
 | `test_custom_map.py` | 8 map pipeline | Custom --map flag: foreign header resolution, debit/credit synthesis, non-ASCII headers, memo mapping, error paths (malformed/partial map), multi-row throughput | Mapping logic changes, new map error paths, canonical schema changes |
 | `test_verify.py` | 8 verify | Integrity verification: --verify (fast), --verify-full, --verify-output-dir, tampered output detection | Verification logic or CLI integration changes |
+| `test_reconcile.py` | 16 reconcile (Gate 10) | `--reconcile` ML validation: 12 happy/edge tests + 3 validation rejection tests + 1 verify+reconcile coexistence regression. Subprocess-based plus 1 module-level test for tampered-output coexistence. Wall-clock ~25–65s. | Reconcile logic changes, CLI argparse changes, new validation rules, new exit-code paths |
 | `run_test_matrix.ps1` | 6 golden masters | SHA256 baselines for US/UK/EU/debit/pipe/CR-DR formats | New regional formats, output changes |
 | `adversarial_tests.ps1` | 8 edge cases | Mixed delimiters, duplicate headers, CR/DR, pipe delimiter, scientific notation | New edge case support |
 | `integrity_testv2.py` | Scale integrity | SHA-256 fingerprinting at 5K-20M rows | Changes to data hardening or amount normalisation |
@@ -207,6 +209,10 @@ Demo data files live in the **demo subfolder** (`test-suite/demo/`).
 | `demo_eu_transactions.csv` | 8 EU format transactions (semicolons, comma decimals, € symbols) | i18n demo changes |
 | `demo_eu_transactions_de.csv` | 8 German header transactions (datum, betrag, beschreibung, vermerk) | i18n demo changes |
 | `demo_de.map.json` | German → canonical mapping | When German demo data changes |
+| `demo_reconcile_input.csv` | 15 corporate treasury transactions including the spec's killer CAYMAN ISLANDS TRUST row. Paired with `demo_reconcile_rules.fin` for the SOL-040 reconcile demo. | SOL-040 demo data changes |
+| `demo_reconcile_rules.fin` | Purpose-built minimal ruleset (10 rules) for the reconcile demo. Includes "Compliance: Offshore Jurisdictions" listed first for narration prominence. NOT a fork of `demo_corporate_transactions.fin`. | SOL-040 demo ruleset changes |
+| `demo_reconcile_ml_clean.csv` | Happy-path ML output: 15 rows, categories mirror FinLang's output exactly. Used to demonstrate exit 0 / status PASS. | SOL-040 demo data changes |
+| `demo_reconcile_ml_mismatches.csv` | Drift-path ML output: 15 rows with 2 deliberate mismatches — SHELL TRADING (ML "Utilities" vs FinLang "Energy & Commodities") and the killer CAYMAN ISLANDS TRUST (ML "Treasury Operations" vs FinLang "Compliance: Offshore Jurisdictions"). Demonstrates exit 3 / status REVIEW REQUIRED. | SOL-040 demo data changes |
 
 ---
 
@@ -294,6 +300,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 9. **`prod\CLAUDE.md` is gitignored** (1 May 2026) — same pattern as `RELEASE_CHECKLIST.md`. The working contract lives in `prod\` for path coherence and is read by every CC session, but does not ship in public git history. Recovery relies on external workspace backup. The Path A/B/C branch model from Process Lock 280426 doesn't mechanically apply (no commits to gate), but the editing discipline does: Angus-driven trivial edits go directly; CC-authored or substantive rewrites get diff-reviewed before save. The pre-consolidation canonical-source-mirror pattern remains retired.
 10. **Internal process files in `prod\` are gitignored**, not committed. Currently applies to `RELEASE_CHECKLIST.md` and `prod\CLAUDE.md` (and any future maintainer-only tooling). They live in `prod\` for path coherence but don't ship. The `prod\.gitignore` lists each filename explicitly.
 11. **Internal process file snapshots live in `..\..\scratch\internal_snapshots\v##\`** — one folder per release, containing `RELEASE_CHECKLIST.md` (and any other gitignored maintainer-only tooling) as of that release. Written as part of release Phase 8 of `release-promotion-package.md`. Not tracked by git (scratch is disposable) but preserved via external workspace backup for version archaeology. Recovery mechanism for the gitignored-internal-tooling pattern (Rule 6 corollary in folder-structure-package).
+12. **`reconcile.py` ↔ `run_finlang.py` argparse coupling** (SOL-040, v0.7.8) — the three reconcile flags (`--reconcile`, `--reconcile-fields`, `--reconcile-output-dir`) are declared in `run_finlang.py` argparse and consumed by `run_reconciliation()` in `reconcile.py`. New reconcile flags require coordinated edits in both files: argparse declaration + validation block + post-engine hook call in `run_finlang.py`; signature parameter in `run_reconciliation()` and downstream comparison/report logic in `reconcile.py`. The post-engine hook also coexists with `--verify` via the `post_engine_failure` flag pattern — both report independently per spec §3 line 201; do not regress to immediate `sys.exit(3)` on either side.
 
 ---
 
