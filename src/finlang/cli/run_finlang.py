@@ -922,6 +922,11 @@ def main(args_list=None):
     ap.add_argument("--verify-full", action="store_true", help="Full integrity verification (fingerprint + field comparison).")
     ap.add_argument("--verify-output-dir", default=None, help="Directory for verification artifacts (JSON report + proof CSV). Requires --verify or --verify-full.")
 
+    # Reconciliation flags (v0.7.8, SOL-040) — independent ML validation layer
+    ap.add_argument("--reconcile", default=None, help="Path to ML output CSV to reconcile against. Requires --audit and --audit-mode full.")
+    ap.add_argument("--reconcile-fields", default="category", help="Comma-separated fields to compare. Default: category.")
+    ap.add_argument("--reconcile-output-dir", default=None, help="Directory for reconciliation artifacts (JSON report + mismatches CSV).")
+
     ap.epilog = (
     "Environment Variables:\n"
     "  FINLANG_SAFE_TEXT=0   Disable CSV injection protection (for benchmarking)\n"
@@ -957,6 +962,15 @@ def main(args_list=None):
     # Validate --verify-output-dir requires --verify or --verify-full
     if args.verify_output_dir and not (args.verify or args.verify_full):
         print("FATAL: --verify-output-dir requires --verify or --verify-full.", file=sys.stderr); sys.exit(2)
+
+    # Validate --reconcile requires --audit and --audit-mode full (SOL-040 design point)
+    if args.reconcile:
+        if not args.audit:
+            print("FATAL: --reconcile requires --audit for mismatch reasoning.", file=sys.stderr); sys.exit(2)
+        if args.audit_mode != "full":
+            print("FATAL: --reconcile requires --audit-mode full for mismatch reasoning.", file=sys.stderr); sys.exit(2)
+    if args.reconcile_output_dir and not args.reconcile:
+        print("FATAL: --reconcile-output-dir requires --reconcile.", file=sys.stderr); sys.exit(2)
 
     # Check pyarrow if fastio is requested
     if args.fastio:
@@ -1180,7 +1194,12 @@ def main(args_list=None):
             print(f"     engine      : {max(0, t_engine - t_norm):8.4f}")
             print(f"     write       : {max(0, t_write - t_engine):8.4f}")
 
-        # --- Post-engine verification phase (v0.7.6) ---
+        # --- Post-engine validation phases (v0.7.6 verify, v0.7.8 reconcile) ---
+        # Per SOL-040 spec: verify and reconcile are orthogonal and report
+        # independently. Both run regardless of which (if any) fails. Exit
+        # code 3 if either fails.
+        post_engine_failure = False
+
         if args.verify or args.verify_full:
             from finlang.tools.verify import run_verification
 
@@ -1197,7 +1216,33 @@ def main(args_list=None):
                 date_format=args.date_format,
             )
             if not verify_result.success:
-                sys.exit(3)  # Distinct exit code for verification failure
+                post_engine_failure = True
+
+        if args.reconcile:
+            from finlang.tools.reconcile import run_reconciliation
+
+            reconcile_fields = [s.strip() for s in args.reconcile_fields.split(",") if s.strip()]
+            try:
+                reconcile_result = run_reconciliation(
+                    finlang_output=out_path,
+                    ml_output=args.reconcile,
+                    reconcile_fields=reconcile_fields,
+                    output_dir=args.reconcile_output_dir,
+                    audit_path=args.audit,
+                    headless=args.headless,
+                )
+            except FileNotFoundError as e:
+                print(f"FATAL: {e}", file=sys.stderr)
+                sys.exit(1)
+            except ValueError as e:
+                # Row count mismatch and similar structural problems
+                print(f"FATAL: {e}", file=sys.stderr)
+                sys.exit(1)
+            if not reconcile_result.success:
+                post_engine_failure = True
+
+        if post_engine_failure:
+            sys.exit(3)  # Distinct exit code for post-engine check failure
 
     except SystemExit as e:
         # Handle controlled exits
