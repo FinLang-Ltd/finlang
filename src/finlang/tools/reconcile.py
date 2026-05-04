@@ -28,9 +28,10 @@ NamedTuple result, optional artifact directory, headless mode.
 import csv
 import json
 import os
+import sys
 import time
 from datetime import datetime, timezone
-from typing import NamedTuple, List, Optional, Dict, Any
+from typing import NamedTuple, List, Optional, Dict, Any, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -48,6 +49,11 @@ class ReconcileResult(NamedTuple):
     duration_seconds: float
     finlang_output_file: str
     ml_output_file: str
+    # audit_entries_loaded: count of audit entries indexed by row.
+    #   0  = audit_path not provided (no audit requested)
+    #   -1 = audit_path provided but file missing or unparseable
+    #   >0 = number of rule-attributed entries loaded
+    audit_entries_loaded: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -129,33 +135,82 @@ def _align_positional(
         )
 
 
+def _validate_field_presence(
+    rows: List[Dict[str, str]],
+    fields: List[str],
+    source_label: str,
+) -> None:
+    """Validate that each reconcile field exists (case-insensitively) in rows.
+
+    Phase 1 contract: both FinLang output and ML output must contain every
+    requested reconcile field. A missing field on either side is a hard
+    error (caller exits with code 1) rather than silently treating every
+    row as a mismatch against an empty value.
+
+    Raises:
+        ValueError: If any reconcile field is absent from rows[0].keys().
+    """
+    if not rows:
+        return  # Empty CSVs are caught by alignment, not here.
+    available_lower = {k.lower() for k in rows[0].keys()}
+    missing = [f for f in fields if f.lower() not in available_lower]
+    if missing:
+        raise ValueError(
+            f"Reconcile field(s) not found in {source_label}: {missing}. "
+            f"Available columns: {sorted(rows[0].keys())}"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Audit linkage
 # ---------------------------------------------------------------------------
 
-def _load_audit_index(audit_path: Optional[str]) -> Dict[int, Dict[str, str]]:
-    """Build a row-index → {rule_name, reason} map from audit.json.
+def _safe_reason(match: Any) -> str:
+    """Extract a defensively-sanitised string reason from match conditions.
 
-    Returns empty dict if audit_path is None or audit file is missing.
-    Tolerates malformed audit entries (returns what it can parse).
+    Defensive against degenerate audit-entry shapes — if `match` is not a
+    list, or its first element is not already a string, return empty.
+    Truncate to 200 chars. Prevents shipping JSON-stringified Python
+    representations of unexpected types into mismatch CSVs.
+    """
+    if not isinstance(match, list) or not match:
+        return ""
+    first = match[0]
+    if not isinstance(first, str):
+        return ""
+    return first[:200]
+
+
+def _load_audit_index(audit_path: Optional[str]) -> Tuple[Dict[int, Dict[str, str]], int]:
+    """Build a row-index → {rule_name, reason} map from audit.json.
 
     Audit JSON schema (lite/full mode):
         [
           {"index": 0, "rule": "Energy: Shell", "changes": {...}},
           ...
         ]
+
+    Returns:
+        Tuple of (index_dict, status_count).
+            status_count == 0  → audit_path not provided
+            status_count == -1 → audit_path provided but file missing or
+                                 unparseable (caller should warn)
+            status_count >  0  → number of indexed entries
     """
-    if not audit_path or not os.path.exists(audit_path):
-        return {}
+    if not audit_path:
+        return {}, 0
+
+    if not os.path.exists(audit_path):
+        return {}, -1
 
     try:
         with open(audit_path, "r", encoding="utf-8") as f:
             audit_entries = json.load(f)
     except (json.JSONDecodeError, OSError):
-        return {}
+        return {}, -1
 
     if not isinstance(audit_entries, list):
-        return {}
+        return {}, -1
 
     index: Dict[int, Dict[str, str]] = {}
     for entry in audit_entries:
@@ -165,16 +220,13 @@ def _load_audit_index(audit_path: Optional[str]) -> Dict[int, Dict[str, str]]:
         if not isinstance(idx, int):
             continue
         rule_name = entry.get("rule", "")
-        # Brief reason: rule name + first match condition if present
-        reason = ""
-        match = entry.get("match")
-        if isinstance(match, list) and match:
-            reason = str(match[0])
+        if not isinstance(rule_name, str):
+            rule_name = ""
         index[idx] = {
-            "rule_name": str(rule_name),
-            "reason": reason,
+            "rule_name": rule_name,
+            "reason": _safe_reason(entry.get("match")),
         }
-    return index
+    return index, len(index)
 
 
 # ---------------------------------------------------------------------------
@@ -261,17 +313,29 @@ def run_reconciliation(
     """
     t0 = time.perf_counter()
     fields = list(reconcile_fields) if reconcile_fields else ["category"]
+    if not fields:
+        # Defensive: empty fields list reaches here only if caller built one.
+        # The CLI rejects --reconcile-fields="" at parse time (exit 2).
+        raise ValueError("reconcile_fields must contain at least one field name.")
 
     finlang_rows = _read_csv_rows(finlang_output)
     ml_rows = _read_csv_rows(ml_output)
 
     _align_positional(finlang_rows, ml_rows)
 
-    # Validate that each reconcile field exists in at least one of the
-    # outputs. Empty/missing fields on one side count as mismatches against
-    # any non-empty value on the other side — handled in _compare_rows via
-    # _resolve_field returning empty string.
-    audit_index = _load_audit_index(audit_path)
+    # Field-presence check: each reconcile field must exist on BOTH sides.
+    # Missing on either side = exit 1 (structural error), not exit 3.
+    _validate_field_presence(finlang_rows, fields, "FinLang output")
+    _validate_field_presence(ml_rows, fields, "ML output")
+
+    audit_index, audit_count = _load_audit_index(audit_path)
+    if audit_count == -1 and not headless:
+        print(
+            f"WARN: --reconcile audit linkage requested but '{audit_path}' "
+            f"could not be loaded. Mismatches will lack rule attribution.",
+            file=sys.stderr,
+        )
+
     mismatches = _compare_rows(finlang_rows, ml_rows, fields, audit_index)
 
     rows_compared = len(finlang_rows)
@@ -289,6 +353,7 @@ def run_reconciliation(
         duration_seconds=round(duration, 3),
         finlang_output_file=os.path.basename(finlang_output),
         ml_output_file=os.path.basename(ml_output),
+        audit_entries_loaded=audit_count,
     )
 
     if not headless:
@@ -356,6 +421,8 @@ def _write_report_json(result: ReconcileResult, output_dir: str) -> None:
         "matches": result.matches,
         "mismatches": result.mismatches,
         "match_rate_percent": match_rate,
+        "perfect_match": result.success,  # closes 99.998% rounding ambiguity
+        "audit_entries_loaded": result.audit_entries_loaded,
         "duration_seconds": result.duration_seconds,
         "status": "PASS" if result.success else "REVIEW REQUIRED",
     }

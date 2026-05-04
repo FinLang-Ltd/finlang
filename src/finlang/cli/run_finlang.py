@@ -969,6 +969,10 @@ def main(args_list=None):
             print("FATAL: --reconcile requires --audit for mismatch reasoning.", file=sys.stderr); sys.exit(2)
         if args.audit_mode != "full":
             print("FATAL: --reconcile requires --audit-mode full for mismatch reasoning.", file=sys.stderr); sys.exit(2)
+        # Reject empty/whitespace-only --reconcile-fields at parse time
+        _reconcile_fields_parsed = [s.strip() for s in args.reconcile_fields.split(",") if s.strip()]
+        if not _reconcile_fields_parsed:
+            print("FATAL: --reconcile-fields cannot be empty (got '%s')." % args.reconcile_fields, file=sys.stderr); sys.exit(2)
     if args.reconcile_output_dir and not args.reconcile:
         print("FATAL: --reconcile-output-dir requires --reconcile.", file=sys.stderr); sys.exit(2)
 
