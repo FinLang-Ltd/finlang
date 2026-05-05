@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 4 May 2026 | v0.7.7 baseline (v0.7.8 in flight) | SOL-040 Branch 2: Gate 10 added to daily suite (134 tests, 10 gates), `reconcile.py` + `test_reconcile.py` rows added, four demo files filed, sync rule 12 added for reconcile↔run_finlang argparse coupling. Builds on 1 May CLAUDE.md gitignore alignment + Process Lock 280426 (28 April).*
+*Last updated: 5 May 2026 | v0.7.7 baseline (v0.7.8 in flight) | Tiny focused branch (`claude/reconcile-add-memo`) added memo to `_compare_rows` mismatch dict + test_17 (135 tests, 10 gates) — surfaced during SOL-040 Branch 3 mockup gate review. Builds on 4 May Branch 2 (Gate 10 + count sweep) and 1 May CLAUDE.md gitignore alignment.*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -28,7 +28,7 @@ FinLang consists of five major components:
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
 3. **Tools** — Discovery, rule generation, integrity verification, and ML reconciliation (`discover.py`, `suggest.py`, `verify.py`, `reconcile.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
-5. **Validation Infrastructure** — 134-test daily suite (10 gates) + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines, ML reconciliation
+5. **Validation Infrastructure** — 135-test daily suite (10 gates) + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines, ML reconciliation
 
 ---
 
@@ -132,7 +132,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `quick_check.ps1` | Daily gate runner (10 gates, 134 tests + rulepack linter), single-line-per-gate display. Wall-clock ~100–140s typical post-Gate-10. | New daily gates, test count changes |
+| `quick_check.ps1` | Daily gate runner (10 gates, 135 tests + rulepack linter), single-line-per-gate display. Wall-clock ~100–140s typical post-Gate-10. | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes, **test count strings in header (always)** |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
@@ -154,7 +154,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 | `test_rule_correctness.py` | 45 acceptance | Golden-path: categories, flags, structural integrity on known data; _to_number contracts; --dayfirst | Pack content changes, engine output changes |
 | `test_custom_map.py` | 8 map pipeline | Custom --map flag: foreign header resolution, debit/credit synthesis, non-ASCII headers, memo mapping, error paths (malformed/partial map), multi-row throughput | Mapping logic changes, new map error paths, canonical schema changes |
 | `test_verify.py` | 8 verify | Integrity verification: --verify (fast), --verify-full, --verify-output-dir, tampered output detection | Verification logic or CLI integration changes |
-| `test_reconcile.py` | 16 reconcile (Gate 10) | `--reconcile` ML validation: 12 happy/edge tests + 3 validation rejection tests + 1 verify+reconcile coexistence regression. Subprocess-based plus 1 module-level test for tampered-output coexistence. Wall-clock ~25–65s. | Reconcile logic changes, CLI argparse changes, new validation rules, new exit-code paths |
+| `test_reconcile.py` | 17 reconcile (Gate 10) | `--reconcile` ML validation: 12 happy/edge tests + 3 validation rejection tests + 1 verify+reconcile coexistence regression + 1 memo-enrichment dict assertion. Subprocess-based plus 2 module-level direct-API tests (tampered coexistence, memo dict). Wall-clock ~25–65s. | Reconcile logic changes, CLI argparse changes, new validation rules, new exit-code paths, mismatch dict shape changes |
 | `run_test_matrix.ps1` | 6 golden masters | SHA256 baselines for US/UK/EU/debit/pipe/CR-DR formats | New regional formats, output changes |
 | `adversarial_tests.ps1` | 8 edge cases | Mixed delimiters, duplicate headers, CR/DR, pipe delimiter, scientific notation | New edge case support |
 | `integrity_testv2.py` | Scale integrity | SHA-256 fingerprinting at 5K-20M rows | Changes to data hardening or amount normalisation |

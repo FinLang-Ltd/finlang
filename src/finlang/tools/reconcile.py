@@ -266,6 +266,7 @@ def _compare_rows(
             "date": _resolve_field(fl_row, "date") or "",
             "amount": _resolve_field(fl_row, "amount") or "",
             "counterparty": _resolve_field(fl_row, "counterparty") or "",
+            "memo": _resolve_field(fl_row, "memo") or "",
             "differing_fields": ",".join(differing_fields),
             "finlang_rule_matched": audit_info.get("rule_name", ""),
             "finlang_audit_reason": audit_info.get("reason", ""),
