@@ -290,6 +290,7 @@ def run_reconciliation(
     output_dir: Optional[str] = None,
     audit_path: Optional[str] = None,
     headless: bool = False,
+    emit_html: bool = False,
 ) -> ReconcileResult:
     """Run reconciliation: compare FinLang output against ML output.
 
@@ -303,6 +304,10 @@ def run_reconciliation(
             name + reason on mismatches. Optional; absence means mismatches
             ship without audit linkage.
         headless: If True, suppress console output.
+        emit_html: If True (and ``output_dir`` is set), additionally
+            write a self-contained HTML report to
+            ``<output_dir>/reconcile_report.html``. Has no effect when
+            ``output_dir`` is None.
 
     Returns:
         ReconcileResult NamedTuple.
@@ -365,6 +370,14 @@ def run_reconciliation(
         _write_report_json(result, output_dir)
         if mismatches:
             _write_mismatches_csv(mismatches, fields, output_dir)
+        if emit_html:
+            # Lazy import keeps reconcile.py decoupled from the HTML module
+            # for invocations that don't need it. Same pattern as the CLI's
+            # lazy import of reconcile from run_finlang.py.
+            from finlang.tools.reconcile_html import generate_html_report
+            generate_html_report(
+                result, os.path.join(output_dir, "reconcile_report.html")
+            )
 
     return result
 

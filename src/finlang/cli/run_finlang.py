@@ -926,6 +926,7 @@ def main(args_list=None):
     ap.add_argument("--reconcile", default=None, help="Path to ML output CSV to reconcile against. Requires --audit and --audit-mode full.")
     ap.add_argument("--reconcile-fields", default="category", help="Comma-separated fields to compare. Default: category.")
     ap.add_argument("--reconcile-output-dir", default=None, help="Directory for reconciliation artifacts (JSON report + mismatches CSV).")
+    ap.add_argument("--reconcile-html", action="store_true", help="Additionally emit a self-contained HTML report (reconcile_report.html). Requires --reconcile and --reconcile-output-dir.")
 
     ap.epilog = (
     "Environment Variables:\n"
@@ -975,6 +976,15 @@ def main(args_list=None):
             print("FATAL: --reconcile-fields cannot be empty (got '%s')." % args.reconcile_fields, file=sys.stderr); sys.exit(2)
     if args.reconcile_output_dir and not args.reconcile:
         print("FATAL: --reconcile-output-dir requires --reconcile.", file=sys.stderr); sys.exit(2)
+    # --reconcile-html requires BOTH --reconcile AND --reconcile-output-dir
+    # (Branch 3 thinktank-mandated dual-flag validation: no place to write
+    # the HTML without an output dir; no reconciliation to render without
+    # --reconcile.)
+    if args.reconcile_html:
+        if not args.reconcile:
+            print("FATAL: --reconcile-html requires --reconcile.", file=sys.stderr); sys.exit(2)
+        if not args.reconcile_output_dir:
+            print("FATAL: --reconcile-html requires --reconcile-output-dir.", file=sys.stderr); sys.exit(2)
 
     # Check pyarrow if fastio is requested
     if args.fastio:
@@ -1234,6 +1244,7 @@ def main(args_list=None):
                     output_dir=args.reconcile_output_dir,
                     audit_path=args.audit,
                     headless=args.headless,
+                    emit_html=args.reconcile_html,
                 )
             except FileNotFoundError as e:
                 print(f"FATAL: {e}", file=sys.stderr)
