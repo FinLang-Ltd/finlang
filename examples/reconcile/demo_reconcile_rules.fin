@@ -1,0 +1,97 @@
+# FinLang Reconcile Demo Rules
+# Purpose-built minimal ruleset for the SOL-040 reconcile demo.
+# Self-contained — covers only the 15 rows in demo_reconcile_input.csv.
+# Includes the spec's "Compliance: Offshore Jurisdictions" rule for the
+# killer-demo Cayman row. NOT a fork of demo_corporate_transactions.fin.
+
+# =============================================================================
+# COMPLIANCE — listed first so the audit-critical rule is visually prominent
+# during the demo. Order in this file matches the order narrators read aloud.
+# =============================================================================
+
+rule "Compliance: Offshore Jurisdictions" {
+  match:
+    - counterparty ~ "*CAYMAN*"
+  set:
+    - category = "Compliance: Offshore Jurisdictions"
+    - flags += "ReviewRequired"
+}
+
+# =============================================================================
+# ENERGY & COMMODITIES
+# =============================================================================
+
+rule "Energy: Shell" {
+  match:
+    - counterparty ~ "*SHELL*"
+  set:
+    - category = "Energy & Commodities"
+}
+
+rule "Energy: BP" {
+  match:
+    - counterparty ~ "*BP *"
+  set:
+    - category = "Energy & Commodities"
+}
+
+# =============================================================================
+# BANKING
+# =============================================================================
+
+rule "Banking: UBS" {
+  match:
+    - counterparty ~ "*UBS*"
+  set:
+    - category = "Banking"
+}
+
+rule "Banking: JP Morgan" {
+  match:
+    - counterparty ~ "*JP MORGAN*"
+  set:
+    - category = "Banking"
+}
+
+rule "Banking: Barclays" {
+  match:
+    - counterparty ~ "*BARCLAYS*"
+  set:
+    - category = "Banking"
+}
+
+# =============================================================================
+# CLOUD SERVICES
+# =============================================================================
+
+rule "Cloud: AWS" {
+  match:
+    - counterparty ~ "*AWS *"
+  set:
+    - category = "Cloud Services"
+}
+
+rule "Cloud: Microsoft" {
+  match:
+    - counterparty ~ "*MICROSOFT*"
+  set:
+    - category = "Cloud Services"
+}
+
+# =============================================================================
+# PROFESSIONAL SERVICES
+# =============================================================================
+
+rule "Professional Services: Deloitte" {
+  match:
+    - counterparty ~ "*DELOITTE*"
+  set:
+    - category = "Professional Services"
+}
+
+rule "Professional Services: PWC" {
+  match:
+    - counterparty ~ "*PWC*"
+  set:
+    - category = "Professional Services"
+}

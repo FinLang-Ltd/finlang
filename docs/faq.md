@@ -1,7 +1,7 @@
 # ❓ FinLang FAQ
-> **Applies to:** FinLang v0.7+  
-> **Status:** Active  
-> **Last verified:** v0.7.7
+> **Applies to:** FinLang v0.7+
+> **Status:** Active
+> **Last verified:** v0.7.8
 
 ---
 
@@ -142,7 +142,34 @@ finlang --input daily.csv --output categorized.csv   --rules production.fin --he
 
 ---
 
-**Q: PowerShell gives “Missing expression after ','” when I use `--thousands ,`**  
+## 🔎 Reconciliation & Verification
+
+**Q: What does `--reconcile` do?**
+A: It compares FinLang's deterministic categorisation against an external system's CSV output (typically an ML model's) and produces a row-by-row mismatch report. Every disagreement is flagged, the FinLang rule that fired is named, and a brief audit reason is attached. The institution keeps its existing pipeline; FinLang acts as an independent challenge layer that bolts onto it through one CLI flag. See [reconciliation.md](reconciliation.md) for the full feature explainer.
+
+**Q: When should I use `--reconcile` vs `--verify`?**
+A: They answer different questions and can run together.
+- `--verify` answers *"did FinLang corrupt the input data?"* — fingerprint-checks immutable fields (date, amount, counterparty) before vs after the engine ran. Exit code 3 if corruption detected.
+- `--reconcile` answers *"does FinLang's categorisation agree with another system's?"* — row-by-row comparison of the chosen output field against an external CSV. Exit code 3 if disagreements found.
+
+Both can run in the same invocation. They report independently; if either fails, the run exits 3.
+
+**Q: Why use deterministic categorisation as a challenge layer for ML?**
+A: Because the answer to "why was this transaction categorised as X?" is different. ML systems generally cannot expose the load-bearing reason behind a specific classification — the answer is "the model decided." FinLang names the rule that fired and the match condition that drove it. For a regulator, an internal auditor, or a model-risk-management challenger workflow, that named rule is the artefact a review can reference. `--reconcile` is the integration mechanism: same input data, same output schema, every disagreement logged with rule attribution.
+
+**Q: Why does `--reconcile` require `--audit --audit-mode full`?**
+A: Without the full audit log, mismatch rows can't carry the rule name or the match condition. Silent reconciliation without rule attribution is worse than no reconciliation at all — the report would tell you that something differs without telling you why. FinLang refuses to run `--reconcile` without `--audit-mode full` for that reason.
+
+**Q: What if my ML output and FinLang output don't have the same number of rows?**
+A: Phase 1 reconciliation uses positional alignment — row N in FinLang's output corresponds to row N in the ML output. A row-count mismatch is a structural error: FinLang exits with code `1` (not `3`) and writes no reconciliation report. This is intentional — alignment is a precondition, not a categorisation question. Key-based alignment (matching rows by date+amount+counterparty rather than position) is queued for Phase 2.
+
+**Q: Can `--reconcile` write an HTML report?**
+A: Yes — add `--reconcile-html`. It writes a self-contained `reconcile_report.html` to your `--reconcile-output-dir`. No JavaScript, no external resources, opens offline. Useful for compliance-context reports that need to archive cleanly. Requires both `--reconcile` AND `--reconcile-output-dir` to be set.
+
+---
+
+**Q: PowerShell gives “Missing expression after ','” when I use `--thousands ,`**
+
 A: PowerShell treats bare commas, apostrophes, and semicolons as operators. Always **quote** separator values:  
 ```powershell
 # Wrong (PowerShell interprets the comma)

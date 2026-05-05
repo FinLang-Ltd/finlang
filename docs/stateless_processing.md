@@ -1,7 +1,7 @@
 # ⚙️ Stateless Processing & Determinism
-> **Applies to:** FinLang v0.6+  
-> **Status:** Core Concept  
-> **Last verified:** v0.7.7
+> **Applies to:** FinLang v0.6+
+> **Status:** Core Concept
+> **Last verified:** v0.7.8
 > 
 FinLang’s architecture is **stateless**, **deterministic**, and **idempotent**, ensuring that the same inputs always produce the same outputs — with no hidden state or telemetry.
 

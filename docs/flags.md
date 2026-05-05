@@ -1,10 +1,10 @@
 # 🚩 FinLang Flags & Canonical Formats
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.7.7
+> **Last verified:** v0.7.8
 
-This page defines the **single source of truth** for CLI flags and their **expected input formats**.  
-All definitions verified against the v0.7.7 codebase (April 2026).
+This page defines the **single source of truth** for CLI flags and their **expected input formats**.
+All definitions verified against the v0.7.8 codebase (May 2026).
 
 ---
 
@@ -28,8 +28,8 @@ All definitions verified against the v0.7.7 codebase (April 2026).
 | `--thousands` | `,` `.` `'` or space (`' '`) | Thousands separator | Switzerland commonly uses **apostrophe `'`**. |
 | `--encoding` | `utf-8-sig` *(default)*, `auto`, `utf-8`, `latin-1`, … | CSV text encoding | `auto` safely detects UTF-8 / Latin-1 in most cases. |
 | `--output-encoding` | `utf-8` *(default)* or any valid codec | Output CSV encoding | Use when downstream tools require a specific codec. |
-| `--verify` | *(flag, no value)* | Fast SHA-256 integrity check | Post-engine fingerprint comparison on immutable fields. |
-| `--verify-full` | *(flag, no value)* | Full integrity check | Fingerprint + field-by-field comparison. |
+| `--verify` | *(flag, no value)* | Fast SHA-256 integrity check | Post-engine fingerprint comparison on immutable fields. See [verify.md](verify.md). |
+| `--verify-full` | *(flag, no value)* | Full integrity check | Fingerprint + field-by-field comparison. See [verify.md](verify.md). |
 | `--verify-output-dir` | Directory path | Verification artifact output | Writes `verify_report.json`, `verify_proof.csv`, and `verify_mismatches.csv` (on failure). Requires `--verify` or `--verify-full`. |
 
 **Shell safety:** Always quote separator characters to prevent shell interpretation:
@@ -76,6 +76,27 @@ All definitions verified against the v0.7.7 codebase (April 2026).
 | `--map` | Path to header map JSON | Apply canonical field mapping | Defaults to built-in map if omitted. |
 | `--audit` | Output path (`.json`) | Write audit log | Use with `--audit-mode`. |
 | `--audit-mode` | `none` \| `lite` \| `full` | Diff verbosity | `lite` default; `full` for validation. |
+
+---
+
+## 5b) Reconciliation (v0.7.8+)
+
+Independent ML validation layer. Compares FinLang's deterministic categorisation against an external system's CSV output. See [reconciliation.md](reconciliation.md) for the full feature explainer.
+
+| Flag | Canonical Input | Meaning | Notes |
+|-----|------------------|--------|------|
+| `--reconcile` | Path to ML output CSV | Trigger reconciliation against this file | Requires `--audit` AND `--audit-mode full`. Row count must match FinLang's output. |
+| `--reconcile-fields` | Comma list (e.g., `category` or `category,flags`) | Fields to compare | Default: `category`. Empty value rejected at parse time. |
+| `--reconcile-output-dir` | Directory path | Where to write `reconcile_report.json` and `reconcile_mismatches.csv` | Required when `--reconcile-html` is set. |
+| `--reconcile-html` | *(flag, no value)* | Additionally emit `reconcile_report.html` | Requires BOTH `--reconcile` AND `--reconcile-output-dir`. |
+
+**Exit codes for reconciliation:**
+- `0` — engine succeeded, all post-engine checks passed (verify and reconcile both clean)
+- `1` — structural error (row-count mismatch, missing reconcile field on either side, missing ML file)
+- `2` — validation error (`--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`)
+- `3` — reconciliation mismatch detected (one or more rows disagree)
+
+`--verify` and `--reconcile` are orthogonal. Both can run in the same invocation; both report independently. Exit code 3 is set if either fails.
 
 ---
 
@@ -142,12 +163,12 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 ---
 
 ## 🧪 Audit Reference
-Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.  
-All flags validated in FinLang v0.7.7.
+Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.
+All flags validated in FinLang v0.7.8.
 
 ---
 
-## ⚠️ Known Issues (v0.7.7)
+## ⚠️ Known Issues (v0.7.8)
 
 - None
 

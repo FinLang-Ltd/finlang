@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.7
+> **Last verified:** v0.7.8
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -61,9 +61,13 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 | `--output-encoding NAME` | Output encoding (default UTF-8).                             |
 | `--timings`              | Print basic step timings to STDERR.                          |
 | `--fail-threshold F`     | Abort if drop-rate > `F` (fraction `0.0–1.0`).               |
-| `--verify`               | Fast SHA-256 integrity verification after engine run.         |
-| `--verify-full`          | Full verification (fingerprint + field-by-field comparison).  |
-| `--verify-output-dir DIR`| Write verification artifacts (JSON report + proof CSV) to DIR.|
+| `--verify`               | Fast SHA-256 integrity verification after engine run. See [verify.md](verify.md). |
+| `--verify-full`          | Full verification (fingerprint + field-by-field comparison). See [verify.md](verify.md). |
+| `--verify-output-dir DIR`| Write verification artifacts (JSON report + proof CSV) to DIR. |
+| `--reconcile PATH`       | Path to ML output CSV. Compares FinLang's deterministic output against an external (typically ML) categorisation; produces a row-by-row mismatch report with rule attribution. Requires `--audit` and `--audit-mode full`. See [reconciliation.md](reconciliation.md). |
+| `--reconcile-fields LIST`| Comma-separated fields to compare. Default: `category`. |
+| `--reconcile-output-dir DIR` | Directory for reconciliation artefacts (`reconcile_report.json`, `reconcile_mismatches.csv`). Required when `--reconcile-html` is set. |
+| `--reconcile-html`       | Additionally emit a self-contained HTML report (`reconcile_report.html`). Requires `--reconcile` AND `--reconcile-output-dir`. See [reconciliation.md](reconciliation.md). |
 
 ## 2) `finlang-discover` — Discovery Tool
 
@@ -247,7 +251,7 @@ This is useful in CI/CD pipelines to catch data quality issues early.
 A: The **last matching rule wins** for a transaction (deterministic override model). See `docs/rule_language.md`.
 
 **Q: What exit codes does FinLang return?**
-A: `0` = success, `1` = runtime error (e.g., file not found, unexpected exception during rule execution, invalid rule syntax), `2` = configuration/validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns, invalid `--decimal`/`--thousands` values, no valid rules found), `3` = integrity verification failure (`--verify` or `--verify-full` detected data mismatch).
+A: `0` = success, `1` = runtime error (e.g., file not found, unexpected exception during rule execution, invalid rule syntax, row-count mismatch on `--reconcile`, missing reconcile field), `2` = configuration/validation failure (e.g., `--fail-threshold` exceeded, `--strict-parse` error, missing required columns, invalid `--decimal`/`--thousands` values, no valid rules found, `--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`), `3` = post-engine check failure (`--verify` or `--verify-full` detected data mismatch, OR `--reconcile` detected categorisation disagreement).
 
 **Q: Can I filter by date in `finlang` directly?**
 A: Date filtering is available in `finlang-discover` via `--since-date`. The main `finlang` CLI does not currently implement `--since-date`.

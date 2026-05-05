@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 5 May 2026 | v0.7.7 baseline (v0.7.8 in flight) | SOL-040 Branch 3: `reconcile_html.py` HTML report generator + `--reconcile-html` flag landed; tests 18+19 added (137 tests, 10 gates); Sync Rule 12 extended to cover the four reconcile flags. Builds on 5 May reconcile-add-memo (test 17) + 4 May Branch 2 (Gate 10 + count sweep) + 1 May CLAUDE.md gitignore alignment.*
+*Last updated: 5 May 2026 | v0.7.8 (in flight, target Fri 15 May 2026) | SOL-040 Branch 4: docs + release prep — release_notes_v0_7_8.md, reconciliation.md (new feature explainer), verify.md (backfill v0.7.7 capability), examples/reconcile/ (worked-example fixtures, GitHub-readable), Sync Rule 13 added (examples/reconcile/ ↔ test-suite/demo/ parallel sets), version bump across 5 sync points + surgical sweep across docs. Builds on Branches 1+2+3 + reconcile-add-memo (137 tests, 10 gates).*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -93,6 +93,18 @@ These files live in `prod\` because they reference prod-side files extensively. 
 | `docs/legal/privacy.md` | GDPR/ICO privacy policy | Policy changes (rare) |
 | `docs/legal/terms.md` | EULA / Terms of Use, dual licence, liability, jurisdiction | Terms changes (rare) |
 
+### Examples (`examples/`)
+
+These files exist in the public repository but do **not** ship in the pip-installed wheel (`MANIFEST.in` only includes `src/finlang/mapping` and `src/finlang/rulepacks`). Doc readers on GitHub can click through; users running locally need to clone the repo or download a release tarball.
+
+| File | Contains | Update When |
+|------|----------|-------------|
+| `examples/rules.demo.fin` | Pre-existing demo rule file referenced from various docs | When demo rule patterns change |
+| `examples/reconcile/demo_reconcile_input.csv` | 15-row corporate treasury input for the SOL-040 reconcile worked example. Mirrors `..\..\test-suite\demo\demo_reconcile_input.csv` (Branch 2 test fixture). | SOL-040 demo data changes |
+| `examples/reconcile/demo_reconcile_rules.fin` | Purpose-built minimal ruleset (10 rules incl. "Compliance: Offshore Jurisdictions") for the reconcile worked example. Mirrors test-suite/demo/. | SOL-040 demo ruleset changes |
+| `examples/reconcile/demo_reconcile_ml_clean.csv` | Happy-path ML output mirroring FinLang's categories. Mirrors test-suite/demo/. | SOL-040 demo data changes |
+| `examples/reconcile/demo_reconcile_ml_mismatches.csv` | Drift-path ML output with deliberate mismatches (SHELL→Utilities, CAYMAN→Treasury Operations). Mirrors test-suite/demo/. | SOL-040 demo data changes |
+
 ### Benchmarks (`benchmarks/`)
 
 | File | Contains | Update When |
@@ -139,8 +151,9 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
 | `finlang_showcase.ps1` | Proof-of-life: disposable venv + tests + demo in one recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
 | `finlang_showcase_public.ps1` | Path-masked showcase variant for public recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
-| `run_showcase.cmd` | Double-click launcher for showcase | Rarely |
-| `run_showcase_public.cmd` | Double-click launcher for public showcase | Rarely |
+| `run_showcase.cmd` | Double-click launcher for showcase (PyPI install — default; validates published wheel) | Rarely |
+| `run_showcase_public.cmd` | Double-click launcher for public showcase (PyPI install + path-masked recording mode) | Rarely |
+| `run_showcase_local.cmd` | Double-click launcher for showcase against `C:\projects\finlang\prod` local source — pre-release rehearsal mode (NOT a PyPI validation; use only when v0.7.x+1 not yet published). Phase 3 version guard skips if installed FinLang < 0.7.8. | Rarely |
 
 ### Test Scripts
 
@@ -302,6 +315,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 10. **Internal process files in `prod\` are gitignored**, not committed. Currently applies to `RELEASE_CHECKLIST.md` and `prod\CLAUDE.md` (and any future maintainer-only tooling). They live in `prod\` for path coherence but don't ship. The `prod\.gitignore` lists each filename explicitly.
 11. **Internal process file snapshots live in `..\..\scratch\internal_snapshots\v##\`** — one folder per release, containing `RELEASE_CHECKLIST.md` (and any other gitignored maintainer-only tooling) as of that release. Written as part of release Phase 8 of `release-promotion-package.md`. Not tracked by git (scratch is disposable) but preserved via external workspace backup for version archaeology. Recovery mechanism for the gitignored-internal-tooling pattern (Rule 6 corollary in folder-structure-package).
 12. **`reconcile.py` ↔ `run_finlang.py` argparse coupling** (SOL-040, v0.7.8) — the four reconcile flags (`--reconcile`, `--reconcile-fields`, `--reconcile-output-dir`, `--reconcile-html`) are declared in `run_finlang.py` argparse and consumed by `run_reconciliation()` in `reconcile.py`. New reconcile flags require coordinated edits in both files: argparse declaration + validation block + post-engine hook call in `run_finlang.py`; signature parameter in `run_reconciliation()` and downstream comparison/report logic in `reconcile.py`. The post-engine hook also coexists with `--verify` via the `post_engine_failure` flag pattern — both report independently per spec §3 line 201; do not regress to immediate `sys.exit(3)` on either side. `--reconcile-html` requires both `--reconcile` and `--reconcile-output-dir` (Branch 3 thinktank-mandated dual validation); when set, `reconcile.py` lazy-imports `reconcile_html.generate_html_report()` and writes `reconcile_report.html` alongside the JSON+CSV artefacts.
+13. **`examples/reconcile/` mirrors `..\..\test-suite\demo\` reconcile fixtures** (SOL-040, v0.7.8) — four files exist in both locations as parallel sets: `demo_reconcile_input.csv`, `demo_reconcile_rules.fin`, `demo_reconcile_ml_clean.csv`, `demo_reconcile_ml_mismatches.csv`. Different purposes: `examples/reconcile/` is doc-facing (referenced from `docs/reconciliation.md` worked example, GitHub-readable, in the public repo); `test-suite/demo/` is test-fixture-facing (consumed by `test_reconcile.py` if added in future, locked per Rule 4 "modifying existing truth-fixture contents requires explicit approval"). On any change to one set, sync the other manually or surface deliberate divergence. Test fixtures are locked under Rule 4; doc-facing examples are not — but they describe the same scenario in v0.7.8.
 
 ---
 
