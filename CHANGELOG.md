@@ -6,6 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.8] - 2026-05-15
+
+### Added
+- `--reconcile <ml_output.csv>` — independent ML validation layer. Compares FinLang's deterministic output against an external (typically ML) categorisation, producing a row-by-row mismatch report with rule attribution and audit reason. Requires `--audit` and `--audit-mode full`.
+- `--reconcile-fields <field[,field...]>` — comma-separated fields to compare. Default: `category`.
+- `--reconcile-output-dir <path>` — directory for reconciliation artifacts (`reconcile_report.json`, `reconcile_mismatches.csv`).
+- `--reconcile-html` — additionally emit a self-contained HTML report (`reconcile_report.html`). Requires both `--reconcile` and `--reconcile-output-dir`. No JS, no external resources, opens offline.
+- `memo` field surfaced on per-row mismatch dict (downstream presentation surfaces — HTML report, future audit viewer).
+- New module: `src/finlang/tools/reconcile.py` — reconciliation engine, decoupled from the FinLang engine.
+- New module: `src/finlang/tools/reconcile_html.py` — HTML report generator with `html.escape()` on every user-provided string.
+- Exit code 3 on reconciliation mismatch (consistent with `--verify`).
+- New documentation: `docs/reconciliation.md` (full feature explainer) and `docs/verify.md` (backfilled v0.7.7 explainer).
+
+### Changed
+- Daily test gate: 9 → 10 gates, 118 → 137 tests. New Gate 10 runs `test_reconcile.py` (19 tests).
+- Post-engine validation phase refactored: `--verify` and `--reconcile` coexist via a `post_engine_failure` flag; both run independently and each reports its own artifacts. Exit code 3 set if either fails.
+
+### Fixed
+- (none — pure additive feature release)
+
+---
+
 ## [0.7.7] - 2026-04-04
 
 ### Added

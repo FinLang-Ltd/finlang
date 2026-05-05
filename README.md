@@ -48,7 +48,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.7.7)
+## ⚙️ Key Features (v0.7.8)
 
 | Feature | Description |
 |:--|:--|
@@ -63,7 +63,8 @@ rule "TRAVEL: High Value Flight" {
 | **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)` across 9 edge cases. |
 | **Strict Parsing** | Locale-aware normalization with configurable thresholds (`--strict-parse`). |
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
-| **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output. |
+| **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output. See [docs/verify.md](docs/verify.md). |
+| **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`. See [docs/reconciliation.md](docs/reconciliation.md). |
 
 ---
 
@@ -200,15 +201,18 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
+- [`docs/release_notes/v0_7_8.md`](docs/release_notes/release_notes_v0_7_8.md)
 - [`docs/release_notes/v0_7_7.md`](docs/release_notes/release_notes_v0_7_7.md)
-- [`docs/release_notes/v0_7_6.md`](docs/release_notes/release_notes_v0_7_6.md)  
-- [`docs/runtime_contract.md`](docs/runtime_contract.md)  
-- [`docs/cli_reference.md`](docs/cli_reference.md)  
-- [`docs/rulepacks.md`](docs/rulepacks.md)  
-- [`docs/benchmarks.md`](docs/benchmarks.md)  
-- [`docs/growth_loop_best_practices.md`](docs/growth_loop_best_practices.md)  
-- [`docs/amount_synthesis.md`](docs/amount_synthesis.md)  
-- [`docs/i18n_examples.md`](docs/i18n_examples.md)  
+- [`docs/release_notes/v0_7_6.md`](docs/release_notes/release_notes_v0_7_6.md)
+- [`docs/reconciliation.md`](docs/reconciliation.md) — `--reconcile` ML validation layer (v0.7.8)
+- [`docs/verify.md`](docs/verify.md) — `--verify` integrity verification
+- [`docs/runtime_contract.md`](docs/runtime_contract.md)
+- [`docs/cli_reference.md`](docs/cli_reference.md)
+- [`docs/rulepacks.md`](docs/rulepacks.md)
+- [`docs/benchmarks.md`](docs/benchmarks.md)
+- [`docs/growth_loop_best_practices.md`](docs/growth_loop_best_practices.md)
+- [`docs/amount_synthesis.md`](docs/amount_synthesis.md)
+- [`docs/i18n_examples.md`](docs/i18n_examples.md)
 - [`docs/stateless_processing.md`](docs/stateless_processing.md)
 
 **Command-line help:**
@@ -251,10 +255,11 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Status |
 |:--|:--|:--|
-| Core Engine      | v0.7.7   | ✅ Production-Ready  |
-| CLI Suite        | v0.7.7   | ✅ Validated (137 tests, 10 gates) |
-| Discover/Suggest | v0.7.7   | ✅ 97.8% accuracy    |
-| Integrity Test   | v0.7.7   | ✅ 20M rows verified, ~217K rows/sec FastIO |
-| Verify           | v0.7.7   | ✅ Built-in `--verify` / `--verify-full` |
-| Docs             | v0.7.7   | ✅ Complete          |
+| Core Engine      | v0.7.8   | ✅ Production-Ready (byte-identical to v0.7.7) |
+| CLI Suite        | v0.7.8   | ✅ Validated (137 tests, 10 gates) |
+| Discover/Suggest | v0.7.8   | ✅ 97.8% accuracy    |
+| Integrity Test   | v0.7.8   | ✅ 20M rows verified, ~217K rows/sec FastIO |
+| Verify           | v0.7.8   | ✅ Built-in `--verify` / `--verify-full` |
+| Reconcile        | v0.7.8   | ✅ Built-in `--reconcile` / `--reconcile-html` (new) |
+| Docs             | v0.7.8   | ✅ Complete          |
 | Python Support   | 3.10—3.14 | ✅ Tested            |

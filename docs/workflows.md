@@ -1,7 +1,7 @@
 # 📖 Core Workflows
-> **Applies to:** FinLang v0.7+  
-> **Status:** Stable  
-> **Last verified:** v0.7.7
+> **Applies to:** FinLang v0.7+
+> **Status:** Stable
+> **Last verified:** v0.7.8
 
 
 
@@ -278,6 +278,59 @@ finlang --input data.csv --output out.csv --rules rules.fin --verify --verify-ou
 ```
 
 Exit code `3` indicates a verification failure. Artifacts include `verify_report.json`, `verify_proof.csv`, and `verify_mismatches.csv` (on failure only).
+
+See [verify.md](verify.md) for the full feature explainer (when to use it, output anatomy, limitations).
+
+---
+
+## 🔄 Reconciliation Workflow
+
+Where governance expects an independent challenge to a categorisation pipeline — typically an ML model — `--reconcile` produces a row-by-row mismatch report with rule attribution and audit reason. This is the integration pattern.
+
+### Step 1 — Run FinLang against the same raw data the ML pipeline processed
+
+```bash
+finlang --input transactions.csv \
+        --rules compliance.fin \
+        --output finlang_out.csv \
+        --audit audit.json --audit-mode full \
+        --reconcile ml_categorised.csv \
+        --reconcile-output-dir audit/ \
+        --reconcile-html
+```
+
+`--audit --audit-mode full` is required so mismatch rows can carry rule name + match condition. `--reconcile-html` is optional but recommended for compliance-context reports.
+
+### Step 2 — Read the report
+
+| Artefact | Purpose | Read by |
+|---|---|---|
+| `audit/reconcile_report.json` | Machine-readable summary (status, match rate, mismatches count, audit_entries_loaded) | CI/CD assertions, dashboards |
+| `audit/reconcile_mismatches.csv` | One row per disagreement: counterparty, ML's category, FinLang's category, rule name, audit reason | Auditors, compliance reviewers |
+| `audit/reconcile_report.html` | Self-contained HTML view of the above (opens offline, no JS) | Compliance reports, archival, stakeholder review |
+
+Exit code `3` indicates one or more mismatches. CI/CD should treat this as "review needed" — not "the data is broken" (that's exit code 1) and not "configuration is wrong" (exit code 2).
+
+### Step 3 — Decide what to do about the disagreements
+
+`--reconcile` reports disagreements; it does not score them or judge which side is right. A human reads the mismatches CSV and decides.
+
+The CSV column an auditor reads is the one a black-box ML model does not expose: `finlang_rule_matched` plus `finlang_audit_reason`. That column is the load-bearing piece — it's the answer to "why did FinLang reach a different conclusion?", which the regulator's challenger workflow needs.
+
+### CI/CD pattern
+
+```bash
+finlang ... --reconcile ml_out.csv --reconcile-output-dir ./audit
+EXIT=$?
+if [ $EXIT -eq 3 ]; then
+  echo "Reconciliation surfaced disagreements. See audit/reconcile_mismatches.csv"
+  # Pipeline policy: notify reviewer, do NOT auto-block downstream
+fi
+```
+
+See [reconciliation.md](reconciliation.md) for the full feature explainer.
+
+---
 
 ### ✅ Rollout Checklist
 **Phase 1: Pilot (Week 1–2)**
