@@ -12,6 +12,7 @@ Reconciliation compares FinLang's deterministic categorisation against an extern
 **I want to…**
 - [Understand when reconcile fits my workflow](#-when-to-use) → Bidirectional When / When NOT
 - [Walk through a working example](#-worked-example-the-cayman-scenario) → 15-row Cayman demo
+- [Try other flag combinations](#-variations) → Minimal, JSON-only, multi-field, verify+reconcile
 - [Read the report artefacts](#-output-anatomy) → JSON, CSV, HTML breakdown
 - [Wire reconciliation into CI/CD](workflows.md#-reconciliation-workflow) → Pattern in workflows.md
 
@@ -194,7 +195,7 @@ finlang \
 
 Both post-engine checks run independently. Verify writes its artefacts to `verify/`; reconcile writes its own to `audit/`. **Exit code 3 if either fails** — the engine treats this as the union, not the intersection.
 
-**Use case:** the complete evidence chain in one run. Data integrity (verify), categorisation independence (reconcile), per-row reasoning (audit). When a single run produces all three, the artefacts archive together as one auditable bundle. See [verify.md](verify.md) for the verify-side detail.
+**Use case:** the complete evidence chain in one run: verify shows the engine didn't corrupt the data, reconcile gives the categorisation an independent challenge, audit names the rule behind every decision. When a single run produces all three, the artefacts archive together as one auditable bundle. See [verify.md](verify.md) for the verify-side detail.
 
 ---
 
