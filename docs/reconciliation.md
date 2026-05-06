@@ -119,7 +119,7 @@ Exit code: **3** (post-engine check failed; data is fine but the categorisations
 | 1 | SHELL TRADING INTERNATIONAL | Utilities | Energy & Commodities | Energy: Shell | counterparty ~ "*SHELL*" |
 | 4 | CAYMAN ISLANDS TRUST | Treasury Operations | Compliance: Offshore Jurisdictions | Compliance: Offshore Jurisdictions | counterparty ~ "*CAYMAN*" |
 
-Row 4 is the load-bearing line. The ML output silently approved a £250K transfer to an offshore jurisdiction as routine "Treasury Operations". FinLang's rule pack flagged the same row under "Compliance: Offshore Jurisdictions" because the counterparty matched `*CAYMAN*`. **The column a reviewer needs — `finlang_rule_matched` plus `finlang_audit_reason` — is the deterministic rule-attribution layer FinLang adds alongside the ML output.**
+Row 4 is the load-bearing line. The ML output silently approved a £250K transfer to an offshore jurisdiction as routine "Treasury Operations". FinLang's rule pack flagged the same row under "Compliance: Offshore Jurisdictions" because the counterparty matched `*CAYMAN*`. **The columns a reviewer may need — `finlang_rule_matched` plus `finlang_audit_reason` — are the deterministic rule-attribution layer FinLang adds alongside the ML output.**
 
 Open `audit/reconcile_report.html` in any browser for the same content rendered as a self-contained compliance-context report.
 
