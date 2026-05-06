@@ -12,6 +12,7 @@ Reconciliation compares FinLang's deterministic categorisation against an extern
 **I want to…**
 - [Understand when reconcile fits my workflow](#-when-to-use) → Bidirectional When / When NOT
 - [Walk through a working example](#-worked-example-the-cayman-scenario) → 15-row Cayman demo
+- [Try other flag combinations](#-variations) → Minimal, JSON-only, multi-field, verify+reconcile
 - [Read the report artefacts](#-output-anatomy) → JSON, CSV, HTML breakdown
 - [Wire reconciliation into CI/CD](workflows.md#-reconciliation-workflow) → Pattern in workflows.md
 
@@ -121,6 +122,80 @@ Exit code: **3** (post-engine check failed; data is fine but the categorisations
 Row 4 is the load-bearing line. The ML output silently approved a £250K transfer to an offshore jurisdiction as routine "Treasury Operations". FinLang's rule pack flagged the same row under "Compliance: Offshore Jurisdictions" because the counterparty matched `*CAYMAN*`. **The column a reviewer needs — `finlang_rule_matched` plus `finlang_audit_reason` — is the deterministic rule-attribution layer FinLang adds alongside the ML output.**
 
 Open `audit/reconcile_report.html` in any browser for the same content rendered as a self-contained compliance-context report.
+
+---
+
+## 🎛️ Variations
+
+The Worked Example above shows the maximalist case — every reconcile flag set, every artefact emitted. Most workflows use a subset. Four common shapes follow.
+
+### Minimal — console only, no artefacts
+
+```bash
+finlang \
+  --input transactions.csv \
+  --rules rules.fin \
+  --output finlang_out.csv \
+  --audit audit.json --audit-mode full \
+  --reconcile ml_output.csv
+```
+
+**`--reconcile-output-dir` defaults to none.** With no output directory set, the reconcile module writes nothing to disk — no JSON, no CSV, no HTML. The reconciliation still runs: console output prints up to 10 mismatches plus a summary line, and the exit code is **3** if any disagreement is found.
+
+> **⚠️ The trap to know about:** running `--reconcile <ml.csv>` without `--reconcile-output-dir` is a **deliberate** mode, not a misuse. A new user can hunt for a file that was never written; that file was never going to be written, by design. Use this shape when the exit code is the signal you want and disk artefacts are noise.
+
+**Use case:** CI/CD gates. The pipeline reads exit code 3 as "review needed" and short-circuits the merge. No disk I/O, no artefact cleanup, no archive bloat.
+
+### JSON + CSV — no HTML
+
+```bash
+finlang \
+  --input transactions.csv \
+  --rules rules.fin \
+  --output finlang_out.csv \
+  --audit audit.json --audit-mode full \
+  --reconcile ml_output.csv \
+  --reconcile-output-dir audit/
+```
+
+Adds `--reconcile-output-dir`; omits `--reconcile-html`. `reconcile_report.json` lands in `audit/` always. `reconcile_mismatches.csv` lands when `mismatches > 0`. No HTML report is emitted.
+
+**Use case:** programmatic consumption. Downstream tooling parses the JSON for monitoring or alerting; compliance teams archive the CSV for the audit trail. Drop the HTML when no human needs the visual report.
+
+### Multi-field — compare more than `category`
+
+```bash
+finlang \
+  --input transactions.csv \
+  --rules rules.fin \
+  --output finlang_out.csv \
+  --audit audit.json --audit-mode full \
+  --reconcile ml_output.csv \
+  --reconcile-output-dir audit/ \
+  --reconcile-fields category,flags
+```
+
+`--reconcile-fields category,flags` compares **both** fields row-by-row. A row is a mismatch if **either** field disagrees. The `differing_fields` column in `reconcile_mismatches.csv` tells you which one(s) drifted on each row.
+
+**Use case:** when categorisation drift on one axis (category) and tag/flag drift on another (flags) both matter. Common in pipelines that emit both a classification AND a compliance flag, where either disagreement is independently actionable.
+
+### Verify + reconcile in one invocation
+
+```bash
+finlang \
+  --input transactions.csv \
+  --rules rules.fin \
+  --output finlang_out.csv \
+  --audit audit.json --audit-mode full \
+  --verify-full --verify-output-dir verify/ \
+  --reconcile ml_output.csv \
+  --reconcile-output-dir audit/ \
+  --reconcile-html
+```
+
+Both post-engine checks run independently. Verify writes its artefacts to `verify/`; reconcile writes its own to `audit/`. **Exit code 3 if either fails** — the engine treats this as the union, not the intersection.
+
+**Use case:** the complete evidence chain in one run: verify shows the engine didn't corrupt the data, reconcile gives the categorisation an independent challenge, audit names the rule behind every decision. When a single run produces all three, the artefacts archive together as one auditable bundle. See [verify.md](verify.md) for the verify-side detail.
 
 ---
 
