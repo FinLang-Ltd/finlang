@@ -216,7 +216,7 @@ A: Check your file paths. Use absolute paths or ensure you're in the correct dir
 finlang --input bank.csv --output out.csv --rules rules.fin
 
 # Absolute path (works from anywhere)
-finlang --input C:\Users\You\Documents\bank.csv --output C:\Users\You\Documents\out.csv --rules rules.fin
+finlang --input C:\path\to\bank.csv --output C:\path\to\out.csv --rules rules.fin
 ```
 
 **Q: Output amounts have the wrong sign.**  

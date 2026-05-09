@@ -153,7 +153,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 | `finlang_showcase_public.ps1` | Path-masked showcase variant for public recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
 | `run_showcase.cmd` | Double-click launcher for showcase (PyPI install — default; validates published wheel) | Rarely |
 | `run_showcase_public.cmd` | Double-click launcher for public showcase (PyPI install + path-masked recording mode) | Rarely |
-| `run_showcase_local.cmd` | Double-click launcher for showcase against `C:\projects\finlang\prod` local source — pre-release rehearsal mode (NOT a PyPI validation; use only when v0.7.x+1 not yet published). Phase 3 version guard skips if installed FinLang < 0.7.8. | Rarely |
+| `run_showcase_local.cmd` | Double-click launcher for showcase against `{workspace}\prod` local source — pre-release rehearsal mode (NOT a PyPI validation; use only when v0.7.x+1 not yet published). Phase 3 version guard skips if installed FinLang < 0.7.8. | Rarely |
 
 ### Test Scripts
 
