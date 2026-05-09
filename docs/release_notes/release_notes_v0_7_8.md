@@ -1,5 +1,5 @@
 # FinLang v0.7.8 Release Notes
-*Released: 15 May 2026 (target)*
+*Released: 9 May 2026*
 
 ---
 
