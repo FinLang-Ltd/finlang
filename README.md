@@ -83,6 +83,13 @@ pip install "finlang[fastio]"
 ```
 *(Enables `--fastio` for accelerated CSV I/O.)*
 
+**With HTTP API wrapper:**
+```bash
+pip install "finlang[api]"
+finlang-api    # binds 127.0.0.1:8000 — interactive docs at /docs
+```
+*(Thin FastAPI wrapper over the CLI for HTTP-based integration and demos. See [docs/api.md](docs/api.md).)*
+
 **From Source (Development):**
 ```bash
 git clone https://github.com/FinLang-Ltd/finlang.git
@@ -206,6 +213,8 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 - [`docs/release_notes/v0_7_6.md`](docs/release_notes/release_notes_v0_7_6.md)
 - [`docs/reconciliation.md`](docs/reconciliation.md) — `--reconcile` ML validation layer (v0.7.8)
 - [`docs/verify.md`](docs/verify.md) — `--verify` integrity verification
+- [`docs/api.md`](docs/api.md) — FastAPI wrapper (`pip install finlang[api]`, `finlang-api`)
+- [`docs/api_reference.md`](docs/api_reference.md) — full API endpoint reference
 - [`docs/runtime_contract.md`](docs/runtime_contract.md)
 - [`docs/cli_reference.md`](docs/cli_reference.md)
 - [`docs/rulepacks.md`](docs/rulepacks.md)
