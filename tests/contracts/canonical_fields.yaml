@@ -1,6 +1,6 @@
-version: "0.7.8"
+version: "0.7.9"
 
-# The definitive list of fields FinLang supports in v0.7.8
+# The definitive list of fields FinLang supports in v0.7.9
 canonical_fields:
   required:
     - date

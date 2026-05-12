@@ -23,4 +23,4 @@
 from importlib.metadata import version, PackageNotFoundError
 
 __all__ = ["__version__"]
-__version__ = "0.7.8"
+__version__ = "0.7.9"
