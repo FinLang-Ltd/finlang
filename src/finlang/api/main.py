@@ -3,9 +3,10 @@ FinLang API — FastAPI wrapper around the FinLang CLI.
 
 SOL-041: Thin REST surface over the published CLI entry points
 (`finlang`, `finlang-discover`, `finlang-suggest`). All work is dispatched
-via subprocess — the API never imports engine internals. This keeps the
-contract identical to the CLI, isolates failures inside child processes,
-and means new CLI flags become available with no API code changes.
+via subprocess — the API never imports engine internals. This keeps
+execution behaviour aligned with the CLI and isolates failures inside
+child processes. New CLI flags still need explicit endpoint parameters —
+the wrapper is curated, not auto-forwarding.
 
 Run:
     finlang-api
@@ -587,11 +588,12 @@ async def reconcile(
         result = _run(cmd)
         elapsed = time.perf_counter() - t0
 
-        # Exit 3 = mismatches found = expected outcome for /reconcile.
-        # Only 1 (ops) and 2 (validation) map to HTTP errors here. The
-        # standard _engine_http_error maps 3 -> 422 which is wrong for
-        # this endpoint, so explicitly check 1/2 only.
-        if result.returncode in (1, 2):
+        # /reconcile contract: exit 0 = clean, exit 3 = mismatches found
+        # (HTTP 200, expected outcome). Anything else is an error — 1 (ops),
+        # 2 (validation), or any unmapped exit code. Whitelist 0/3 rather
+        # than blacklisting 1/2 so future exit codes can't fall through to
+        # an HTTP 200 carrying a bad exit_code in the body.
+        if result.returncode not in (0, 3):
             raise _engine_http_error(result.returncode, result.stderr)
 
         # Read back artefacts
