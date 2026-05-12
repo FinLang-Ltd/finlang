@@ -29,11 +29,13 @@ classifiers = [
 finlang = "finlang.cli.run_finlang:main"
 finlang-discover = "finlang.tools.discover:main"
 finlang-suggest = "finlang.tools.suggest:main"
+finlang-api = "finlang.api.main:run"
 
 [project.optional-dependencies]
 dev = ["pytest", "build", "twine", "check-manifest", "PyYAML"]
 bench = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
+api = ["fastapi>=0.100", "uvicorn[standard]>=0.20", "python-multipart>=0.0.6"]
 
 [tool.setuptools]
 package-dir = { "" = "src" }
