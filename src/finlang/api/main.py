@@ -128,6 +128,21 @@ class SuggestResponse(BaseModel):
     stderr: str = ""
 
 
+class ReconcileStats(BaseModel):
+    duration_seconds: float
+    exit_code: int
+    mismatches_found: bool
+
+
+class ReconcileResponse(BaseModel):
+    summary: Optional[dict] = None       # from reconcile_report.json
+    mismatches_csv: str = ""              # empty if no mismatches
+    report_html: Optional[str] = None    # only if reconcile_html=True
+    audit: Optional[list] = None         # parsed audit.json
+    stats: ReconcileStats
+    stderr: str = ""
+
+
 # ----------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------
@@ -481,22 +496,144 @@ async def suggest(
         )
 
 
-@app.post("/reconcile", dependencies=[Depends(require_api_key)])
-async def reconcile():
-    """
-    Independent reconcile pass — SOL-040.
+@app.post(
+    "/reconcile",
+    response_model=ReconcileResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def reconcile(
+    input_csv: UploadFile = File(..., description="Input transactions CSV"),
+    ml_output_csv: UploadFile = File(..., description="ML output CSV to reconcile against"),
+    rules: Optional[UploadFile] = File(
+        None, description="Rules .fin (optional if include_pack supplied)"
+    ),
+    map_file: Optional[UploadFile] = File(None),
+    include_pack: Optional[str] = Form(None),
+    reconcile_fields: str = Form("category", description="Comma-separated fields to compare"),
+    reconcile_html: bool = Form(False, description="Emit self-contained HTML report"),
+    audit_mode: str = Form("full", description="Reconcile requires --audit-mode full"),
+    fastio: bool = Form(False),
+    decimal: str = Form("."),
+    thousands: Optional[str] = Form(None),
+    dayfirst: bool = Form(False),
+    encoding: str = Form("utf-8-sig"),
+    output_encoding: str = Form("utf-8"),
+    strict_parse: bool = Form(False),
+    fail_threshold: float = Form(0.01),
+):
+    """Run --reconcile and return JSON summary + (optional) HTML report.
 
-    Endpoint reserved. Wire to `finlang --reconcile` (subprocess) once SOL-040
-    ships. Mirrors /process structure: accept input CSV + reference output +
-    optional rules, return reconcile report (HTML + JSON summary).
+    Exit code 3 (mismatches found) is mapped to HTTP 200 — finding mismatches
+    is the expected outcome of reconciliation, not an error. The response body
+    surfaces the mismatch count, mismatches CSV, and (if requested) HTML report.
+    Exit codes 1 (ops) and 2 (validation) follow standard mapping.
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=(
-            "/reconcile endpoint reserved for SOL-040. "
-            "Will be wired after the --reconcile feature lands in the engine."
-        ),
-    )
+    if audit_mode != "full":
+        raise HTTPException(400, "audit_mode must be 'full' for /reconcile.")
+    if rules is None and not include_pack:
+        raise HTTPException(400, "Provide either a rules file or include_pack (or both).")
+
+    with tempfile.TemporaryDirectory(prefix="finlang_api_recon_") as tmp:
+        d = Path(tmp)
+        in_csv = d / "input.csv"
+        ml_csv = d / "ml_output.csv"
+        out_csv = d / "finlang_out.csv"
+        rules_fin = d / "rules.fin" if rules else None
+        map_json = d / "map.json" if map_file else None
+        audit_json = d / "audit.json"  # required for reconcile
+        recon_dir = d / "reconcile"
+        recon_dir.mkdir()
+
+        await _save_upload(input_csv, in_csv)
+        await _save_upload(ml_output_csv, ml_csv)
+        if rules and rules_fin:
+            await _save_upload(rules, rules_fin)
+        if map_file and map_json:
+            await _save_upload(map_file, map_json)
+
+        cmd: List[str] = [
+            FINLANG_CLI,
+            "--input", str(in_csv),
+            "--output", str(out_csv),
+            "--audit", str(audit_json),
+            "--audit-mode", "full",
+            "--encoding", encoding,
+            "--output-encoding", output_encoding,
+            "--decimal", decimal,
+            "--fail-threshold", str(fail_threshold),
+            "--reconcile", str(ml_csv),
+            "--reconcile-fields", reconcile_fields,
+            "--reconcile-output-dir", str(recon_dir),
+            "--headless",
+        ]
+        if thousands:
+            cmd += ["--thousands", thousands]
+        if dayfirst:
+            cmd.append("--dayfirst")
+        if fastio:
+            cmd.append("--fastio")
+        if strict_parse:
+            cmd.append("--strict-parse")
+        if rules_fin:
+            cmd += ["--rules", str(rules_fin)]
+        if include_pack:
+            cmd += ["--include-pack", include_pack]
+        if map_json:
+            cmd += ["--map", str(map_json)]
+        if reconcile_html:
+            cmd.append("--reconcile-html")
+
+        t0 = time.perf_counter()
+        result = _run(cmd)
+        elapsed = time.perf_counter() - t0
+
+        # Exit 3 = mismatches found = expected outcome for /reconcile.
+        # Only 1 (ops) and 2 (validation) map to HTTP errors here. The
+        # standard _engine_http_error maps 3 -> 422 which is wrong for
+        # this endpoint, so explicitly check 1/2 only.
+        if result.returncode in (1, 2):
+            raise _engine_http_error(result.returncode, result.stderr)
+
+        # Read back artefacts
+        report_path = recon_dir / "reconcile_report.json"
+        mismatches_path = recon_dir / "reconcile_mismatches.csv"
+        html_path = recon_dir / "reconcile_report.html"
+
+        summary: Optional[dict] = None
+        if report_path.exists():
+            try:
+                summary = json.loads(report_path.read_text(encoding="utf-8"))
+            except Exception:
+                summary = None
+
+        mismatches_csv = ""
+        if mismatches_path.exists():
+            mismatches_csv = mismatches_path.read_text(encoding="utf-8")
+
+        report_html: Optional[str] = None
+        if reconcile_html and html_path.exists():
+            report_html = html_path.read_text(encoding="utf-8")
+
+        audit_data: Optional[list] = None
+        if audit_json.exists():
+            try:
+                loaded = json.loads(audit_json.read_text(encoding="utf-8"))
+                audit_data = loaded if isinstance(loaded, list) else None
+            except Exception:
+                audit_data = None
+
+        return ReconcileResponse(
+            summary=summary,
+            mismatches_csv=mismatches_csv,
+            report_html=report_html,
+            audit=audit_data,
+            stats=ReconcileStats(
+                duration_seconds=round(elapsed, 4),
+                exit_code=result.returncode,
+                mismatches_found=result.returncode == 3,
+            ),
+            stderr=result.stderr,
+        )
 
 
 # ----------------------------------------------------------------------
