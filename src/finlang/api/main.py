@@ -382,7 +382,7 @@ async def discover(
         d = Path(tmp)
         in_csv = d / "input.csv"
         candidates_csv = d / "candidates.csv"
-        all_csv = d / "all_candidates.csv" if return_all else None
+        all_csv = d / "all_candidates.csv"
 
         await _save_upload(input_csv, in_csv)
 
@@ -390,6 +390,7 @@ async def discover(
             FINLANG_DISCOVER_CLI,
             "--input", str(in_csv),
             "--candidates", str(candidates_csv),
+            "--all", str(all_csv),
             "--min-count", str(min_count),
             "--encoding", encoding,
             "--decimal", decimal,
@@ -406,8 +407,6 @@ async def discover(
             cmd += ["--since-date", since_date]
         if include_excluded:
             cmd.append("--include-excluded")
-        if all_csv:
-            cmd += ["--all", str(all_csv)]
 
         result = _run(cmd)
         if result.returncode != 0:
@@ -421,7 +420,7 @@ async def discover(
             ),
             all_candidates_csv=(
                 all_csv.read_text(encoding="utf-8")
-                if all_csv and all_csv.exists()
+                if return_all and all_csv.exists()
                 else None
             ),
             stderr=result.stderr,
