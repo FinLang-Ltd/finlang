@@ -179,6 +179,12 @@ optional self-contained HTML report, and the full audit trail.
 | `fastio` | bool | no | Use PyArrow IO |
 | `decimal`, `thousands`, `dayfirst`, `encoding`, `output_encoding`, `strict_parse`, `fail_threshold` | various | no | Same as `/process` |
 
+**Query params:**
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `format` | string | `json` | Response shape selector. `json` returns the full `ReconcileResponse` (summary + mismatches CSV + HTML report + audit + stats). `html` returns the HTML report directly with `Content-Type: text/html` — convenient for browsers, Swagger UI, and `curl > file.html`. **`format=html` requires `reconcile_html=true`** (otherwise HTTP 400). |
+
 **Response 200 (perfect match — exit 0):**
 ```json
 {
@@ -279,13 +285,21 @@ curl -s -X POST http://localhost:8000/reconcile \
   -F "reconcile_html=true" \
   | jq '{exit: .stats.exit_code, mismatches: .summary.mismatches, status: .summary.status}'
 
-# Save the HTML report to disk for review
+# Save the HTML report to disk for review (JSON-extract pattern)
 curl -s -X POST http://localhost:8000/reconcile \
   -F "input_csv=@transactions.csv" \
   -F "ml_output_csv=@ml_output.csv" \
   -F "rules=@rules.fin" \
   -F "reconcile_html=true" \
   | jq -r .report_html > reconcile_report.html
+
+# Cleaner: ?format=html returns the HTML directly, no JSON unwrapping needed
+curl -s -X POST 'http://localhost:8000/reconcile?format=html' \
+  -F "input_csv=@transactions.csv" \
+  -F "ml_output_csv=@ml_output.csv" \
+  -F "rules=@rules.fin" \
+  -F "reconcile_html=true" \
+  -o reconcile_report.html
 ```
 
 With auth:

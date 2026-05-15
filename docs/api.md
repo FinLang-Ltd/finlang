@@ -164,6 +164,8 @@ For the full form-field schema on each endpoint, response shapes, and curl recip
 
 > **⚠️ `/reconcile` exit code semantics:** unlike `/process`, where exit code 3 (verify mismatch) maps to HTTP 422, `/reconcile` maps **exit 3 → HTTP 200** with mismatches surfaced in the response body. Finding mismatches is the expected outcome of reconciliation, not an error. The caller reads `stats.mismatches_found` and `summary.mismatches` to know what happened. Only ops errors (exit 1 → 500) and validation errors (exit 2 → 422) map to error statuses on this endpoint.
 
+> **🌐 `/reconcile?format=html` shortcut:** for human inspection of the HTML report, append `?format=html` to the POST URL and the API returns the HTML directly with `Content-Type: text/html` — no JSON unwrapping, no escape-character cleanup. Save with `curl -o report.html` or open in a browser. Requires `reconcile_html=true`. Default `format=json` returns the full `ReconcileResponse` (existing behaviour).
+
 ---
 
 ## 🔐 Auth and Configuration

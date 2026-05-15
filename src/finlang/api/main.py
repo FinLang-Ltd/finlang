@@ -41,6 +41,7 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Query,
     UploadFile,
     status,
 )
@@ -521,8 +522,25 @@ async def reconcile(
     output_encoding: str = Form("utf-8"),
     strict_parse: bool = Form(False),
     fail_threshold: float = Form(0.01),
+    format: str = Query(
+        "json",
+        description=(
+            "Response format: 'json' (default) returns the full ReconcileResponse "
+            "with summary + mismatches_csv + report_html + audit + stats. "
+            "'html' returns the self-contained HTML report directly with "
+            "Content-Type: text/html — convenient for human inspection (browser, "
+            "Swagger UI). Requires reconcile_html=true."
+        ),
+    ),
 ):
     """Run --reconcile and return JSON summary + (optional) HTML report.
+
+    Two response shapes selected by the ``format`` query param:
+      - ``format=json`` (default): the full ``ReconcileResponse`` — summary,
+        mismatches CSV, optional HTML report, audit log, stats.
+      - ``format=html``: the self-contained HTML report directly, with
+        ``Content-Type: text/html``. Bypasses JSON wrapping so the browser
+        renders cleanly. Requires ``reconcile_html=true``.
 
     Exit code 3 (mismatches found) is mapped to HTTP 200 — finding mismatches
     is the expected outcome of reconciliation, not an error. The response body
@@ -533,6 +551,12 @@ async def reconcile(
         raise HTTPException(400, "audit_mode must be 'full' for /reconcile.")
     if rules is None and not include_pack:
         raise HTTPException(400, "Provide either a rules file or include_pack (or both).")
+    if format not in ("json", "html"):
+        raise HTTPException(400, "format must be 'json' or 'html'.")
+    if format == "html" and not reconcile_html:
+        raise HTTPException(
+            400, "format=html requires reconcile_html=true (no HTML report would be generated)."
+        )
 
     with tempfile.TemporaryDirectory(prefix="finlang_api_recon_") as tmp:
         d = Path(tmp)
@@ -623,6 +647,20 @@ async def reconcile(
                 audit_data = loaded if isinstance(loaded, list) else None
             except Exception:
                 audit_data = None
+
+        # format=html: return the HTML report directly with text/html content-type.
+        # Bypasses JSON wrapping so browsers / Swagger UI render cleanly without
+        # the caller needing to extract+unescape the report_html field manually.
+        # FastAPI's response_model validation is bypassed automatically when a
+        # Response subclass is returned.
+        if format == "html":
+            if not report_html:
+                raise HTTPException(
+                    500,
+                    "Engine completed but produced no HTML report — reconcile_html "
+                    "was true but the report file was missing or unreadable.",
+                )
+            return HTMLResponse(content=report_html, status_code=200)
 
         return ReconcileResponse(
             summary=summary,
