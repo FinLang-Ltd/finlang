@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] — target v0.7.9 (fast-follow)
+
+### Added
+- **`[api]` optional extras group** — `pip install finlang[api]` installs `fastapi`, `uvicorn`, `python-multipart`. Core install (`pip install finlang`) unchanged; users who don't install `[api]` are unaffected.
+- **`finlang-api` console script** — runs the FastAPI app via uvicorn for local development and demo. Single-process by default; production deployments run behind a reverse proxy (nginx, Caddy) with TLS termination.
+- **New module: `src/finlang/api/main.py`** — thin FastAPI wrapper over the published FinLang CLI entry points. Subprocess dispatch only; never imports engine internals.
+- **Endpoints:** `GET /` (landing), `GET /health` (liveness + version), `POST /process` (categorise), `POST /discover` (find uncategorised counterparties), `POST /suggest` (generate draft `.fin` rules), `POST /reconcile` (ML reconciliation with optional HTML report).
+- **`/reconcile` exit-code semantics:** exit code 3 (mismatches found) maps to HTTP 200 with mismatches in the response body. Mismatches are an expected review outcome of reconciliation, not an error. Only ops errors (exit 1 → 500) and validation errors (exit 2 → 422) map to error HTTP statuses on this endpoint.
+- **`/reconcile?format=html` query param** — returns the HTML report directly with `Content-Type: text/html`, bypassing JSON wrapping. Convenient for human inspection (browsers, Swagger UI, curl piped to file); requires `reconcile_html=true`. Default `format=json` returns the full `ReconcileResponse` (existing behaviour, no breaking change). Closes the UX gap where viewing the HTML report from a JSON response required manual field extraction + backslash-escape cleanup.
+- **Optional API-key authentication** — set `FINLANG_API_KEY` env var to enable `X-API-Key` header gating on all non-health endpoints. Auth is opt-in (disabled when env var unset). `/health` is always public.
+- **Configurable limits** — `FINLANG_API_TIMEOUT` (default 300s subprocess timeout), `FINLANG_API_MAX_UPLOAD` (default 100 MiB upload cap), `FINLANG_API_HOST` / `FINLANG_API_PORT` / `FINLANG_API_LOG_LEVEL` for the `finlang-api` script.
+- **API test suite: `test-suite/test_api.py`** — 17 tests covering health, root, `/process`, `/discover`, `/suggest`, `/reconcile` (perfect-match, mismatches, HTML emission, `format=html` direct-response, `format=html` validation), auth gating, and a CLI/API reconcile parity contract test. Standalone gate, **not** part of daily `quick_check.ps1` (137 tests / 10 gates unchanged); run via `python -m pytest test_api.py -v` from `test-suite/` with `pip install -e ../prod[api]` + `pip install httpx` in the test venv.
+- **New documentation:** `docs/api.md` (user-facing workflow doc — when to use, request flow, worked example, configuration, exit-code mapping, limitations) and `docs/api_reference.md` (full endpoint reference with form-field tables, response schemas, curl recipes, deployment notes).
+- **README + cli_reference.md** cross-linked to the new API docs.
+
+### Changed
+- Engine and CLI surfaces unchanged. SOL-041 is a curated wrapper — new CLI flags need explicit endpoint parameters, not auto-forwarded.
+
+---
+
 ## [0.7.8] - 2026-05-15
 
 ### Added

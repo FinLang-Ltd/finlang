@@ -106,7 +106,7 @@ def _detect_delimiter(path: str, encoding: str = "utf-8-sig", sample_bytes: int 
 try:
     from finlang import __version__
 except ImportError:
-    __version__ = "0.7.8"  # fallback for standalone script execution
+    __version__ = "0.7.9"  # fallback for standalone script execution
 
 # Optional: keep the env var override if you ever need it for CI builds,
 # otherwise just use the raw version.

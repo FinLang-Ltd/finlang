@@ -281,3 +281,5 @@ A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.
 * `docs/rulepacks.md`
 * `docs/growth_loop_best_practices.md`
 * `docs/faq.md`
+* `docs/api.md` — HTTP API wrapper over these CLI entry points (`pip install finlang[api]`)
+* `docs/api_reference.md` — full API endpoint reference
