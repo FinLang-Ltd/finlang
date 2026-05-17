@@ -1,7 +1,7 @@
 # 🧩 Installation Guide
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.7.8
+> **Last verified:** v0.7.9 (target)
 
 FinLang can be installed on Windows, macOS, or Linux using `pip`.  
 This guide walks through installation, quick testing, and key configuration notes introduced in **v0.6.4.post1 (GA)**.
@@ -10,7 +10,7 @@ This guide walks through installation, quick testing, and key configuration note
 
 ## 🚀 Quick Install
 
-FinLang requires **Python 3.10–3.12**.
+FinLang requires **Python 3.10–3.14**.
 
 ```bash
 pip install finlang
@@ -20,6 +20,13 @@ Or with Fast I/O acceleration (recommended for large datasets):
 ```bash
 pip install "finlang[fastio]"
 ```
+
+Or with the HTTP API wrapper (FastAPI + uvicorn):
+```bash
+pip install "finlang[api]"
+finlang-api    # binds 127.0.0.1:8000 — interactive docs at /docs
+```
+*(Thin FastAPI wrapper over the CLI. See [api.md](api.md).)*
 
 Verify installation:
 ```bash
@@ -133,3 +140,6 @@ pip uninstall finlang
 - **[CLI Reference](cli_reference.md)** – Detailed flag and command reference  
 - **[Rule Language](rule_language.md)** – Write deterministic `.fin` rules  
 - **[Workflows](workflows.md)** – Run FinLang day‑to‑day
+- **[Verify](verify.md)** – `--verify` / `--verify-full` integrity verification (SHA-256 fingerprinting + field comparison)
+- **[Reconciliation](reconciliation.md)** – `--reconcile` ML validation layer with HTML audit report
+- **[API](api.md)** – FastAPI wrapper (`pip install finlang[api]`, `finlang-api`)
