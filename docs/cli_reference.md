@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.7.8
+> **Last verified:** v0.7.9
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
