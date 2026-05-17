@@ -52,7 +52,7 @@ Liveness check. No auth required.
 {
   "status": "ok",
   "service": "finlang-api",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "timestamp": 1747000000.0,
   "cli_resolved": true
 }

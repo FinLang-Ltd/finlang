@@ -256,7 +256,7 @@ Async job queues, persistent storage, multi-tenancy, OAuth/JWT, and rate meterin
 ## 📚 Related Documentation
 
 - [api_reference.md](api_reference.md) — full form-field tables, response schemas, curl recipes per endpoint
-- [cli_reference.md](cli_reference.md) — the underlying CLI surface (every API form field maps to a CLI flag)
+- [cli_reference.md](cli_reference.md) — the underlying CLI surface that the API dispatches to
 - [workflows.md](workflows.md) — Daily Run / Growth Loop patterns the API can drive
 - [reconciliation.md](reconciliation.md) — `--reconcile` engine feature (exposed via `/reconcile`)
 - [verify.md](verify.md) — `--verify` integrity primitive (already wired to `/process` via the `verify` form field)
