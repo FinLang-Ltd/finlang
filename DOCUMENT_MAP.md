@@ -154,7 +154,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 |------|----------|-------------|
 | `quick_check.ps1` | Daily gate runner (10 gates, 137 tests + rulepack linter), single-line-per-gate display. Wall-clock ~100–140s typical post-Gate-10 (varies with cache state, Reconcile gate range ~25–100s observed). | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
-| `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-4) | New cleanroom gates, install process changes, **test count strings in header (always)** |
+| `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-5, incl. API surface) | New cleanroom gates, install process changes, **test count strings in header (always)** |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |
 | `finlang_showcase.ps1` | Proof-of-life: disposable venv + tests + demo in one recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
 | `finlang_showcase_public.ps1` | Path-masked showcase variant for public recording | New test gates, demo changes, **test count strings in banner + final summary (always)** |
