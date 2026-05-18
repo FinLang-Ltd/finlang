@@ -1,5 +1,5 @@
 # FinLang v0.7.9 — Three Surfaces, One Engine
-*Released: TBC*
+*Released: 18 May 2026*
 
 ---
 
