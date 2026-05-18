@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased] — target v0.7.9 (fast-follow)
+## [0.7.9] - 2026-05-18
 
 ### Added
 - **`[api]` optional extras group** — `pip install finlang[api]` installs `fastapi`, `uvicorn`, `python-multipart`. Core install (`pip install finlang`) unchanged; users who don't install `[api]` are unaffected.
