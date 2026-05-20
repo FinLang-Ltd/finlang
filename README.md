@@ -12,11 +12,29 @@ Designed for explainable processing in regulated environments.
 
 ## 🌐 Overview
 
-**FinLang** is a domain-specific language (DSL) and high-performance CLI engine for financial transaction processing.  
+**FinLang** is a domain-specific language (DSL) and vectorised CLI engine for financial transaction processing.  
 It replaces opaque machine-learning categorization with **transparent, deterministic rules** — delivering explainability, auditability, and global compatibility.
 
 > **Built for audit-friendly logic and deterministic processing.**  
 > A deterministic alternative where explainability and reproducibility matter.
+
+---
+
+## What this is for
+
+FinLang is a deterministic rules engine for financial transaction categorisation.
+
+It is especially useful as a challenge layer alongside ML categorisers: the `--reconcile` workflow compares FinLang's rule-attributed output against an external classification, row by row.
+
+Same input + same rules = reproducible output, with rule-attributed audit trails.
+
+The v0.7.9 FastAPI wrapper makes the same engine reachable over a self-hosted HTTP surface for service/integration workflows.
+
+Three surfaces. One engine:
+
+- CLI for batch processing
+- Python workflows via subprocess-isolated CLI execution
+- Self-hosted HTTP wrapper via `finlang-api`
 
 ---
 
@@ -48,14 +66,14 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.7.8)
+## ⚙️ Key Features (v0.7.9)
 
 | Feature | Description |
 |:--|:--|
 | **Deterministic DSL** | Human-readable `.fin` rules language — explainable logic, Git-friendly. |
-| **High-Performance Engine** | Vectorized core (Pandas + NumPy + PyArrow) — **~217K rows/sec FastIO** validated throughput on the integrity harness. |
+| **Vectorised Engine** | Vectorised core (Pandas + NumPy + PyArrow) — **~217K rows/sec FastIO** validated throughput on the integrity harness (20M × 6 cols). |
 | **Dual Backend** | Standard (`Engine: c`) or FastIO (`Engine: pyarrow`) with automatic fallback. |
-| **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% success on addressable patterns. |
+| **Growth Loop** | Automated Discover → Suggest → Categorize workflow — 97.8% average coverage gain across 5 validation runs ([source](docs/growth_loop_best_practices.md)). |
 | **Global I18n Support** | US/UK/EU/Commonwealth formats, £ € $ ¥ ₹ stripping, localized decimals/dates/delimiters. |
 | **Audit Trail System** | Every decision logged (before/after state diffs); stateless for reproducibility. |
 | **Exclude Marker** | Boolean `exclude` column — rule-driven, auditable, supports blacklist/whitelist exception patterns. |
@@ -65,6 +83,7 @@ rule "TRAVEL: High Value Flight" {
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
 | **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output. See [docs/verify.md](docs/verify.md). |
 | **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`. See [docs/reconciliation.md](docs/reconciliation.md). |
+| **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — six endpoints incl. `/process`, `/reconcile`, `/discover`, `/suggest`. Subprocess-dispatched (no second engine surface). 17 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
 
 ---
 
@@ -153,7 +172,7 @@ Measured with `--audit-mode none` (max throughput) on Intel i7-12700T, 48GB RAM,
 
 ---
 
-## 🔐 Cryptographic Integrity Verification (v0.7.7)
+## 🔐 Integrity Verification (v0.7.7+)
 
 SHA-256 fingerprint verification benchmarked on large datasets:
 
@@ -191,8 +210,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 - **Discover** uncategorized counterparties  
 - **Suggest** new rules in seconds (1:1 mapping in exact mode)  
 - **Merge + Re-run** for incremental coverage gains  
-- **Validated Result:** 97.8% success on addressable patterns  
-- **ROI:** 8.8 transactions categorized per new rule  
+- **Validated Result:** 97.8% average coverage gain across 5 runs ([source](docs/growth_loop_best_practices.md))  
 
 📄 See: [`docs/growth_loop_best_practices.md`](docs/growth_loop_best_practices.md)
 
@@ -208,6 +226,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
+- [`docs/release_notes/v0_7_9.md`](docs/release_notes/release_notes_v0_7_9.md) — FastAPI wrapper (`finlang-api`), three surfaces / one engine
 - [`docs/release_notes/v0_7_8.md`](docs/release_notes/release_notes_v0_7_8.md)
 - [`docs/release_notes/v0_7_7.md`](docs/release_notes/release_notes_v0_7_7.md)
 - [`docs/release_notes/v0_7_6.md`](docs/release_notes/release_notes_v0_7_6.md)
@@ -262,13 +281,16 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 ## 📌 Version Summary
 
-| Component | Version | Status |
+| Component | Version | Validation |
 |:--|:--|:--|
-| Core Engine      | v0.7.8   | ✅ Production-Ready (byte-identical to v0.7.7) |
-| CLI Suite        | v0.7.8   | ✅ Validated (137 tests, 10 gates) |
-| Discover/Suggest | v0.7.8   | ✅ 97.8% accuracy    |
-| Integrity Test   | v0.7.8   | ✅ 20M rows verified, ~217K rows/sec FastIO |
-| Verify           | v0.7.8   | ✅ Built-in `--verify` / `--verify-full` |
-| Reconcile        | v0.7.8   | ✅ Built-in `--reconcile` / `--reconcile-html` (new) |
-| Docs             | v0.7.8   | ✅ Complete          |
-| Python Support   | 3.10—3.14 | ✅ Tested            |
+| Core Engine      | v0.7.9   | Byte-identical to v0.7.8 |
+| CLI Suite        | v0.7.9   | 137 tests across 10 gates (daily); 7-gate full pre-release suite |
+| FastAPI Wrapper  | v0.7.9   | 17 standalone integration tests + CLI/API parity contract test |
+| Discover/Suggest | v0.7.9   | 97.8% average coverage gain across 5 validation runs |
+| Integrity Test   | v0.7.9   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |
+| Verify           | v0.7.9   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison) |
+| Reconcile        | v0.7.9   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
+| Cleanroom        | v0.7.9   | 5-gate disposable-venv PyPI validation (incl. API surface) |
+| CI               | v0.7.9   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
+| Docs             | v0.7.9   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
+| Python Support   | 3.10—3.14 | Tested across all five versions via CI matrix |
