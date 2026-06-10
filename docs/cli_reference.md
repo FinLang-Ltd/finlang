@@ -70,6 +70,8 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 | `--reconcile-html`       | Additionally emit a self-contained HTML report (`reconcile_report.html`). Requires `--reconcile` AND `--reconcile-output-dir`. See [reconciliation.md](reconciliation.md). |
 | `--reconcile-identity-fields LIST` | Identity guard: comma-separated fields verified positionally BEFORE comparison (e.g. `date,amount,counterparty`). Misaligned rows = exit 1 with `reconcile_identity_failures.{csv,json}`; mismatch reporting suppressed. Requires `--reconcile`. Mutually exclusive with `--reconcile-key`. See [reconciliation.md](reconciliation.md). |
 | `--reconcile-key LIST` | Key-based alignment: comma-separated fields forming a composite key (e.g. `date,amount,counterparty`). Replaces positional alignment — row counts may differ; unmatched rows reported as orphans (exit 3, `reconcile_orphans_*.csv`); duplicate keys = exit 1. Requires `--reconcile`. Mutually exclusive with `--reconcile-identity-fields`. See [reconciliation.md](reconciliation.md). |
+| `--impact-rules PATH`    | Impact analysis: run the input through both `--rules` (baseline) and this candidate `.fin` pack; report rows re-categorised, indicative amount moved per transition, per-rule match deltas. Exit 3 on behavioural change (CI-gateable). Writes no categorised output (`--output` not required in this mode). Requires `--impact-output-dir`; mutually exclusive with `--reconcile` and `--verify`. |
+| `--impact-output-dir DIR`| Directory for impact artefacts (`impact_report.json` — versioned schema with rulepack SHA-256 hashes; `impact_changes.csv` — row-level before/after). Required in impact mode; created if absent. |
 
 ## 2) `finlang-discover` — Discovery Tool
 

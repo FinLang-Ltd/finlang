@@ -102,6 +102,24 @@ Independent ML validation layer. Compares FinLang's deterministic categorisation
 
 ---
 
+## Impact analysis (`--impact-rules`)
+
+Rule-change impact analysis: the same input runs through the baseline (`--rules`) and a candidate rulepack; the report shows what the change does before it goes live.
+
+| Flag | Canonical Input | Meaning | Notes |
+|-----|------------------|--------|------|
+| `--impact-rules` | Path to candidate `.fin` file | Activate impact analysis (baseline vs candidate) | Mutually exclusive with `--reconcile` and `--verify`/`--verify-full`. Writes no categorised output — `--output` is not required in this mode. |
+| `--impact-output-dir` | Directory path | Where to write `impact_report.json` + `impact_changes.csv` | Required in impact mode; created if absent. |
+
+**Exit codes for impact analysis:**
+- `0` — no behavioural changes (attribution-only changes may exist; reported, never gating)
+- `2` — validation error (missing `--impact-output-dir`, combined with `--reconcile` or `--verify`, `--impact-output-dir` without `--impact-rules`)
+- `3` — behavioural changes detected (any difference in category, flags, or status) — review required
+
+Behavioural change = category/flags/status differ. Attribution-only change = same outcome via a different rule (rename, shadow) — reported in the summary and `impact_changes.csv`, never drives the exit code. Indicative amount totals use float arithmetic, not accounting-grade decimals — the disclaimer appears in the CLI summary itself.
+
+---
+
 ## 6) Discover / Suggest (Growth Loop)
 
 **Discover (`finlang-discover`)**
