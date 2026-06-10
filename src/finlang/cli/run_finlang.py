@@ -928,6 +928,7 @@ def main(args_list=None):
     ap.add_argument("--reconcile-output-dir", default=None, help="Directory for reconciliation artifacts (JSON report + mismatches CSV).")
     ap.add_argument("--reconcile-html", action="store_true", help="Additionally emit a self-contained HTML report (reconcile_report.html). Requires --reconcile and --reconcile-output-dir.")
     ap.add_argument("--reconcile-identity-fields", default=None, help="Comma-separated fields to identity-check positionally before comparison (e.g. date,amount,counterparty). Misaligned rows = structural failure (exit 1), mismatch reporting suppressed. Requires --reconcile.")
+    ap.add_argument("--reconcile-key", default=None, help="Comma-separated fields forming a composite key for key-based alignment (e.g. date,amount,counterparty). Replaces positional alignment: rows match by key, row counts may differ, unmatched rows are reported as orphans (exit 3). Duplicate keys = exit 1. Requires --reconcile; mutually exclusive with --reconcile-identity-fields.")
 
     ap.epilog = (
     "Environment Variables:\n"
@@ -984,6 +985,16 @@ def main(args_list=None):
         _identity_fields_parsed = [s.strip() for s in args.reconcile_identity_fields.split(",") if s.strip()]
         if not _identity_fields_parsed:
             print("FATAL: --reconcile-identity-fields cannot be empty (got '%s')." % args.reconcile_identity_fields, file=sys.stderr); sys.exit(2)
+    # Key-based alignment (SOL-104): requires --reconcile; non-empty field
+    # list; mutually exclusive with the positional identity guard
+    if args.reconcile_key is not None:
+        if not args.reconcile:
+            print("FATAL: --reconcile-key requires --reconcile.", file=sys.stderr); sys.exit(2)
+        if args.reconcile_identity_fields is not None:
+            print("FATAL: --reconcile-key and --reconcile-identity-fields are mutually exclusive — one replaces positional alignment, the other guards it.", file=sys.stderr); sys.exit(2)
+        _key_fields_parsed = [s.strip() for s in args.reconcile_key.split(",") if s.strip()]
+        if not _key_fields_parsed:
+            print("FATAL: --reconcile-key cannot be empty (got '%s')." % args.reconcile_key, file=sys.stderr); sys.exit(2)
     # --reconcile-html requires BOTH --reconcile AND --reconcile-output-dir
     # (Branch 3 thinktank-mandated dual-flag validation: no place to write
     # the HTML without an output dir; no reconciliation to render without
@@ -1249,6 +1260,11 @@ def main(args_list=None):
                 identity_fields = [
                     s.strip() for s in args.reconcile_identity_fields.split(",") if s.strip()
                 ]
+            key_fields = None
+            if args.reconcile_key is not None:
+                key_fields = [
+                    s.strip() for s in args.reconcile_key.split(",") if s.strip()
+                ]
             try:
                 reconcile_result = run_reconciliation(
                     finlang_output=out_path,
@@ -1259,6 +1275,7 @@ def main(args_list=None):
                     headless=args.headless,
                     emit_html=args.reconcile_html,
                     identity_fields=identity_fields,
+                    key_fields=key_fields,
                 )
             except FileNotFoundError as e:
                 print(f"FATAL: {e}", file=sys.stderr)

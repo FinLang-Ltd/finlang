@@ -68,6 +68,12 @@ class ReconcileResult(NamedTuple):
     #   -1 = audit_path provided but file missing or unparseable
     #   >0 = number of rule-attributed entries loaded
     audit_entries_loaded: int = 0
+    # SOL-104 key-based alignment: orphan rows (present on one side only).
+    # Tuples of context dicts (row_number/date/amount/counterparty/memo/
+    # category). Always empty in positional mode. Tuple, not list — NamedTuple
+    # defaults are class-level, so the default must be immutable.
+    orphans_finlang: tuple = ()
+    orphans_ml: tuple = ()
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +290,113 @@ def _write_identity_failures(
 
 
 # ---------------------------------------------------------------------------
+# Key-based alignment (SOL-104) — --reconcile-key
+# ---------------------------------------------------------------------------
+
+def _build_key_index(
+    rows: List[Dict[str, str]],
+    key_fields: List[str],
+    source_label: str,
+) -> Dict[tuple, int]:
+    """Build a composite-key → row-index map; fail strict on duplicates.
+
+    Keys are canonicalised via `_identity_normalise` (same contract as the
+    identity guard: amounts numerically, dates ISO, text case-insensitive).
+    Duplicate keys on either side are a hard error — silent first-match
+    would degenerate back into positional behaviour, which defeats the
+    purpose of key alignment.
+
+    Raises:
+        ValueError: If any composite key appears on more than one row.
+    """
+    index: Dict[tuple, int] = {}
+    duplicates: Dict[tuple, List[int]] = {}
+    for i, row in enumerate(rows):
+        key = tuple(
+            _identity_normalise(f, _resolve_field(row, f)) for f in key_fields
+        )
+        if key in index or key in duplicates:
+            duplicates.setdefault(key, [index[key]] if key in index else [])
+            duplicates[key].append(i)
+            index.pop(key, None)
+        else:
+            index[key] = i
+    if duplicates:
+        examples = []
+        for key, idxs in list(duplicates.items())[:5]:
+            rows_str = ",".join(str(i + 1) for i in sorted(idxs))
+            examples.append(f"{key!r} on rows [{rows_str}]")
+        raise ValueError(
+            f"Duplicate key(s) in {source_label}: {len(duplicates)} composite "
+            f"key value(s) appear on multiple rows — safe alignment cannot "
+            f"proceed (first-match would silently degenerate to positional "
+            f"behaviour). Examples: {'; '.join(examples)}. Refine "
+            f"--reconcile-key to a unique composite (e.g. add date or amount)."
+        )
+    return index
+
+
+def _orphan_context(row: Dict[str, str], row_number: int) -> dict:
+    """Build the context dict written per orphan row (fixed column set)."""
+    return {
+        "row_number": row_number,
+        "date": _resolve_field(row, "date") or "",
+        "amount": _resolve_field(row, "amount") or "",
+        "counterparty": _resolve_field(row, "counterparty") or "",
+        "memo": _resolve_field(row, "memo") or "",
+        "category": _resolve_field(row, "category") or "",
+    }
+
+
+def _align_by_key(
+    finlang_rows: List[Dict[str, str]],
+    ml_rows: List[Dict[str, str]],
+    key_fields: List[str],
+) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], List[int], List[dict], List[dict]]:
+    """Align two row lists by composite key.
+
+    Returns:
+        (fl_matched, ml_matched, fl_indices, orphans_finlang, orphans_ml)
+        where fl_matched[i] pairs with ml_matched[i], fl_indices[i] is the
+        0-based FinLang row index (drives audit linkage + row_number), and
+        the orphan lists carry `_orphan_context` dicts. Matched pairs are
+        ordered by FinLang row order (deterministic).
+
+    Raises:
+        ValueError: On duplicate keys (either side).
+    """
+    fl_index = _build_key_index(finlang_rows, key_fields, "FinLang output")
+    ml_index = _build_key_index(ml_rows, key_fields, "ML output")
+
+    fl_matched: List[Dict[str, str]] = []
+    ml_matched: List[Dict[str, str]] = []
+    fl_indices: List[int] = []
+    orphans_finlang: List[dict] = []
+    matched_ml_indices: set = set()
+
+    for i, row in enumerate(finlang_rows):
+        key = tuple(
+            _identity_normalise(f, _resolve_field(row, f)) for f in key_fields
+        )
+        ml_i = ml_index.get(key)
+        if ml_i is None:
+            orphans_finlang.append(_orphan_context(row, i + 1))
+        else:
+            fl_matched.append(row)
+            ml_matched.append(ml_rows[ml_i])
+            fl_indices.append(i)
+            matched_ml_indices.add(ml_i)
+
+    orphans_ml = [
+        _orphan_context(row, i + 1)
+        for i, row in enumerate(ml_rows)
+        if i not in matched_ml_indices
+    ]
+
+    return fl_matched, ml_matched, fl_indices, orphans_finlang, orphans_ml
+
+
+# ---------------------------------------------------------------------------
 # Audit linkage
 # ---------------------------------------------------------------------------
 
@@ -360,18 +473,26 @@ def _compare_rows(
     ml_rows: List[Dict[str, str]],
     reconcile_fields: List[str],
     audit_index: Dict[int, Dict[str, str]],
+    row_indices: Optional[List[int]] = None,
 ) -> List[dict]:
     """Compare aligned rows field-by-field on the reconcile fields.
 
+    Args:
+        row_indices: Original 0-based FinLang row indices for each aligned
+            pair (key mode passes these so row_number and audit linkage
+            reference the FinLang file, not the aligned position). None =
+            positional mode, where position IS the index.
+
     Returns a list of mismatch dicts. Each mismatch contains:
-        - row_number: 1-indexed row number (excluding header)
+        - row_number: 1-indexed FinLang row number (excluding header)
         - date, amount, counterparty: contextual fields if present
         - For each reconcile field: ml_<field>, finlang_<field>
         - finlang_rule_matched: from audit_index if available
         - finlang_audit_reason: from audit_index if available
     """
     mismatches: List[dict] = []
-    for i, (fl_row, ml_row) in enumerate(zip(finlang_rows, ml_rows)):
+    for pos, (fl_row, ml_row) in enumerate(zip(finlang_rows, ml_rows)):
+        i = row_indices[pos] if row_indices is not None else pos
         differing_fields: List[str] = []
         for field in reconcile_fields:
             fl_val = _resolve_field(fl_row, field) or ""
@@ -414,6 +535,7 @@ def run_reconciliation(
     headless: bool = False,
     emit_html: bool = False,
     identity_fields: Optional[List[str]] = None,
+    key_fields: Optional[List[str]] = None,
 ) -> ReconcileResult:
     """Run reconciliation: compare FinLang output against ML output.
 
@@ -438,6 +560,13 @@ def run_reconciliation(
             artefacts are written (when ``output_dir`` is set), normal
             mismatch reporting is suppressed, and IdentityMismatchError
             is raised (CLI exits 1 — structural, not exit 3).
+        key_fields: Optional list of fields forming a composite key for
+            key-based alignment (SOL-104). Replaces positional alignment
+            entirely: rows match by canonicalised key, row counts may
+            differ, unmatched rows on either side are reported as
+            orphans (exit 3 — review needed). Duplicate keys on either
+            side are a hard error (ValueError — CLI exits 1). Mutually
+            exclusive with ``identity_fields``.
 
     Returns:
         ReconcileResult NamedTuple.
@@ -455,11 +584,18 @@ def run_reconciliation(
         # Defensive: empty fields list reaches here only if caller built one.
         # The CLI rejects --reconcile-fields="" at parse time (exit 2).
         raise ValueError("reconcile_fields must contain at least one field name.")
+    if identity_fields and key_fields:
+        # Defensive: the CLI rejects this combination at parse time (exit 2).
+        raise ValueError(
+            "identity_fields and key_fields are mutually exclusive — one is "
+            "a positional guard, the other replaces positional alignment."
+        )
 
     finlang_rows = _read_csv_rows(finlang_output)
     ml_rows = _read_csv_rows(ml_output)
 
-    _align_positional(finlang_rows, ml_rows)
+    if not key_fields:
+        _align_positional(finlang_rows, ml_rows)
 
     # Field-presence check: each reconcile field must exist on BOTH sides.
     # Missing on either side = exit 1 (structural error), not exit 3.
@@ -513,24 +649,42 @@ def run_reconciliation(
             file=sys.stderr,
         )
 
-    mismatches = _compare_rows(finlang_rows, ml_rows, fields, audit_index)
+    orphans_finlang: List[dict] = []
+    orphans_ml: List[dict] = []
+    if key_fields:
+        # Key fields must exist on both sides (structural — exit 1).
+        _validate_field_presence(finlang_rows, key_fields, "FinLang output")
+        _validate_field_presence(ml_rows, key_fields, "ML output")
+        (fl_matched, ml_matched, fl_indices,
+         orphans_finlang, orphans_ml) = _align_by_key(
+            finlang_rows, ml_rows, key_fields)
+        mismatches = _compare_rows(
+            fl_matched, ml_matched, fields, audit_index, row_indices=fl_indices)
+        rows_compared = len(fl_matched)
+        alignment_mode = "key:" + ",".join(key_fields)
+    else:
+        mismatches = _compare_rows(finlang_rows, ml_rows, fields, audit_index)
+        rows_compared = len(finlang_rows)
+        alignment_mode = "positional"
 
-    rows_compared = len(finlang_rows)
     match_count = rows_compared - len(mismatches)
     duration = time.perf_counter() - t0
 
     result = ReconcileResult(
-        success=len(mismatches) == 0,
+        success=(len(mismatches) == 0
+                 and not orphans_finlang and not orphans_ml),
         rows_compared=rows_compared,
         matches=match_count,
         mismatches=len(mismatches),
         mismatch_rows=mismatches,
         reconcile_fields=fields,
-        alignment_mode="positional",
+        alignment_mode=alignment_mode,
         duration_seconds=round(duration, 3),
         finlang_output_file=os.path.basename(finlang_output),
         ml_output_file=os.path.basename(ml_output),
         audit_entries_loaded=audit_count,
+        orphans_finlang=tuple(orphans_finlang),
+        orphans_ml=tuple(orphans_ml),
     )
 
     if not headless:
@@ -541,6 +695,14 @@ def run_reconciliation(
         _write_report_json(result, output_dir)
         if mismatches:
             _write_mismatches_csv(mismatches, fields, output_dir)
+        if result.orphans_finlang:
+            _write_orphans_csv(
+                list(result.orphans_finlang), output_dir,
+                "reconcile_orphans_finlang.csv")
+        if result.orphans_ml:
+            _write_orphans_csv(
+                list(result.orphans_ml), output_dir,
+                "reconcile_orphans_ml.csv")
         if emit_html:
             # Lazy import keeps reconcile.py decoupled from the HTML module
             # for invocations that don't need it. Same pattern as the CLI's
@@ -584,6 +746,23 @@ def _print_result(result: ReconcileResult) -> None:
         if result.mismatches > 10:
             print(f"   ... and {result.mismatches - 10} more")
 
+    if result.orphans_finlang or result.orphans_ml:
+        print(
+            f"   Orphans: {len(result.orphans_finlang)} FinLang row(s) "
+            f"unmatched in ML output; {len(result.orphans_ml)} ML row(s) "
+            f"unmatched in FinLang output"
+        )
+        for o in list(result.orphans_finlang)[:5]:
+            print(
+                f"   FinLang row {o.get('row_number', '?')} has no ML match — "
+                f"{o.get('counterparty', '')}"
+            )
+        for o in list(result.orphans_ml)[:5]:
+            print(
+                f"   ML row {o.get('row_number', '?')} has no FinLang match — "
+                f"{o.get('counterparty', '')}"
+            )
+
 
 # ---------------------------------------------------------------------------
 # Artifact generation
@@ -608,6 +787,8 @@ def _write_report_json(result: ReconcileResult, output_dir: str) -> None:
         "match_rate_percent": match_rate,
         "perfect_match": result.success,  # closes 99.998% rounding ambiguity
         "audit_entries_loaded": result.audit_entries_loaded,
+        "orphans_finlang_count": len(result.orphans_finlang),
+        "orphans_ml_count": len(result.orphans_ml),
         "duration_seconds": result.duration_seconds,
         "status": "PASS" if result.success else "REVIEW REQUIRED",
     }
@@ -639,3 +820,19 @@ def _write_mismatches_csv(
         writer.writerow(columns)
         for m in mismatches:
             writer.writerow([m.get(col, "") for col in columns])
+
+
+def _write_orphans_csv(orphans: List[dict], output_dir: str, filename: str) -> None:
+    """Write an orphan-rows CSV (key mode — rows present on one side only).
+
+    `row_number` references the row's position in its OWN file (FinLang
+    numbering for reconcile_orphans_finlang.csv, ML numbering for
+    reconcile_orphans_ml.csv).
+    """
+    columns = ["row_number", "date", "amount", "counterparty", "memo", "category"]
+    path = os.path.join(output_dir, filename)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(columns)
+        for o in orphans:
+            writer.writerow([o.get(col, "") for col in columns])
