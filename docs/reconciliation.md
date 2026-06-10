@@ -1,6 +1,6 @@
 # ⚖️ ML Reconciliation
 > **Applies to:** FinLang v0.7.8+
-> **Status:** Phase 1 MVP (positional alignment, single-field default, strict mode)
+> **Status:** Positional alignment (with optional identity guard via `--reconcile-identity-fields`); single-field default; strict mode. Key-based alignment (`--reconcile-key`) on roadmap.
 > **Last verified:** v0.7.8
 
 Reconciliation compares FinLang's deterministic categorisation against an external system's output — typically an ML model — and produces a row-by-row report of every mismatch, complete with the rule that fired and the audit reason. **It is not an alternative to ML categorisation. It is an independent challenge layer that bolts onto an existing pipeline through one CLI flag**, producing evidence a compliance review or model-risk-management process can use to identify silent drift in categorisation outputs.
@@ -32,7 +32,7 @@ Reconciliation compares FinLang's deterministic categorisation against an extern
 
 - **Your ML pipeline is the only categorisation system AND no governance expects independent challenge.** Use either FinLang OR the ML model directly; reconciliation adds friction without value.
 - **You can't enable `--audit --audit-mode full`.** Reconcile refuses to run without it. The whole point is rule-attributed mismatches; without audit linkage there's no rule names on the disagreements.
-- **Your two CSVs have different row counts.** Phase 1 MVP requires identical row counts (positional alignment). Row-count mismatch exits with code 1, not 3 — that's a structural problem, not a categorisation disagreement. Key-based alignment lands in Phase 2.
+- **Your two CSVs have different row counts.** Positional alignment requires identical row counts. Row-count mismatch exits with code 1, not 3 — that's a structural problem, not a categorisation disagreement. Key-based alignment (`--reconcile-key`, on roadmap) addresses differing row sets.
 - **You want a "score" of which side is right.** Reconcile reports disagreements; it does not score them or judge. A human reads the mismatches CSV and decides.
 
 ---
@@ -207,12 +207,21 @@ Both post-engine checks run independently. Verify writes its artefacts to `verif
 | `--reconcile-fields` | comma-separated field names | Which fields to compare. Default: `category`. Multi-field works (e.g. `category,flags`). |
 | `--reconcile-output-dir` | directory path | Where to write reconciliation artefacts. Required if `--reconcile-html` is set. |
 | `--reconcile-html` | (boolean) | Additionally emit a self-contained HTML report. Requires both `--reconcile` and `--reconcile-output-dir`. |
+| `--reconcile-identity-fields` | comma-separated field names | Identity guard: verify the named fields match positionally **before** comparing reconcile fields (e.g. `date,amount,counterparty`). Misaligned rows = structural failure (exit 1) with `reconcile_identity_failures.{csv,json}` artefacts; normal mismatch reporting is suppressed. Requires `--reconcile`. |
 
 > **⚠️ Audit-mode requirement:** `--reconcile` rejects with exit code 2 if `--audit` is absent or `--audit-mode` is not `full`. This is a deliberate design point — silent reconciliation without rule attribution is worse than no reconciliation at all.
 
 > **🌍 Locale flags inherited:** The same i18n flags that the engine honours (`--decimal`, `--thousands`, `--dayfirst`, `--date-format`, `--encoding`) apply during reconciliation. If your data uses European formats, the reconcile output picks up the same locale handling automatically.
 
-> **🚧 Phase 1 limitation — positional alignment:** FinLang output and ML output must have identical row counts. Row N in one file corresponds to row N in the other. Row-count mismatch exits with code 1 (structural error). Key-based alignment via `--reconcile-key date,amount,counterparty` lands in Phase 2.
+> **⚠️ Critical assumption — row order:** Reconcile compares FinLang row N to ML row N positionally. By itself it does NOT verify that both rows represent the same transaction. If your ML pipeline reorders, batches, or async-processes rows, positional comparison can silently compare unrelated rows and produce nonsense mismatches with confident-looking attribution — or a false-confident perfect match.
+>
+> Safe ML pipelines: row-by-row sequential, simple pandas, single-threaded processing — these preserve order.
+>
+> Risky: distributed processing, parallel batching, async/queue-based ML inference, any post-processing that re-sorts.
+>
+> **Mitigation:** set `--reconcile-identity-fields date,amount,counterparty`. The identity guard checks those fields positionally before any comparison and refuses to report (exit 1, with a row-level failure artefact) when row order has drifted. Key-based alignment (`--reconcile-key`, on roadmap) removes the row-order dependency entirely.
+
+**Identity comparison contract** (for `--reconcile-identity-fields`): `amount` values compare numerically after the engine's amount normalisation (`-10.00` matches `-10.0`, CR/DR suffixes and parens handled); `date` values compare after ISO-8601 normalisation; all other fields compare case-insensitively with whitespace trimmed. Raw values — exactly as the files contain them — are what land in the failure artefacts.
 
 `--reconcile` coexists with `--verify` — both can run in the same invocation, both produce their own artefacts, exit code 3 if either fails.
 
@@ -229,7 +238,7 @@ Machine-readable summary. Contains:
 - `timestamp` — UTC ISO 8601 of the reconciliation run
 - `finlang_output_file`, `ml_output_file` — basenames of the compared files
 - `reconcile_fields` — list of fields compared
-- `alignment_mode` — `"positional"` in Phase 1
+- `alignment_mode` — `"positional"` (key-based alignment on roadmap)
 - `total_rows`, `matches`, `mismatches`, `match_rate_percent`
 - `perfect_match` — boolean (closes any rounding ambiguity around the percent)
 - `audit_entries_loaded` — count of audit entries indexed by row. Sentinel: `0` = no audit requested, `-1` = requested but unloadable, `>0` = loaded count
@@ -244,7 +253,11 @@ One row per disagreement. Columns: `row_number`, `date`, `amount`, `counterparty
 
 Self-contained HTML. Title, status banner (red for REVIEW REQUIRED, green for PASS), mismatch table with rule attribution and audit reason inline, footer with FinLang version and run duration. **No JavaScript, no external resources, opens offline.** Every user-provided string is `html.escape()`-ed before injection — counterparty values containing HTML special characters render as escaped text, never as live HTML.
 
-> **Memo column note:** Memo from the input CSV is carried on the per-row mismatch dict and the HTML report, but **not** in `reconcile_mismatches.csv` (Phase 1 scope). Downstream consumers reading the dict directly get the full context; the CSV stays focused on the reconcile fields and rule attribution.
+> **Memo column note:** Memo from the input CSV is carried on the per-row mismatch dict and the HTML report, but **not** in `reconcile_mismatches.csv` (positional-MVP scope). Downstream consumers reading the dict directly get the full context; the CSV stays focused on the reconcile fields and rule attribution.
+
+### 🛑 `reconcile_identity_failures.csv` / `.json` *(written only on identity-guard failure)*
+
+When `--reconcile-identity-fields` is set and rows misalign, these replace the normal artefacts (which are suppressed — a misaligned comparison cannot be trusted). The CSV carries the full failure set: `row_number`, `differing_identity_fields`, then `finlang_<field>` / `ml_<field>` raw values for every configured identity field. The JSON is a summary (counts, fields, status `IDENTITY MISMATCH`) embedding the first 100 row-level failures (`failures_truncated: true` flags when the CSV holds more).
 
 ---
 
@@ -253,26 +266,26 @@ Self-contained HTML. Title, status banner (red for REVIEW REQUIRED, green for PA
 | Code | Meaning |
 |------|---------|
 | `0` | Engine succeeded AND all post-engine checks passed (verify, reconcile). |
-| `1` | Structural error — file not found, permission denied, parse error, row-count mismatch between FinLang and ML output, reconcile field absent from one side, missing ML file. |
-| `2` | Validation error — e.g. `--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`. |
+| `1` | Structural error — file not found, permission denied, parse error, row-count mismatch between FinLang and ML output, reconcile field absent from one side, missing ML file, **identity-guard failure (`--reconcile-identity-fields` rows misaligned)**. |
+| `2` | Validation error — e.g. `--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`, `--reconcile-identity-fields` without `--reconcile`. |
 | `3` | Post-engine check failure — verification mismatch and/or reconciliation mismatch. **CI/CD should treat this as "review needed."** Not "the data is broken" (that's exit 1) and not "configuration is wrong" (exit 2). |
 
 ---
 
-## 🚧 Limitations (Phase 1 MVP)
+## 🚧 Limitations (positional alignment)
 
-- **Positional alignment only.** Identical row counts required. Phase 2 brings key-based alignment.
+- **Positional alignment only.** Identical row counts required, and row N must be the same transaction in both files — use `--reconcile-identity-fields` to have FinLang check that assumption rather than trust it (see the row-order callout above). Key-based alignment (`--reconcile-key`) is the roadmap answer for pipelines that genuinely reorder.
 - **Single reconcile field by default.** Multi-field works (`--reconcile-fields category,flags`) but the killer use case focuses on category drift.
-- **Strict mode only.** Any mismatch = exit code 3. No threshold flag in Phase 1.
-- **No standalone mode.** `--reconcile` runs alongside the FinLang engine. Comparing two pre-existing CSVs without re-running the engine is Phase 2 territory.
+- **Strict mode only.** Any mismatch = exit code 3. No threshold flag yet.
+- **No standalone mode.** `--reconcile` runs alongside the FinLang engine. Comparing two pre-existing CSVs without re-running the engine is roadmap territory (`--reconcile-only`).
 - **Audit linkage requires `--audit-mode full`.** Lite mode is insufficient — the rule attribution on mismatches needs the full match-condition payload.
-- **Amount formatting verbatim.** Amount strings render as the engine emits them (e.g. `-245000.0`); cosmetic normalisation across JSON/CSV/HTML is queued for v0.7.9.
+- **Amount formatting verbatim.** Amount strings render as the engine emits them (e.g. `-245000.0`); cosmetic normalisation across JSON/CSV/HTML is queued.
 
 ---
 
 ## 🛣️ Roadmap (direction, not promises)
 
-Phase 2 candidates being evaluated:
+Candidates being evaluated:
 
 - **Key-based alignment** (`--reconcile-key date,amount,counterparty`) — match rows by key fields rather than position. Hash join, O(N) not O(N²). Useful when the two pipelines emit rows in different orders.
 - **Column mapping** (`--reconcile-map`) — handle ML outputs that name the categorisation field differently (e.g. `classification` instead of `category`).
