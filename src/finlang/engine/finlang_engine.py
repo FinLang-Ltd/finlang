@@ -262,10 +262,19 @@ def get_condition_mask(condition: str, df: pd.DataFrame, cache: Dict[str, pd.Ser
 # Define audit limit globally
 AUDIT_MAX = int(os.getenv("FINLANG_AUDIT_MAX", 5000))
 
-def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str = "lite") -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
-    """Execute the ruleset against the DataFrame and return the processed DataFrame and audit log."""
+def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str = "lite", audit_max: int = None) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
+    """Execute the ruleset against the DataFrame and return the processed DataFrame and audit log.
+
+    Args:
+        audit_max: Optional override of the audit-entry cap. None (default)
+            keeps the module-level AUDIT_MAX (env FINLANG_AUDIT_MAX, 5000).
+            In-process analysis callers (impact analysis) pass an explicit
+            ceiling so per-rule attribution stays complete on large frames.
+            CLI behaviour is unchanged — the CLI never passes this.
+    """
     df = df_in.copy()
     audit_log = []
+    audit_cap = AUDIT_MAX if audit_max is None else int(audit_max)
     
     # Preamble: Ensure text columns exist, are string type, and handle NaN/None (v0.6.4 requirement)
     for col in TEXT_COLS:
@@ -384,8 +393,8 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
             if audit_mode != "none" and not audit_capped:
                 num_matched = len(matched_indices)
                 
-                if audit_count + num_matched > AUDIT_MAX:
-                    num_to_log = AUDIT_MAX - audit_count
+                if audit_count + num_matched > audit_cap:
+                    num_to_log = audit_cap - audit_count
                     indices_to_log = matched_indices[:num_to_log]
                     audit_capped = True
                 else:
@@ -465,6 +474,6 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
              raise RuntimeError(f"Unexpected error during rule '{rule_name}': {type(e).__name__}: {e}") from e
 
     if audit_capped and audit_mode != "none":
-        audit_log.append({"message": f"Audit log capped at {AUDIT_MAX} entries."})
+        audit_log.append({"message": f"Audit log capped at {audit_cap} entries."})
 
     return df, audit_log

@@ -895,7 +895,7 @@ def main(args_list=None):
     ap.add_argument("--rules", nargs="+", help="One or more .fin files (your rules). May be combined with --include-pack.")
     ap.add_argument("--include-pack", default="", help="Comma-separated starter packs to include (e.g. retail,transport,subs)")
     ap.add_argument("--input", required=True, help="Path to input CSV file")
-    ap.add_argument("--output", required=True, help="Path to output CSV file")
+    ap.add_argument("--output", help="Path to output CSV file. Required except in impact mode (--impact-rules), which writes no categorised output.")
     ap.add_argument("--map", dest="map_path", help="Optional header mapping JSON. If omitted, default packaged map is used when available.")
     ap.add_argument("--audit", help="Optional path to write audit.json")
     ap.add_argument("--audit-mode", choices=["none", "lite", "full"],
@@ -929,6 +929,10 @@ def main(args_list=None):
     ap.add_argument("--reconcile-html", action="store_true", help="Additionally emit a self-contained HTML report (reconcile_report.html). Requires --reconcile and --reconcile-output-dir.")
     ap.add_argument("--reconcile-identity-fields", default=None, help="Comma-separated fields to identity-check positionally before comparison (e.g. date,amount,counterparty). Misaligned rows = structural failure (exit 1), mismatch reporting suppressed. Requires --reconcile.")
     ap.add_argument("--reconcile-key", default=None, help="Comma-separated fields forming a composite key for key-based alignment (e.g. date,amount,counterparty). Replaces positional alignment: rows match by key, row counts may differ, unmatched rows are reported as orphans (exit 3). Duplicate keys = exit 1. Requires --reconcile; mutually exclusive with --reconcile-identity-fields.")
+
+    # Impact analysis flags (SOL-105) — rule-change impact analysis
+    ap.add_argument("--impact-rules", default=None, help="Path to a candidate .fin rulepack. Activates impact analysis: the input runs through both --rules (baseline) and this candidate; behavioural differences are reported with indicative amounts. Writes no categorised output. Exit 3 on behavioural change. Requires --impact-output-dir; mutually exclusive with --reconcile and --verify.")
+    ap.add_argument("--impact-output-dir", default=None, help="Directory for impact-analysis artefacts. Required in impact mode; created if absent.")
 
     ap.epilog = (
     "Environment Variables:\n"
@@ -995,6 +999,19 @@ def main(args_list=None):
         _key_fields_parsed = [s.strip() for s in args.reconcile_key.split(",") if s.strip()]
         if not _key_fields_parsed:
             print("FATAL: --reconcile-key cannot be empty (got '%s')." % args.reconcile_key, file=sys.stderr); sys.exit(2)
+    # Impact analysis (SOL-105): analysis run, mutually exclusive with the
+    # post-engine checks; writes no categorised output (--output not needed)
+    if args.impact_rules:
+        if args.reconcile:
+            print("FATAL: --impact-rules and --reconcile are mutually exclusive — impact compares two rulepacks; reconcile compares against an external system.", file=sys.stderr); sys.exit(2)
+        if args.verify or args.verify_full:
+            print("FATAL: --impact-rules and --verify/--verify-full are mutually exclusive — impact expects differences by design.", file=sys.stderr); sys.exit(2)
+        if not args.impact_output_dir:
+            print("FATAL: --impact-rules requires --impact-output-dir.", file=sys.stderr); sys.exit(2)
+    if args.impact_output_dir and not args.impact_rules:
+        print("FATAL: --impact-output-dir requires --impact-rules.", file=sys.stderr); sys.exit(2)
+    if not args.output and not args.impact_rules:
+        print("FATAL: --output is required (impact mode is the only mode that writes no categorised output).", file=sys.stderr); sys.exit(2)
     # --reconcile-html requires BOTH --reconcile AND --reconcile-output-dir
     # (Branch 3 thinktank-mandated dual-flag validation: no place to write
     # the HTML without an output dir; no reconciliation to render without
@@ -1020,6 +1037,7 @@ def main(args_list=None):
 
     t0 = time.perf_counter()
     combined_rules_path = None
+    impact_combined_path = None
     # Initialize timing markers
     t_rules, t_read, t_norm, t_engine, t_write = t0, t0, t0, t0, t0
 
@@ -1178,6 +1196,36 @@ def main(args_list=None):
 
         t_norm = time.perf_counter()
 
+        # 4b) Impact analysis mode (SOL-105): one frame, two passes,
+        # vectorised diff. Replaces the normal engine+write flow — an
+        # analysis run, not a production run (no categorised output).
+        if args.impact_rules:
+            log("3. Impact analysis: parsing candidate rulepack...")
+            impact_combined_path = _combine_rules([args.impact_rules], [])
+            if not impact_combined_path or not impact_combined_path.exists():
+                sys.exit(2)
+            candidate_rules = parse_fin_rules(str(impact_combined_path))
+            if not candidate_rules:
+                print("FATAL: No valid rules found in --impact-rules file.", file=sys.stderr)
+                sys.exit(2)
+            os.makedirs(args.impact_output_dir, exist_ok=True)
+
+            from finlang.tools.impact import run_impact, format_summary
+            log(f"4. Applying baseline ({len(rules)} rule(s)) and candidate "
+                f"({len(candidate_rules)} rule(s)) to {len(df)} transaction(s)...")
+            impact_result = run_impact(
+                df, rules, candidate_rules,
+                input_file=os.path.basename(args.input),
+                baseline_rules_file=", ".join(
+                    os.path.basename(p) for p in (args.rules or [])) or "(packs)",
+                candidate_rules_file=os.path.basename(args.impact_rules),
+            )
+            # The summary IS the deliverable of an impact run — printed
+            # regardless of --headless (which suppresses status chatter).
+            for line in format_summary(impact_result):
+                print(line, flush=True)
+            sys.exit(3 if impact_result.behavioural_changed else 0)
+
         # 5) Engine
         if not df.empty:
             log(f"3. Applying {len(rules)} rule(s) to {len(df)} transaction(s)...")
@@ -1312,6 +1360,12 @@ def main(args_list=None):
         except Exception as e:
             if 'args' in locals() and not args.headless:
                 print(f"(Warning) Could not delete temporary file {combined_rules_path}: {e}", file=sys.stderr)
+        try:
+            if impact_combined_path and impact_combined_path.exists():
+                impact_combined_path.unlink()
+        except Exception as e:
+            if 'args' in locals() and not args.headless:
+                print(f"(Warning) Could not delete temporary file {impact_combined_path}: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
