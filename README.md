@@ -284,7 +284,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Component | Version | Validation |
 |:--|:--|:--|
 | Core Engine      | v0.7.9   | Byte-identical to v0.7.8 |
-| CLI Suite        | v0.7.9   | 137 tests across 10 gates (daily); 7-gate full pre-release suite |
+| CLI Suite        | v0.7.9   | 142 tests across 10 gates (daily); 7-gate full pre-release suite |
 | FastAPI Wrapper  | v0.7.9   | 17 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.7.9   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.7.9   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |

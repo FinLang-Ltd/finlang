@@ -295,11 +295,12 @@ finlang --input transactions.csv \
         --output finlang_out.csv \
         --audit audit.json --audit-mode full \
         --reconcile ml_categorised.csv \
+        --reconcile-identity-fields date,amount,counterparty \
         --reconcile-output-dir audit/ \
         --reconcile-html
 ```
 
-`--audit --audit-mode full` is required so mismatch rows can carry rule name + match condition. `--reconcile-html` is optional but recommended for compliance-context reports.
+`--audit --audit-mode full` is required so mismatch rows can carry rule name + match condition. `--reconcile-html` is optional but recommended for compliance-context reports. `--reconcile-identity-fields` is recommended in CI: if the ML pipeline ever reorders its output (parallel batching, async writes), the identity guard fails structurally (exit `1`) instead of reporting nonsense mismatches over misaligned rows — exactly the failure mode an unattended pipeline won't catch by eye.
 
 ### Step 2 — Read the report
 

@@ -89,11 +89,12 @@ Independent ML validation layer. Compares FinLang's deterministic categorisation
 | `--reconcile-fields` | Comma list (e.g., `category` or `category,flags`) | Fields to compare | Default: `category`. Empty value rejected at parse time. |
 | `--reconcile-output-dir` | Directory path | Where to write `reconcile_report.json` and `reconcile_mismatches.csv` | Required when `--reconcile-html` is set. |
 | `--reconcile-html` | *(flag, no value)* | Additionally emit `reconcile_report.html` | Requires BOTH `--reconcile` AND `--reconcile-output-dir`. |
+| `--reconcile-identity-fields` | Comma list (e.g., `date,amount,counterparty`) | Identity guard: verify the named fields match positionally before comparing reconcile fields | Requires `--reconcile`. Empty value rejected at parse time. Misalignment = exit 1 + `reconcile_identity_failures.{csv,json}`; mismatch reporting suppressed. |
 
 **Exit codes for reconciliation:**
 - `0` — engine succeeded, all post-engine checks passed (verify and reconcile both clean)
-- `1` — structural error (row-count mismatch, missing reconcile field on either side, missing ML file)
-- `2` — validation error (`--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`)
+- `1` — structural error (row-count mismatch, missing reconcile field on either side, missing ML file, identity-guard failure via `--reconcile-identity-fields`)
+- `2` — validation error (`--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`, `--reconcile-identity-fields` without `--reconcile`)
 - `3` — reconciliation mismatch detected (one or more rows disagree)
 
 `--verify` and `--reconcile` are orthogonal. Both can run in the same invocation; both report independently. Exit code 3 is set if either fails.

@@ -35,6 +35,20 @@ from typing import NamedTuple, List, Optional, Dict, Any, Tuple
 
 
 # ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+class IdentityMismatchError(ValueError):
+    """Raised when --reconcile-identity-fields detects positional misalignment.
+
+    Subclasses ValueError so the CLI's existing structural-error path
+    (FATAL message + exit 1) handles it without new dispatch machinery.
+    Field-level mismatch reporting is suppressed when this is raised —
+    a positionally misaligned comparison cannot be trusted.
+    """
+
+
+# ---------------------------------------------------------------------------
 # Result type
 # ---------------------------------------------------------------------------
 
@@ -159,6 +173,114 @@ def _validate_field_presence(
             f"Reconcile field(s) not found in {source_label}: {missing}. "
             f"Available columns: {sorted(rows[0].keys())}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Identity guard (SOL-103) — positional alignment verification
+# ---------------------------------------------------------------------------
+
+def _identity_normalise(field: str, value: Optional[str]) -> str:
+    """Normalise one identity-field value for positional comparison.
+
+    Comparison contract (documented in reconciliation.md):
+      - amount: normalised via verify.py's `_normalize_amount_string`
+        (synced with the engine's `_to_number` — handles CR/DR suffixes,
+        parens, currency symbols, trailing zeros: "-10.00" == "-10.0")
+      - date: normalised via verify.py's `_normalize_date_string`
+        (ISO 8601; both sides of a reconcile are post-engine CSVs, so
+        engine defaults apply — no dayfirst/date_format plumbing here)
+      - everything else: whitespace-stripped, case-insensitive
+
+    Reuses verify.py's normalisers rather than forking new copies — one
+    source of truth per DOCUMENT_MAP's amount-parsing sync rule.
+    """
+    from finlang.tools.verify import (
+        _normalize_amount_string,
+        _normalize_date_string,
+    )
+    v = (value or "").strip()
+    field_lower = field.lower()
+    if field_lower == "amount":
+        return _normalize_amount_string(v)
+    if field_lower == "date":
+        return _normalize_date_string(v)
+    return v.lower()
+
+
+def _check_identity(
+    finlang_rows: List[Dict[str, str]],
+    ml_rows: List[Dict[str, str]],
+    identity_fields: List[str],
+) -> List[dict]:
+    """Compare identity fields positionally; return failure dicts.
+
+    A failure dict names the 1-indexed position, the identity fields
+    that differ there, and both sides' raw values for every configured
+    identity field (raw, not normalised — the artefact must show what
+    the files actually contain).
+    """
+    failures: List[dict] = []
+    for i, (fl_row, ml_row) in enumerate(zip(finlang_rows, ml_rows)):
+        differing: List[str] = []
+        for field in identity_fields:
+            fl_val = _identity_normalise(field, _resolve_field(fl_row, field))
+            ml_val = _identity_normalise(field, _resolve_field(ml_row, field))
+            if fl_val != ml_val:
+                differing.append(field)
+        if not differing:
+            continue
+        failure = {
+            "row_number": i + 1,
+            "differing_identity_fields": ",".join(differing),
+        }
+        for field in identity_fields:
+            failure[f"finlang_{field}"] = _resolve_field(fl_row, field) or ""
+            failure[f"ml_{field}"] = _resolve_field(ml_row, field) or ""
+        failures.append(failure)
+    return failures
+
+
+# JSON identity-failure artefact embeds at most this many row-level
+# failures; the CSV always carries the full set. Keeps the JSON readable
+# when an entire large file is misaligned.
+_IDENTITY_JSON_FAILURE_CAP = 100
+
+
+def _write_identity_failures(
+    failures: List[dict],
+    identity_fields: List[str],
+    total_rows: int,
+    finlang_output: str,
+    ml_output: str,
+    output_dir: str,
+) -> None:
+    """Write reconcile_identity_failures.csv (full) + .json (summary)."""
+    columns = ["row_number", "differing_identity_fields"]
+    for field in identity_fields:
+        columns.append(f"finlang_{field}")
+        columns.append(f"ml_{field}")
+
+    csv_path = os.path.join(output_dir, "reconcile_identity_failures.csv")
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(columns)
+        for failure in failures:
+            writer.writerow([failure.get(col, "") for col in columns])
+
+    summary: Dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "finlang_output_file": os.path.basename(finlang_output),
+        "ml_output_file": os.path.basename(ml_output),
+        "identity_fields": identity_fields,
+        "total_rows": total_rows,
+        "identity_failures": len(failures),
+        "status": "IDENTITY MISMATCH",
+        "failures": failures[:_IDENTITY_JSON_FAILURE_CAP],
+        "failures_truncated": len(failures) > _IDENTITY_JSON_FAILURE_CAP,
+    }
+    json_path = os.path.join(output_dir, "reconcile_identity_failures.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
 
 
 # ---------------------------------------------------------------------------
@@ -291,6 +413,7 @@ def run_reconciliation(
     audit_path: Optional[str] = None,
     headless: bool = False,
     emit_html: bool = False,
+    identity_fields: Optional[List[str]] = None,
 ) -> ReconcileResult:
     """Run reconciliation: compare FinLang output against ML output.
 
@@ -308,6 +431,13 @@ def run_reconciliation(
             write a self-contained HTML report to
             ``<output_dir>/reconcile_report.html``. Has no effect when
             ``output_dir`` is None.
+        identity_fields: Optional list of fields to identity-check
+            positionally BEFORE field comparison (SOL-103 identity
+            guard). If row N's identity fields differ between the two
+            files, the comparison cannot be trusted: identity-failure
+            artefacts are written (when ``output_dir`` is set), normal
+            mismatch reporting is suppressed, and IdentityMismatchError
+            is raised (CLI exits 1 — structural, not exit 3).
 
     Returns:
         ReconcileResult NamedTuple.
@@ -316,6 +446,8 @@ def run_reconciliation(
         FileNotFoundError: If finlang_output or ml_output is missing.
         ValueError: If row counts differ (positional alignment) or files
             have no header.
+        IdentityMismatchError: If ``identity_fields`` is set and any row's
+            identity fields are positionally misaligned.
     """
     t0 = time.perf_counter()
     fields = list(reconcile_fields) if reconcile_fields else ["category"]
@@ -333,6 +465,45 @@ def run_reconciliation(
     # Missing on either side = exit 1 (structural error), not exit 3.
     _validate_field_presence(finlang_rows, fields, "FinLang output")
     _validate_field_presence(ml_rows, fields, "ML output")
+
+    # Identity guard (SOL-103): verify positional alignment of identity
+    # fields BEFORE trusting any field-level comparison. Refuses to
+    # produce confident-looking mismatches over misaligned rows.
+    if identity_fields:
+        _validate_field_presence(finlang_rows, identity_fields, "FinLang output")
+        _validate_field_presence(ml_rows, identity_fields, "ML output")
+        identity_failures = _check_identity(finlang_rows, ml_rows, identity_fields)
+        if identity_failures:
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+                _write_identity_failures(
+                    identity_failures, identity_fields, len(finlang_rows),
+                    finlang_output, ml_output, output_dir,
+                )
+            if not headless:
+                print(
+                    f"Identity guard: {len(identity_failures)} of "
+                    f"{len(finlang_rows)} rows misaligned on "
+                    f"[{','.join(identity_fields)}] — structural failure."
+                )
+                for failure in identity_failures[:10]:
+                    row = failure.get("row_number", "?")
+                    differing = failure.get("differing_identity_fields", "?")
+                    print(f"   Row {row}: identity differs on [{differing}]")
+                if len(identity_failures) > 10:
+                    print(f"   ... and {len(identity_failures) - 10} more")
+            artefact_note = (
+                " See reconcile_identity_failures.csv for the full set."
+                if output_dir else ""
+            )
+            raise IdentityMismatchError(
+                f"Identity check failed: {len(identity_failures)} of "
+                f"{len(finlang_rows)} rows have misaligned identity fields "
+                f"[{','.join(identity_fields)}]. Row order has drifted "
+                f"between the two files; field-level mismatch reporting "
+                f"suppressed (it cannot be trusted). Use --reconcile-key "
+                f"for key-based alignment.{artefact_note}"
+            )
 
     audit_index, audit_count = _load_audit_index(audit_path)
     if audit_count == -1 and not headless:
