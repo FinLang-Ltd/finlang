@@ -42,12 +42,18 @@ No printing in this module's analysis path — `run_impact` returns data;
 the CLI layer prints `format_summary`'s lines.
 """
 
+import csv
+import hashlib
+import json
+import os
 import time
 from collections import Counter
+from datetime import datetime, timezone
 from typing import NamedTuple, List, Dict, Any, Optional
 
 import pandas as pd
 
+from finlang import __version__
 from finlang.engine.finlang_engine import run_audit
 
 
@@ -77,6 +83,11 @@ class ImpactResult(NamedTuple):
     baseline_rules_file: str
     candidate_rules_file: str
     duration_seconds: float
+    # SHA-256 of the rule TEXT each pass actually consumed (the combined
+    # rules file) — ties the report to the exact text reviewed. "" when
+    # no hash source was provided (direct API calls without files).
+    baseline_rules_sha256: str = ""
+    candidate_rules_sha256: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -129,6 +140,31 @@ def _rule_names(rules: List[Dict[str, Any]]) -> List[str]:
 # Orchestrator
 # ---------------------------------------------------------------------------
 
+def _sha256_of_rules_text(path: Optional[str]) -> str:
+    """SHA-256 of the rule TEXT in a (combined) rules file.
+
+    The CLI's `_combine_rules` wraps each source in provenance marker
+    lines (`# --- BEGIN <name> ---` / `# --- END ---`) that embed the
+    source FILENAME — two files with identical rule content would hash
+    differently through them. Those markers are semantically inert
+    comments, so they are excluded: the hash covers the rule text the
+    engine actually evaluates. Newlines normalised to \\n so the digest
+    is platform-independent. "" when path absent/unreadable.
+    """
+    if not path or not os.path.exists(str(path)):
+        return ""
+    try:
+        text = open(path, "r", encoding="utf-8-sig").read()
+    except OSError:
+        return ""
+    kept = [
+        line for line in text.splitlines()
+        if not (line.strip().startswith("# --- BEGIN")
+                or line.strip().startswith("# --- END"))
+    ]
+    return hashlib.sha256("\n".join(kept).encode("utf-8")).hexdigest()
+
+
 def run_impact(
     df: pd.DataFrame,
     baseline_rules: List[Dict[str, Any]],
@@ -136,6 +172,9 @@ def run_impact(
     input_file: str = "",
     baseline_rules_file: str = "",
     candidate_rules_file: str = "",
+    output_dir: Optional[str] = None,
+    baseline_hash_source: Optional[str] = None,
+    candidate_hash_source: Optional[str] = None,
 ) -> ImpactResult:
     """Run impact analysis: one frame, two passes, vectorised diff.
 
@@ -145,6 +184,12 @@ def run_impact(
         baseline_rules: Parsed rule dicts from `--rules` (+ packs).
         candidate_rules: Parsed rule dicts from `--impact-rules`.
         input_file / *_rules_file: Basenames for reporting.
+        output_dir: If set, write `impact_report.json` (always) and
+            `impact_changes.csv` (when changed rows exist) here.
+        baseline_hash_source / candidate_hash_source: Paths to the rule
+            text each pass actually consumed (the CLI passes the combined
+            temp files). SHA-256 of these ties the report to the exact
+            reviewed text.
 
     Returns:
         ImpactResult. Caller prints `format_summary(result)` and exits 3
@@ -273,7 +318,7 @@ def run_impact(
     behavioural_count = int(behavioural.sum())
     attribution_count = int(attribution_only.sum())
 
-    return ImpactResult(
+    result = ImpactResult(
         rows_compared=n,
         behavioural_changed=behavioural_count,
         attribution_changed=attribution_count,
@@ -287,7 +332,68 @@ def run_impact(
         baseline_rules_file=baseline_rules_file,
         candidate_rules_file=candidate_rules_file,
         duration_seconds=round(time.perf_counter() - t0, 3),
+        baseline_rules_sha256=_sha256_of_rules_text(baseline_hash_source),
+        candidate_rules_sha256=_sha256_of_rules_text(candidate_hash_source),
     )
+
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        _write_report_json(result, output_dir)
+        if result.changed_rows:
+            _write_changes_csv(result, output_dir)
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Artefacts (SOL-105 Branch 2)
+# ---------------------------------------------------------------------------
+
+_CHANGES_CSV_COLUMNS = [
+    "row_number", "counterparty", "amount", "date", "memo",
+    "old_category", "new_category", "old_flags", "new_flags",
+    "old_status", "new_status", "old_rule", "new_rule", "change_class",
+]
+
+
+def _write_report_json(result: ImpactResult, output_dir: str) -> None:
+    """Write impact_report.json — versioned schema `impact/1`."""
+    report: Dict[str, Any] = {
+        "schema": "impact/1",
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "finlang_version": __version__,
+        "input_file": result.input_file,
+        "baseline_rules_file": result.baseline_rules_file,
+        "candidate_rules_file": result.candidate_rules_file,
+        "baseline_rules_sha256": result.baseline_rules_sha256,
+        "candidate_rules_sha256": result.candidate_rules_sha256,
+        "rows_compared": result.rows_compared,
+        "behavioural_changed": result.behavioural_changed,
+        "attribution_changed": result.attribution_changed,
+        "rows_stable": result.rows_stable,
+        "transitions": list(result.transitions),
+        "rule_deltas": list(result.rule_deltas),
+        "flag_deltas": list(result.flag_deltas),
+        "status_deltas": list(result.status_deltas),
+        "amount_note": FLOAT_DISCLAIMER,
+        "duration_seconds": result.duration_seconds,
+        "status": ("REVIEW REQUIRED" if result.behavioural_changed
+                   else "NO BEHAVIOURAL CHANGE"),
+    }
+    path = os.path.join(output_dir, "impact_report.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+
+
+def _write_changes_csv(result: ImpactResult, output_dir: str) -> None:
+    """Write impact_changes.csv — row-level before/after, sorted by
+    row_number (positional honesty, per the reconcile precedent)."""
+    path = os.path.join(output_dir, "impact_changes.csv")
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(_CHANGES_CSV_COLUMNS)
+        for row in result.changed_rows:
+            writer.writerow([row.get(col, "") for col in _CHANGES_CSV_COLUMNS])
 
 
 # ---------------------------------------------------------------------------

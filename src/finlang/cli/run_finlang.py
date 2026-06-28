@@ -1219,6 +1219,11 @@ def main(args_list=None):
                 baseline_rules_file=", ".join(
                     os.path.basename(p) for p in (args.rules or [])) or "(packs)",
                 candidate_rules_file=os.path.basename(args.impact_rules),
+                output_dir=args.impact_output_dir,
+                # Hash the rule text each pass actually consumed (the
+                # combined files) — ties the report to the reviewed text.
+                baseline_hash_source=str(combined_rules_path),
+                candidate_hash_source=str(impact_combined_path),
             )
             # The summary IS the deliverable of an impact run — printed
             # regardless of --headless (which suppresses status chatter).
