@@ -933,6 +933,7 @@ def main(args_list=None):
     # Impact analysis flags (SOL-105) — rule-change impact analysis
     ap.add_argument("--impact-rules", default=None, help="Path to a candidate .fin rulepack. Activates impact analysis: the input runs through both --rules (baseline) and this candidate; behavioural differences are reported with indicative amounts. Writes no categorised output. Exit 3 on behavioural change. Requires --impact-output-dir; mutually exclusive with --reconcile and --verify.")
     ap.add_argument("--impact-output-dir", default=None, help="Directory for impact-analysis artefacts. Required in impact mode; created if absent.")
+    ap.add_argument("--impact-html", action="store_true", help="Additionally emit a self-contained HTML impact report (impact_report.html). Requires --impact-rules (and --impact-output-dir).")
 
     ap.epilog = (
     "Environment Variables:\n"
@@ -1010,6 +1011,8 @@ def main(args_list=None):
             print("FATAL: --impact-rules requires --impact-output-dir.", file=sys.stderr); sys.exit(2)
     if args.impact_output_dir and not args.impact_rules:
         print("FATAL: --impact-output-dir requires --impact-rules.", file=sys.stderr); sys.exit(2)
+    if args.impact_html and not args.impact_rules:
+        print("FATAL: --impact-html requires --impact-rules (and --impact-output-dir).", file=sys.stderr); sys.exit(2)
     if not args.output and not args.impact_rules:
         print("FATAL: --output is required (impact mode is the only mode that writes no categorised output).", file=sys.stderr); sys.exit(2)
     # --reconcile-html requires BOTH --reconcile AND --reconcile-output-dir
@@ -1224,6 +1227,7 @@ def main(args_list=None):
                 # combined files) — ties the report to the reviewed text.
                 baseline_hash_source=str(combined_rules_path),
                 candidate_hash_source=str(impact_combined_path),
+                emit_html=args.impact_html,
             )
             # The summary IS the deliverable of an impact run — printed
             # regardless of --headless (which suppresses status chatter).

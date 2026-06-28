@@ -309,6 +309,7 @@ Candidates being evaluated:
 ## 📚 Related Documentation
 
 - [verify.md](verify.md) — `--verify` and `--verify-full` integrity verification (related but distinct primitive)
+- [impact.md](impact.md) — `--impact-rules`: comparing two **rulepacks** (your rule change) rather than two systems? That's impact analysis, not reconcile.
 - [workflows.md](workflows.md#-reconciliation-workflow) — CI/CD integration pattern, three-step workflow, exit-code policy
 - [cli_reference.md](cli_reference.md) — full flag table for all CLIs
 - [flags.md](flags.md) — canonical input formats for every flag
