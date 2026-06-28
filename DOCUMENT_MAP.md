@@ -28,7 +28,7 @@ FinLang consists of five major components:
 2. **CLI Interface** — Argument parsing, data hardening, and orchestration (`run_finlang.py`)
 3. **Tools** — Discovery, rule generation, integrity verification, and ML reconciliation (`discover.py`, `suggest.py`, `verify.py`, `reconcile.py`)
 4. **Documentation & Rulepacks** — DSL specification, bundled categorisation packs, and user guides
-5. **Validation Infrastructure** — 142-test daily suite (10 gates) + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines, ML reconciliation (JSON+CSV+HTML)
+5. **Validation Infrastructure** — 151-test daily suite (10 gates) + rulepack linter, integrity verification, cleanroom PyPI validation, golden master baselines, ML reconciliation (JSON+CSV+HTML)
 
 ---
 
@@ -152,7 +152,7 @@ The bulk of FinLang's tests live here as internal validation tooling (not shippe
 
 | File | Contains | Update When |
 |------|----------|-------------|
-| `quick_check.ps1` | Daily gate runner (10 gates, 142 tests + rulepack linter), single-line-per-gate display. Wall-clock ~100–140s typical post-Gate-10 (varies with cache state, Reconcile gate range ~25–100s observed). | New daily gates, test count changes |
+| `quick_check.ps1` | Daily gate runner (10 gates, 151 tests + rulepack linter), single-line-per-gate display. Wall-clock ~100–140s typical post-Gate-10 (varies with cache state, Reconcile gate range ~25–100s observed). | New daily gates, test count changes |
 | `full_test_suite.ps1` | All tiers runner (daily + pre-release + contracts) | New tiers, gate changes |
 | `cleanroom_test.ps1` | Disposable venv PyPI validation (gates 1-5, incl. API surface) | New cleanroom gates, install process changes, **test count strings in header (always)** |
 | `run_cleanroom.cmd` | Double-click launcher for cleanroom | Rarely |

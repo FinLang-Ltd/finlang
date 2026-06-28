@@ -68,7 +68,8 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 | `--reconcile-fields LIST`| Comma-separated fields to compare. Default: `category`. |
 | `--reconcile-output-dir DIR` | Directory for reconciliation artefacts (`reconcile_report.json`, `reconcile_mismatches.csv`). Required when `--reconcile-html` is set. |
 | `--reconcile-html`       | Additionally emit a self-contained HTML report (`reconcile_report.html`). Requires `--reconcile` AND `--reconcile-output-dir`. See [reconciliation.md](reconciliation.md). |
-| `--reconcile-identity-fields LIST` | Identity guard: comma-separated fields verified positionally BEFORE comparison (e.g. `date,amount,counterparty`). Misaligned rows = exit 1 with `reconcile_identity_failures.{csv,json}`; mismatch reporting suppressed. Requires `--reconcile`. See [reconciliation.md](reconciliation.md). |
+| `--reconcile-identity-fields LIST` | Identity guard: comma-separated fields verified positionally BEFORE comparison (e.g. `date,amount,counterparty`). Misaligned rows = exit 1 with `reconcile_identity_failures.{csv,json}`; mismatch reporting suppressed. Requires `--reconcile`. Mutually exclusive with `--reconcile-key`. See [reconciliation.md](reconciliation.md). |
+| `--reconcile-key LIST` | Key-based alignment: comma-separated fields forming a composite key (e.g. `date,amount,counterparty`). Replaces positional alignment — row counts may differ; unmatched rows reported as orphans (exit 3, `reconcile_orphans_*.csv`); duplicate keys = exit 1. Requires `--reconcile`. Mutually exclusive with `--reconcile-identity-fields`. See [reconciliation.md](reconciliation.md). |
 
 ## 2) `finlang-discover` — Discovery Tool
 
