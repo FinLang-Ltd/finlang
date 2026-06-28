@@ -175,6 +175,7 @@ def run_impact(
     output_dir: Optional[str] = None,
     baseline_hash_source: Optional[str] = None,
     candidate_hash_source: Optional[str] = None,
+    emit_html: bool = False,
 ) -> ImpactResult:
     """Run impact analysis: one frame, two passes, vectorised diff.
 
@@ -190,6 +191,9 @@ def run_impact(
             text each pass actually consumed (the CLI passes the combined
             temp files). SHA-256 of these ties the report to the exact
             reviewed text.
+        emit_html: If True (and ``output_dir`` is set), additionally write
+            a self-contained ``impact_report.html`` alongside the JSON/CSV.
+            Lazy-imports ``impact_html`` so non-HTML runs stay decoupled.
 
     Returns:
         ImpactResult. Caller prints `format_summary(result)` and exits 3
@@ -341,6 +345,13 @@ def run_impact(
         _write_report_json(result, output_dir)
         if result.changed_rows:
             _write_changes_csv(result, output_dir)
+        if emit_html:
+            # Lazy import keeps impact.py decoupled from the HTML module for
+            # runs that don't need it (same pattern as reconcile/reconcile_html).
+            from finlang.tools.impact_html import generate_html_report
+            generate_html_report(
+                result, os.path.join(output_dir, "impact_report.html")
+            )
 
     return result
 

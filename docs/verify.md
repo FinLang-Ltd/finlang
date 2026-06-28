@@ -212,6 +212,7 @@ Exit code 3 was introduced in v0.7.7 alongside `--verify`. It is now shared with
 ## 📚 Related Documentation
 
 - [reconciliation.md](reconciliation.md) — `--reconcile` ML validation layer (related but distinct independent-challenge primitive)
+- [impact.md](impact.md) — `--impact-rules` rule-change impact analysis (comparing two rulepacks, not confirming one run)
 - [workflows.md](workflows.md#-enterprise-integration--workflows) — Verification in CI/CD and pre-audit workflow patterns
 - [cli_reference.md](cli_reference.md) — full flag table for all CLIs
 - [flags.md](flags.md) — canonical input formats for every flag
