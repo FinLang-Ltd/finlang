@@ -295,6 +295,12 @@ When `--reconcile-identity-fields` is set and rows misalign, these replace the n
 
 ---
 
+## ⚡ Scale
+
+Key alignment is an **in-memory hash join** (O(N+M), not pairwise), built for review-slice sizes — comfortably up to the low hundreds of thousands of rows. Both files and the key index live in RAM, so the limit is **your machine's memory, not a fixed row count**: once the two files plus their indexes no longer fit in available RAM, reconcile isn't the tool. On a typical workstation that's around the **low millions of rows** — and it's memory that gives first, not speed, because each row is held as an in-memory object several times its raw size (a ~50 MB CSV can occupy a few hundred MB live, ×2 files plus indexes). Chunked/streaming I/O is deliberately out of scope, and that range isn't yet benchmarked. It's a monthly/quarterly review tool, not a big-data pipeline.
+
+---
+
 ## 🛣️ Roadmap (direction, not promises)
 
 Candidates being evaluated:

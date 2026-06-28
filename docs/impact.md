@@ -9,6 +9,21 @@ Impact analysis runs the **same input dataset through two rulepack versions** �
 
 ---
 
+## Baseline vs candidate — the two rulepacks
+
+Impact analysis always compares exactly two rulepacks, run against the **same input data**:
+
+| Term | Flag | What it is | In the report |
+|------|------|-----------|---------------|
+| **Baseline** | `--rules` | Your **current** rules — what's live today (the "before"). The same `--rules` flag you always use. | left of the arrow, `baseline.fin →` |
+| **Candidate** | `--impact-rules` | The **proposed** change — the new rules you're evaluating but haven't deployed (the "after"). | right of the arrow, `→ candidate.fin` |
+
+Read the report's title arrow as a direction: `baseline.fin → candidate.fin` means *"if I move **from** my current rules **to** these proposed ones, here is what changes."* So a transition shown as `Energy → Utilities` means the **baseline** produced `Energy` and the **candidate** produces `Utilities`.
+
+The real-world mapping: **baseline** is the rulepack on your `main`/production branch; **candidate** is the rulepack in your pull request. Run impact and you see the blast radius *before* the candidate merges. (The terms are deliberate change-management language — a known-good *baseline*, and a *candidate* for deployment.)
+
+---
+
 ## ✅ When to Use
 
 - **Before merging any rulepack change.** See the blast radius — rows, categories, amounts — before it ships.
