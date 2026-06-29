@@ -66,7 +66,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.7.9)
+## ⚙️ Key Features (v0.8.0)
 
 | Feature | Description |
 |:--|:--|
@@ -283,14 +283,14 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Validation |
 |:--|:--|:--|
-| Core Engine      | v0.7.9   | Byte-identical to v0.7.8 |
-| CLI Suite        | v0.7.9   | 168 tests across 10 gates (daily); 7-gate full pre-release suite |
+| Core Engine      | v0.8.0   | Output-identical to v0.7.9 (additive `audit_max` param; default path unchanged) |
+| CLI Suite        | v0.8.0   | 168 tests across 10 gates (daily); 7-gate full pre-release suite |
 | FastAPI Wrapper  | v0.8.0   | 24 standalone integration tests + CLI/API parity contract test |
-| Discover/Suggest | v0.7.9   | 97.8% average coverage gain across 5 validation runs |
-| Integrity Test   | v0.7.9   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |
-| Verify           | v0.7.9   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison) |
-| Reconcile        | v0.7.9   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
-| Cleanroom        | v0.7.9   | 5-gate disposable-venv PyPI validation (incl. API surface) |
-| CI               | v0.7.9   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
-| Docs             | v0.7.9   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
+| Discover/Suggest | v0.8.0   | 97.8% average coverage gain across 5 validation runs |
+| Integrity Test   | v0.8.0   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |
+| Verify           | v0.8.0   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison) |
+| Reconcile        | v0.8.0   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
+| Cleanroom        | v0.8.0   | 5-gate disposable-venv PyPI validation (incl. API surface) |
+| CI               | v0.8.0   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
+| Docs             | v0.8.0   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
 | Python Support   | 3.10—3.14 | Tested across all five versions via CI matrix |

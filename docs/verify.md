@@ -1,7 +1,7 @@
 # 🛡 Integrity Verification
 > **Applies to:** FinLang v0.7.7+
 > **Status:** Production
-> **Last verified:** v0.7.9
+> **Last verified:** v0.8.0
 
 FinLang's `--verify` and `--verify-full` flags produce a SHA-256 fingerprint of every transaction's immutable fields — date, amount, counterparty — before and after engine processing, and emit a JSON report plus optional proof CSV showing whether any immutable field was modified, any row was lost, or cross-row contamination occurred. **It is the integrity primitive**: an evidence artefact that can be presented in an audit, regulatory challenge, or model-risk review to show that the categorisation layer did not silently corrupt the underlying data.
 
@@ -188,7 +188,7 @@ One row per integrity violation. Columns: `csv_row`, `reason` (e.g. "fingerprint
 | `2` | Validation error — e.g. `--verify-output-dir` without `--verify` or `--verify-full`. |
 | `3` | Post-engine check failure — verification mismatch and/or reconciliation mismatch. **CI/CD should treat this as "the engine corrupted the data; do not promote this output downstream."** |
 
-Exit code 3 was introduced in v0.7.7 alongside `--verify`. It is now shared with `--reconcile` (v0.7.8) — if either fails in the same invocation, the run exits with code 3.
+Exit code 3 was introduced in v0.7.7 alongside `--verify`. It is FinLang's shared "review-needed" signal: `--verify` and `--reconcile` (v0.7.8) can both run in one invocation — if either fails, the run exits with code 3 — and impact analysis (`--impact-rules`, v0.8.0) uses the same code for behavioural changes (impact runs on its own, being mutually exclusive with verify/reconcile).
 
 ---
 

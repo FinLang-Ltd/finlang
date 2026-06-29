@@ -1,10 +1,10 @@
 # 🚩 FinLang Flags & Canonical Formats
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.7.9
+> **Last verified:** v0.8.0
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.
-All definitions verified against the v0.7.8 codebase (May 2026).
+All definitions verified against the v0.8.0 codebase (June 2026).
 
 ---
 
@@ -85,7 +85,7 @@ Independent ML validation layer. Compares FinLang's deterministic categorisation
 
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
-| `--reconcile` | Path to ML output CSV | Trigger reconciliation against this file | Requires `--audit` AND `--audit-mode full`. Row count must match FinLang's output. |
+| `--reconcile` | Path to ML output CSV | Trigger reconciliation against this file | Requires `--audit` AND `--audit-mode full`. Row count must match FinLang's output in positional mode; `--reconcile-key` relaxes this (match by key instead). |
 | `--reconcile-fields` | Comma list (e.g., `category` or `category,flags`) | Fields to compare | Default: `category`. Empty value rejected at parse time. |
 | `--reconcile-output-dir` | Directory path | Where to write `reconcile_report.json` and `reconcile_mismatches.csv` | Required when `--reconcile-html` is set. |
 | `--reconcile-html` | *(flag, no value)* | Additionally emit `reconcile_report.html` | Requires BOTH `--reconcile` AND `--reconcile-output-dir`. |
@@ -185,11 +185,11 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 
 ## 🧪 Audit Reference
 Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.
-All flags validated in FinLang v0.7.8.
+All flags validated in FinLang v0.8.0.
 
 ---
 
-## ⚠️ Known Issues (v0.7.8)
+## ⚠️ Known Issues (v0.8.0)
 
 - None
 
