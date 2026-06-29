@@ -232,18 +232,40 @@ def _engine_http_error(returncode: int, stderr: str) -> HTTPException:
 def _alignment_http_error(returncode: int, stderr: str) -> HTTPException:
     """Exit-code mapping for the alignment endpoints (/reconcile, /impact).
 
-    Differs from `_engine_http_error` on exit 1: for these endpoints exit 1
-    is a structural / client-data condition (row-count mismatch, missing
-    field, identity-guard failure, duplicate keys) — an unprocessable input,
-    not a server fault — so it maps to 422, not 500. Exit 2 (validation) → 422.
-    Anything else → 500. Callers whitelist 0 and 3 (success / review-needed)
-    to HTTP 200 before reaching this.
+    Differs from `_engine_http_error` on exit 1. Exit 1 is *overloaded* in the
+    engine: on these endpoints it is almost always a client-data condition the
+    request can't be processed against (row-count mismatch, missing field,
+    identity-guard failure, duplicate keys), but it can — rarely — be a genuine
+    I/O failure. The engine does not separate the two with distinct exit codes,
+    so we map exit 1 by its *dominant* meaning here: 422 (unprocessable input),
+    not 500. Exit 2 (validation) → 422. Anything else → 500. Callers whitelist
+    0 and 3 (success / review-needed) to HTTP 200 before reaching this.
+
+    The body is the discriminator: `error` (machine enum), `exit_code`, a short
+    `message`, and the full `stderr` (authoritative — names the specific cause).
+    An integrator who needs to separate "my data" from "a server hiccup" branches
+    on `error` + reads `stderr`. A future engine exit-code split would make this
+    exact rather than dominant-meaning (see BACKLOG: API error taxonomy).
     """
-    if returncode in (1, 2):
-        kind = "structural_error" if returncode == 1 else "validation_error"
+    if returncode == 1:
         return HTTPException(
             status_code=422,
-            detail={"error": kind, "exit_code": returncode, "stderr": stderr},
+            detail={
+                "error": "alignment_error",
+                "exit_code": 1,
+                "message": (
+                    "Inputs could not be aligned for this comparison. Exit code 1 "
+                    "is overloaded — usually an input problem (duplicate keys, "
+                    "row-count mismatch, missing field, identity-guard failure), "
+                    "rarely a genuine I/O failure. See stderr for the specific cause."
+                ),
+                "stderr": stderr,
+            },
+        )
+    if returncode == 2:
+        return HTTPException(
+            status_code=422,
+            detail={"error": "validation_error", "exit_code": 2, "stderr": stderr},
         )
     return HTTPException(
         status_code=500,

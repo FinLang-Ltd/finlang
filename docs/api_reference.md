@@ -250,6 +250,8 @@ optional self-contained HTML report, and the full audit trail.
 | 2 | 422 | Validation/parse error |
 | 3 | 200 | **Mismatches found — expected outcome.** Body carries the detail. |
 
+> **Exit 1 is overloaded — mapped by its dominant meaning.** Honestly: on these endpoints exit 1 is *almost always* an input problem the request can't be processed against (duplicate keys, row-count mismatch, missing field, identity-guard failure), so it returns **422**. It can — *rarely* — be a genuine I/O failure; the engine doesn't separate the two with distinct exit codes, so the API maps by the dominant case rather than pretending exit 1 cleanly equals "alignment failure." So the caller can still discriminate, the 422 body is structured: `error` (machine enum — `alignment_error` for exit 1, `validation_error` for exit 2), `exit_code`, a `message`, and the full `stderr` (authoritative — names the specific cause). Branch on `error` + read `stderr`. A future engine exit-code split (see BACKLOG: API error taxonomy) would make this exact.
+
 > **Key mode (`reconcile_key`):** the response adds `orphans_finlang_csv` (FinLang rows with no ML match) and `orphans_ml_csv` (ML rows with no FinLang match); `summary.alignment_mode` becomes `key:<fields>` and `summary.orphans_finlang_count` / `orphans_ml_count` carry the counts. Orphans set exit 3 → HTTP 200 (review-needed). Identity-guard mode (`reconcile_identity_fields`) instead *suppresses* comparison and returns HTTP 422 when rows misalign.
 
 ---
