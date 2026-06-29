@@ -96,7 +96,7 @@ Impact analysis closes the loop on the other side. When a reconcile run flags a 
 
 ## Performance
 
-The categorisation hot path is unchanged, so engine throughput carries over from v0.7.9 (~217K rows/sec FastIO on the integrity harness; a confirmation run backs the no-regression claim for this release). Two notes on the new features:
+The categorisation hot path is unchanged, so engine throughput carries over from prior releases — ~180K rows/sec standard and ~217K FastIO at 20M rows on the integrity harness. This was re-verified for v0.8.0 with a fresh field-by-field run at 20M rows: zero integrity mismatches, throughput consistent with the established figures, no regression. (Throughput is scale- and hardware-dependent — small runs are dominated by fixed overhead; the figures above are measured at the 20M-row scale.) Two notes on the new features:
 
 - **Impact** runs the engine twice by design (baseline + candidate), so an impact run is roughly two categorisation passes over the same input.
 - **Reconcile key alignment** is an in-memory hash join, O(N+M) in the row counts. The practical ceiling is machine RAM — both sides are held in memory to align them — which is comfortable into the low millions of rows.
