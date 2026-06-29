@@ -169,12 +169,14 @@ optional self-contained HTML report, and the full audit trail.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `input_csv` | file | yes | Transactions CSV |
-| `ml_output_csv` | file | yes | ML output CSV to reconcile against (must have identical row count to FinLang's output for positional alignment) |
+| `ml_output_csv` | file | yes | ML output CSV to reconcile against (positional alignment needs an identical row count; `reconcile_key` removes that requirement) |
 | `rules` | file | one of `rules`/`include_pack` | `.fin` rules file |
 | `map_file` | file | no | Custom header mapping JSON |
 | `include_pack` | string | one of `rules`/`include_pack` | Comma-separated bundled packs |
 | `reconcile_fields` | string | no | Comma-separated fields to compare. Default: `category`. Multi-field works (e.g. `category,flags`). |
 | `reconcile_html` | bool | no | Emit self-contained HTML report alongside JSON. Default: `false`. |
+| `reconcile_identity_fields` | string | no | Identity guard — comma-separated fields verified positionally *before* comparison (e.g. `date,amount,counterparty`). Misaligned rows → structural failure (HTTP 422). Mutually exclusive with `reconcile_key`. |
+| `reconcile_key` | string | no | Key-based alignment — comma-separated composite key (e.g. `date,amount,counterparty`). Matches by content; row counts may differ; unmatched rows surface in `orphans_finlang_csv` / `orphans_ml_csv`. Duplicate keys → HTTP 422. Mutually exclusive with `reconcile_identity_fields`. |
 | `audit_mode` | string | no | Always `full` for `/reconcile`. Other values rejected with HTTP 400. |
 | `fastio` | bool | no | Use PyArrow IO |
 | `decimal`, `thousands`, `dayfirst`, `encoding`, `output_encoding`, `strict_parse`, `fail_threshold` | various | no | Same as `/process` |
@@ -237,16 +239,69 @@ optional self-contained HTML report, and the full audit trail.
 }
 ```
 
-> **⚠️ Exit-code semantics differ from `/process`:** finding mismatches on `/reconcile` is the **expected outcome**, not an error. Engine exit code 3 maps to **HTTP 200** here (with mismatches surfaced in the body), not HTTP 422. Only ops errors (exit 1 → 500) and validation errors (exit 2 → 422) map to error statuses on this endpoint. The caller reads `stats.mismatches_found` and `summary.mismatches` to know what happened.
+> **⚠️ Exit-code semantics differ from `/process`:** finding mismatches on `/reconcile` is the **expected outcome**, not an error. Engine exit code 3 maps to **HTTP 200** here (with mismatches surfaced in the body), not HTTP 422. Structural/client-data problems (exit 1) and validation errors (exit 2) both map to HTTP 422. The caller reads `stats.mismatches_found` and `summary.mismatches` to know what happened.
 
 **Error mapping (specific to `/reconcile`):**
 
 | Engine exit code | HTTP | Meaning |
 |---|---|---|
 | 0 | 200 | Perfect match — every row agrees on every reconcile field |
-| 1 | 500 | Ops error (file not found, IO failure, etc.) |
+| 1 | 422 | Structural / client-data — row-count mismatch, missing field, identity-guard failure, duplicate keys |
 | 2 | 422 | Validation/parse error |
 | 3 | 200 | **Mismatches found — expected outcome.** Body carries the detail. |
+
+> **Exit 1 is overloaded — mapped by its dominant meaning.** Honestly: on these endpoints exit 1 is *almost always* an input problem the request can't be processed against (duplicate keys, row-count mismatch, missing field, identity-guard failure), so it returns **422**. It can — *rarely* — be a genuine I/O failure; the engine doesn't separate the two with distinct exit codes, so the API maps by the dominant case rather than pretending exit 1 cleanly equals "alignment failure." So the caller can still discriminate, the 422 body is structured: `error` (machine enum — `alignment_error` for exit 1, `validation_error` for exit 2), `exit_code`, a `message`, and the full `stderr` (authoritative — names the specific cause). Branch on `error` + read `stderr`. A future engine exit-code split (see BACKLOG: API error taxonomy) would make this exact.
+
+> **Key mode (`reconcile_key`):** the response adds `orphans_finlang_csv` (FinLang rows with no ML match) and `orphans_ml_csv` (ML rows with no FinLang match); `summary.alignment_mode` becomes `key:<fields>` and `summary.orphans_finlang_count` / `orphans_ml_count` carry the counts. Orphans set exit 3 → HTTP 200 (review-needed). Identity-guard mode (`reconcile_identity_fields`) instead *suppresses* comparison and returns HTTP 422 when rows misalign.
+
+---
+
+### `POST /impact`
+
+Rule-change impact analysis: run the same input through a **baseline** (`rules`) and a **candidate** (`impact_rules`) rulepack, and report what the change does — rows re-categorised, indicative amount moved per transition, per-rule match deltas. Analysis run: writes no categorised output. (See [impact.md](impact.md) for the feature explainer.)
+
+**Form fields:**
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `input_csv` | file | yes | Transactions CSV |
+| `impact_rules` | file | yes | Candidate (proposed) `.fin` rulepack |
+| `rules` | file | one of `rules`/`include_pack` | Baseline (current) `.fin` rulepack |
+| `map_file` | file | no | Custom header mapping JSON |
+| `include_pack` | string | one of `rules`/`include_pack` | Comma-separated bundled packs (baseline) |
+| `impact_html` | bool | no | Emit self-contained HTML report. Default: `false`. |
+| `fastio`, `decimal`, `thousands`, `dayfirst`, `encoding`, `strict_parse`, `fail_threshold` | various | no | Same as `/process` |
+
+**Query params:**
+
+| Param | Type | Default | Notes |
+|---|---|---|---|
+| `format` | string | `json` | `json` returns the full `ImpactResponse` (summary + `changes_csv` + `report_html` + stats). `html` returns the HTML report directly with `Content-Type: text/html`. **`format=html` requires `impact_html=true`** (otherwise HTTP 400). |
+
+**Response 200 (behavioural change — exit 3):**
+```json
+{
+  "summary": {
+    "schema": "impact/1",
+    "rows_compared": 6,
+    "behavioural_changed": 2,
+    "attribution_changed": 2,
+    "rows_stable": 2,
+    "transitions": [{"old_category": "Energy", "new_category": "Utilities", "rows": 2, "indicative_amount": 215.50}],
+    "rule_deltas": [...],
+    "baseline_rules_sha256": "a3f1c2...",
+    "candidate_rules_sha256": "b7d09a...",
+    "status": "REVIEW REQUIRED",
+    "amount_note": "Indicative totals — float arithmetic, not accounting-grade."
+  },
+  "changes_csv": "row_number,counterparty,amount,date,memo,old_category,new_category,...,change_class\n1,...,behavioural\n",
+  "report_html": null,
+  "stats": {"duration_seconds": 0.04, "exit_code": 3, "behavioural_changes_found": true},
+  "stderr": ""
+}
+```
+
+**Error mapping (same as `/reconcile`):** `0` → 200 (no behavioural change), `3` → 200 (behavioural change — expected, review-needed), `2` → 422 (validation), `1` → 422 (structural/parse).
 
 ---
 

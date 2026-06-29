@@ -139,9 +139,25 @@ class ReconcileStats(BaseModel):
 class ReconcileResponse(BaseModel):
     summary: Optional[dict] = None       # from reconcile_report.json
     mismatches_csv: str = ""              # empty if no mismatches
+    orphans_finlang_csv: str = ""        # key mode: FinLang rows with no ML match
+    orphans_ml_csv: str = ""             # key mode: ML rows with no FinLang match
     report_html: Optional[str] = None    # only if reconcile_html=True
     audit: Optional[list] = None         # parsed audit.json
     stats: ReconcileStats
+    stderr: str = ""
+
+
+class ImpactStats(BaseModel):
+    duration_seconds: float
+    exit_code: int
+    behavioural_changes_found: bool
+
+
+class ImpactResponse(BaseModel):
+    summary: Optional[dict] = None       # from impact_report.json
+    changes_csv: str = ""                # impact_changes.csv (empty if no changes)
+    report_html: Optional[str] = None    # only if impact_html=True
+    stats: ImpactStats
     stderr: str = ""
 
 
@@ -210,6 +226,50 @@ def _engine_http_error(returncode: int, stderr: str) -> HTTPException:
     return HTTPException(
         status_code=http,
         detail={"error": kind, "exit_code": returncode, "stderr": stderr},
+    )
+
+
+def _alignment_http_error(returncode: int, stderr: str) -> HTTPException:
+    """Exit-code mapping for the alignment endpoints (/reconcile, /impact).
+
+    Differs from `_engine_http_error` on exit 1. Exit 1 is *overloaded* in the
+    engine: on these endpoints it is almost always a client-data condition the
+    request can't be processed against (row-count mismatch, missing field,
+    identity-guard failure, duplicate keys), but it can — rarely — be a genuine
+    I/O failure. The engine does not separate the two with distinct exit codes,
+    so we map exit 1 by its *dominant* meaning here: 422 (unprocessable input),
+    not 500. Exit 2 (validation) → 422. Anything else → 500. Callers whitelist
+    0 and 3 (success / review-needed) to HTTP 200 before reaching this.
+
+    The body is the discriminator: `error` (machine enum), `exit_code`, a short
+    `message`, and the full `stderr` (authoritative — names the specific cause).
+    An integrator who needs to separate "my data" from "a server hiccup" branches
+    on `error` + reads `stderr`. A future engine exit-code split would make this
+    exact rather than dominant-meaning (see BACKLOG: API error taxonomy).
+    """
+    if returncode == 1:
+        return HTTPException(
+            status_code=422,
+            detail={
+                "error": "alignment_error",
+                "exit_code": 1,
+                "message": (
+                    "Inputs could not be aligned for this comparison. Exit code 1 "
+                    "is overloaded — usually an input problem (duplicate keys, "
+                    "row-count mismatch, missing field, identity-guard failure), "
+                    "rarely a genuine I/O failure. See stderr for the specific cause."
+                ),
+                "stderr": stderr,
+            },
+        )
+    if returncode == 2:
+        return HTTPException(
+            status_code=422,
+            detail={"error": "validation_error", "exit_code": 2, "stderr": stderr},
+        )
+    return HTTPException(
+        status_code=500,
+        detail={"error": "engine_error", "exit_code": returncode, "stderr": stderr},
     )
 
 
@@ -513,6 +573,8 @@ async def reconcile(
     include_pack: Optional[str] = Form(None),
     reconcile_fields: str = Form("category", description="Comma-separated fields to compare"),
     reconcile_html: bool = Form(False, description="Emit self-contained HTML report"),
+    reconcile_identity_fields: Optional[str] = Form(None, description="Comma-separated fields to identity-check positionally before comparison (e.g. date,amount,counterparty). Misaligned rows = structural failure (422)."),
+    reconcile_key: Optional[str] = Form(None, description="Comma-separated fields for key-based alignment (e.g. date,amount,counterparty) — match by content, report orphans. Mutually exclusive with reconcile_identity_fields."),
     audit_mode: str = Form("full", description="Reconcile requires --audit-mode full"),
     fastio: bool = Form(False),
     decimal: str = Form("."),
@@ -607,6 +669,10 @@ async def reconcile(
             cmd += ["--map", str(map_json)]
         if reconcile_html:
             cmd.append("--reconcile-html")
+        if reconcile_identity_fields:
+            cmd += ["--reconcile-identity-fields", reconcile_identity_fields]
+        if reconcile_key:
+            cmd += ["--reconcile-key", reconcile_key]
 
         t0 = time.perf_counter()
         result = _run(cmd)
@@ -618,7 +684,7 @@ async def reconcile(
         # than blacklisting 1/2 so future exit codes can't fall through to
         # an HTTP 200 carrying a bad exit_code in the body.
         if result.returncode not in (0, 3):
-            raise _engine_http_error(result.returncode, result.stderr)
+            raise _alignment_http_error(result.returncode, result.stderr)
 
         # Read back artefacts
         report_path = recon_dir / "reconcile_report.json"
@@ -635,6 +701,14 @@ async def reconcile(
         mismatches_csv = ""
         if mismatches_path.exists():
             mismatches_csv = mismatches_path.read_text(encoding="utf-8")
+
+        # Key-mode orphan artefacts (absent in positional mode)
+        orphans_fl_path = recon_dir / "reconcile_orphans_finlang.csv"
+        orphans_ml_path = recon_dir / "reconcile_orphans_ml.csv"
+        orphans_finlang_csv = (orphans_fl_path.read_text(encoding="utf-8")
+                               if orphans_fl_path.exists() else "")
+        orphans_ml_csv = (orphans_ml_path.read_text(encoding="utf-8")
+                          if orphans_ml_path.exists() else "")
 
         report_html: Optional[str] = None
         if reconcile_html and html_path.exists():
@@ -665,12 +739,154 @@ async def reconcile(
         return ReconcileResponse(
             summary=summary,
             mismatches_csv=mismatches_csv,
+            orphans_finlang_csv=orphans_finlang_csv,
+            orphans_ml_csv=orphans_ml_csv,
             report_html=report_html,
             audit=audit_data,
             stats=ReconcileStats(
                 duration_seconds=round(elapsed, 4),
                 exit_code=result.returncode,
                 mismatches_found=result.returncode == 3,
+            ),
+            stderr=result.stderr,
+        )
+
+
+@app.post(
+    "/impact",
+    response_model=ImpactResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def impact(
+    input_csv: UploadFile = File(..., description="Input transactions CSV"),
+    impact_rules: UploadFile = File(..., description="Candidate (proposed) rules .fin to compare against the baseline"),
+    rules: Optional[UploadFile] = File(
+        None, description="Baseline (current) rules .fin (optional if include_pack supplied)"
+    ),
+    map_file: Optional[UploadFile] = File(None),
+    include_pack: Optional[str] = Form(None, description="Baseline starter packs (comma-separated)"),
+    impact_html: bool = Form(False, description="Emit self-contained HTML impact report"),
+    fastio: bool = Form(False),
+    decimal: str = Form("."),
+    thousands: Optional[str] = Form(None),
+    dayfirst: bool = Form(False),
+    encoding: str = Form("utf-8-sig"),
+    strict_parse: bool = Form(False),
+    fail_threshold: float = Form(0.01),
+    format: str = Query(
+        "json",
+        description=(
+            "Response format: 'json' (default) returns the full ImpactResponse "
+            "(summary + changes_csv + report_html + stats). 'html' returns the "
+            "self-contained HTML report directly with Content-Type: text/html. "
+            "Requires impact_html=true."
+        ),
+    ),
+):
+    """Run rule-change impact analysis (baseline `--rules` vs candidate
+    `--impact-rules`) and return the JSON summary + (optional) HTML report.
+
+    Exit-code contract mirrors the CLI: 0 = no behavioural change, 3 =
+    behavioural change (review needed) — both map to HTTP 200, because finding
+    changes is the expected outcome, not an error. Exit 2 (validation) → 422.
+    Impact mode writes no categorised output; `--output` is not used.
+    """
+    if rules is None and not include_pack:
+        raise HTTPException(400, "Provide either a baseline rules file or include_pack (or both).")
+    if format not in ("json", "html"):
+        raise HTTPException(400, "format must be 'json' or 'html'.")
+    if format == "html" and not impact_html:
+        raise HTTPException(
+            400, "format=html requires impact_html=true (no HTML report would be generated)."
+        )
+
+    with tempfile.TemporaryDirectory(prefix="finlang_api_impact_") as tmp:
+        d = Path(tmp)
+        in_csv = d / "input.csv"
+        candidate_fin = d / "candidate.fin"
+        baseline_fin = d / "baseline.fin" if rules else None
+        map_json = d / "map.json" if map_file else None
+        impact_dir = d / "impact"
+        impact_dir.mkdir()
+
+        await _save_upload(input_csv, in_csv)
+        await _save_upload(impact_rules, candidate_fin)
+        if rules and baseline_fin:
+            await _save_upload(rules, baseline_fin)
+        if map_file and map_json:
+            await _save_upload(map_file, map_json)
+
+        # Impact mode is an analysis run — no --output, no --audit.
+        cmd: List[str] = [
+            FINLANG_CLI,
+            "--input", str(in_csv),
+            "--impact-rules", str(candidate_fin),
+            "--impact-output-dir", str(impact_dir),
+            "--encoding", encoding,
+            "--decimal", decimal,
+            "--fail-threshold", str(fail_threshold),
+            "--headless",
+        ]
+        if thousands:
+            cmd += ["--thousands", thousands]
+        if dayfirst:
+            cmd.append("--dayfirst")
+        if fastio:
+            cmd.append("--fastio")
+        if strict_parse:
+            cmd.append("--strict-parse")
+        if baseline_fin:
+            cmd += ["--rules", str(baseline_fin)]
+        if include_pack:
+            cmd += ["--include-pack", include_pack]
+        if map_json:
+            cmd += ["--map", str(map_json)]
+        if impact_html:
+            cmd.append("--impact-html")
+
+        t0 = time.perf_counter()
+        result = _run(cmd)
+        elapsed = time.perf_counter() - t0
+
+        # 0 = no behavioural change, 3 = behavioural change (review needed):
+        # both HTTP 200. Whitelist rather than blacklist so future exit codes
+        # can't fall through to a 200 carrying a bad exit_code.
+        if result.returncode not in (0, 3):
+            raise _alignment_http_error(result.returncode, result.stderr)
+
+        report_path = impact_dir / "impact_report.json"
+        changes_path = impact_dir / "impact_changes.csv"
+        html_path = impact_dir / "impact_report.html"
+
+        summary: Optional[dict] = None
+        if report_path.exists():
+            try:
+                summary = json.loads(report_path.read_text(encoding="utf-8"))
+            except Exception:
+                summary = None
+
+        changes_csv = changes_path.read_text(encoding="utf-8") if changes_path.exists() else ""
+        report_html: Optional[str] = None
+        if impact_html and html_path.exists():
+            report_html = html_path.read_text(encoding="utf-8")
+
+        if format == "html":
+            if not report_html:
+                raise HTTPException(
+                    500,
+                    "Engine completed but produced no HTML report — impact_html "
+                    "was true but the report file was missing or unreadable.",
+                )
+            return HTMLResponse(content=report_html, status_code=200)
+
+        return ImpactResponse(
+            summary=summary,
+            changes_csv=changes_csv,
+            report_html=report_html,
+            stats=ImpactStats(
+                duration_seconds=round(elapsed, 4),
+                exit_code=result.returncode,
+                behavioural_changes_found=result.returncode == 3,
             ),
             stderr=result.stderr,
         )
