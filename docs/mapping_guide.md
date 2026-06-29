@@ -1,7 +1,7 @@
 # 📘 Mapping Guide
 > **Applies to:** FinLang v0.6+
 > **Status:** Stable
-> **Last verified:** v0.7.9
+> **Last verified:** v0.8.0
 
 ---
 

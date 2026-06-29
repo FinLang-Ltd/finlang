@@ -6,6 +6,27 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.0] - 2026-06-29
+
+### Added
+- **`--reconcile-identity-fields <field[,field...]>` (SOL-103)** — identity guard for `--reconcile`. Verifies the named fields line up row-for-row between FinLang's output and the ML output *before* comparison. On misalignment the run stops with exit 1 and writes `reconcile_identity_failures.{csv,json}` naming the first divergent rows — catching silent row-shift before it produces misleading mismatch counts. Positional reconcile (v0.7.8 behaviour) is unchanged when the flag is omitted.
+- **`--reconcile-key <field[,field...]>` (SOL-104)** — key-based reconciliation alignment. Matches rows by a canonicalised composite key (hash join, O(N+M)) instead of by position, so external systems can reorder, drop, or add rows. Rows present on only one side are reported as orphans: `reconcile_orphans_finlang.csv` (FinLang rows with no ML match) and `reconcile_orphans_ml.csv` (ML rows with no FinLang match); orphans set exit 3 (review-needed). Duplicate keys on either side stop the run with exit 1 (strict — an ambiguous key can't be reconciled). Mutually exclusive with `--reconcile-identity-fields`.
+- **Rule-change impact analysis (SOL-105)** — `--impact-rules <candidate.fin>` runs the same input through the baseline rulepack (`--rules`) and a candidate rulepack and reports what the change does: rows re-categorised (behavioural change → exit 3), rules renamed with the same outcome (attribution-only → reported, never gates), and an indicative amount moved per category transition. `--impact-output-dir` writes `impact_report.json` (schema `impact/1`, including baseline + candidate rule-text SHA-256s) and `impact_changes.csv`; `--impact-html` adds a self-contained HTML report. Impact is an analysis run — it writes no categorised output.
+- **New modules:** `src/finlang/tools/impact.py` (impact engine, decoupled from the FinLang engine) and `src/finlang/tools/impact_html.py` (HTML report generator, `html.escape()` on every user-provided string). `src/finlang/tools/reconcile_html.py` gained orphan sections.
+- **HTTP API parity (SOL-041 wrapper extended):** `POST /reconcile` exposes `reconcile_identity_fields` + `reconcile_key` and surfaces `orphans_finlang_csv` / `orphans_ml_csv` in the response; new **`POST /impact`** endpoint (baseline `rules` vs candidate `impact_rules`, `impact_html`, `?format=html`) mirrors `/reconcile`. `test_api.py`: 17 → 24 standalone tests.
+- **New documentation:** `docs/impact.md` (feature explainer); `docs/reconciliation.md` expanded for identity-guard, key alignment, and orphan artefacts; `docs/api.md` + `docs/api_reference.md` updated for the new params and `/impact`.
+
+### Changed
+- **Reconcile JSON report schema** gained `alignment_mode` (`positional` | `key:<fields>`) plus `orphans_finlang_count` / `orphans_ml_count` (additive — positional-mode reports are unchanged apart from the new `alignment_mode: positional` line). This schema change is the reason for the minor version bump (0.7.x → 0.8.0).
+- **Engine `run_audit` gained an additive `audit_max` parameter** (used by impact's two-pass diff). The default code path is **output-identical** to v0.7.9 — existing categorisation, audit, verify, and reconcile output is unchanged.
+- **Alignment API endpoints (`/reconcile`, `/impact`)** map engine exit 1 to HTTP 422 (an overloaded structural / client-data condition, mapped by its dominant meaning) with a structured discriminator body (`error` enum + `exit_code` + `message` + `stderr`); exit 3 → HTTP 200 (review-needed is the expected outcome, not an error).
+- **Daily test gate:** 137 → 168 tests, 10 gates unchanged. Gate 10 now runs `test_reconcile.py` + `test_impact.py` (50 tests). Standalone API gate: 17 → 24.
+
+### Fixed
+- (none — additive feature release)
+
+---
+
 ## [0.7.9] - 2026-05-18
 
 ### Added
