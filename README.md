@@ -83,7 +83,7 @@ rule "TRAVEL: High Value Flight" {
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
 | **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output. See [docs/verify.md](docs/verify.md). |
 | **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`. See [docs/reconciliation.md](docs/reconciliation.md). |
-| **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — seven endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`. Subprocess-dispatched (no second engine surface). 24 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
+| **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — seven endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`. Subprocess-dispatched (no second engine surface). 26 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
 
 ---
 
@@ -285,7 +285,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 |:--|:--|:--|
 | Core Engine      | v0.8.0   | Output-identical to v0.7.9 (additive `audit_max` param; default path unchanged) |
 | CLI Suite        | v0.8.0   | 182 tests across 10 gates (daily); 7-gate full pre-release suite |
-| FastAPI Wrapper  | v0.8.0   | 24 standalone integration tests + CLI/API parity contract test |
+| FastAPI Wrapper  | v0.8.0   | 26 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.8.0   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.0   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |
 | Verify           | v0.8.0   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison) |

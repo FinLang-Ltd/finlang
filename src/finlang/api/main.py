@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import tempfile
@@ -80,11 +81,16 @@ MAX_UPLOAD_BYTES = int(
 # ----------------------------------------------------------------------
 
 def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
-    """API key gate. Active only when FINLANG_API_KEY is set."""
+    """API key gate. Active only when FINLANG_API_KEY is set AND non-empty.
+
+    Empty string counts as unset (4-Jul sweep: an unset host var passed
+    through compose as "" armed a gate an empty X-API-Key header satisfied).
+    Comparison is constant-time (secrets.compare_digest).
+    """
     expected = os.environ.get("FINLANG_API_KEY")
-    if expected is None:
-        return  # auth disabled (dev mode)
-    if x_api_key != expected:
+    if not expected:
+        return  # auth disabled (dev mode / empty env var)
+    if not secrets.compare_digest(str(x_api_key or ""), expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API key.",
@@ -398,6 +404,27 @@ async def process_csv(
         elapsed = time.perf_counter() - t0
 
         if result.returncode != 0:
+            # Exit 3 with verify requested: attach the verification report —
+            # it is the artefact that explains the failure, and it dies with
+            # the temp dir otherwise (4-Jul sweep).
+            if result.returncode == 3 and verify_dir:
+                verify_report_on_fail = None
+                report_path = verify_dir / "verify_report.json"
+                if report_path.exists():
+                    try:
+                        verify_report_on_fail = json.loads(report_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        verify_report_on_fail = None
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": "verify_failed",
+                        "exit_code": 3,
+                        "message": "Output verification reported mismatches.",
+                        "verify_report": verify_report_on_fail,
+                        "stderr": (result.stderr or "")[-2000:],
+                    },
+                )
             raise _engine_http_error(result.returncode, result.stderr)
         if not out_csv.exists():
             raise HTTPException(500, "Engine completed but produced no output file.")
