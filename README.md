@@ -284,7 +284,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Component | Version | Validation |
 |:--|:--|:--|
 | Core Engine      | v0.8.0   | Output-identical to v0.7.9 (additive `audit_max` param; default path unchanged) |
-| CLI Suite        | v0.8.0   | 168 tests across 10 gates (daily); 7-gate full pre-release suite |
+| CLI Suite        | v0.8.0   | 175 tests across 10 gates (daily); 7-gate full pre-release suite |
 | FastAPI Wrapper  | v0.8.0   | 24 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.8.0   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.0   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |

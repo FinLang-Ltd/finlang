@@ -111,8 +111,18 @@ def _read_csv_rows(path: str) -> List[Dict[str, str]]:
         reader = csv.DictReader(f, dialect=dialect)
         if not reader.fieldnames:
             raise ValueError(f"CSV has no header row: {path}")
-        for row in reader:
+        for i, row in enumerate(reader):
+            # Ragged rows: DictReader puts surplus fields in a list under the
+            # None restkey and fills missing fields with None. Either way the
+            # row can't be trusted — fail structurally, naming the row.
+            if None in row or any(v is None for v in row.values()):
+                raise ValueError(
+                    f"Malformed CSV row {i + 2} in {path}: field count differs "
+                    f"from header (unquoted comma or truncated row?)"
+                )
             rows.append({k: (v or "").strip() for k, v in row.items()})
+    if not rows:
+        raise ValueError(f"CSV has zero data rows: {path}")
     return rows
 
 
@@ -203,6 +213,7 @@ def _identity_normalise(field: str, value: Optional[str]) -> str:
     from finlang.tools.verify import (
         _normalize_amount_string,
         _normalize_date_string,
+        _strip_injection_quote,
     )
     v = (value or "").strip()
     field_lower = field.lower()
@@ -210,7 +221,12 @@ def _identity_normalise(field: str, value: Optional[str]) -> str:
         return _normalize_amount_string(v)
     if field_lower == "date":
         return _normalize_date_string(v)
-    return v.lower()
+    # Unquote the engine's formula-injection prefix before comparing: the
+    # FinLang side is engine-written ('+44 TAXI...) while an ML pipeline
+    # reads the raw source (+44 TAXI...). Same transaction, must compare
+    # equal — applies to both identity-guard and key construction (this
+    # function is the shared canonicalisation contract for both).
+    return _strip_injection_quote(v).strip().lower()
 
 
 def _check_identity(

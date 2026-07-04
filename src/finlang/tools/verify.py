@@ -119,6 +119,37 @@ def _normalize_amount_string(amount: str, decimal: str = ".", thousands: Optiona
         return amount.strip()
 
 
+# Mirrors run_finlang._csv_safe_text's danger set. That write-time guard
+# prefixes ' to any text cell whose lstripped value starts with one of these,
+# so engine-written CSVs can legitimately differ from raw source values.
+_SAFE_TEXT_DANGER = ("=", "+", "-", "@", "\t")
+
+
+def _strip_injection_quote(value: str) -> str:
+    """Undo the engine's formula-injection quote for comparison purposes.
+
+    Exact inverse of the _csv_safe_text transform: strip one leading '
+    when the remainder is danger-leading. Applied symmetrically to both
+    sides of every comparison, so it is safe whether or not the guard was
+    active when the file was written (FINLANG_SAFE_TEXT).
+    """
+    if value.startswith("'") and value[1:].lstrip(" ").startswith(_SAFE_TEXT_DANGER):
+        return value[1:]
+    return value
+
+
+def _amount_2dp(value: str) -> str:
+    """Format an amount to .2f for comparison; non-numeric values pass through.
+
+    Blank or unparseable amounts (possible when the drop-rate guard removed
+    a row and alignment shifted) must compare as strings, not crash float().
+    """
+    try:
+        return f"{float(value):.2f}"
+    except (ValueError, TypeError):
+        return value.strip()
+
+
 def _normalize_date_string(date: str, dayfirst: bool = False,
                            date_format: Optional[str] = None) -> str:
     """Normalize a date string to ISO 8601 (YYYY-MM-DD), mirroring engine logic.
@@ -159,10 +190,7 @@ def _fingerprint(date: str, amount: str, counterparty: str) -> str:
     Expects pre-normalised values (standard locale, ISO date).
     Amount is formatted to .2f to tolerate pandas trailing-zero differences.
     """
-    try:
-        normalized_amount = f"{float(amount):.2f}"
-    except (ValueError, TypeError):
-        normalized_amount = amount.strip()
+    normalized_amount = _amount_2dp(amount)
     composite = f"{date}|{normalized_amount}|{counterparty}"
     return hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
 
@@ -190,14 +218,20 @@ def _read_immutable_fields(path: str) -> List[dict]:
         flags_col = fieldnames_lower.get("flags", "")
 
         for i, row in enumerate(reader):
+            # (x or "") guards against None values from short (ragged) rows —
+            # DictReader fills missing fields with restval None.
             rows.append({
                 "csv_row": i + 2,  # 1-indexed, header = row 1
-                "date": row.get(date_col, "").strip(),
-                "amount": row.get(amount_col, "").strip(),
-                "counterparty": row.get(cp_col, "").strip(),
-                "memo": row.get(memo_col, "").strip(),
-                "category": row.get(cat_col, "").strip(),
-                "flags": row.get(flags_col, "").strip(),
+                "date": (row.get(date_col) or "").strip(),
+                "amount": (row.get(amount_col) or "").strip(),
+                # Unquote symmetrically (input AND output pass through this
+                # reader) so the engine's injection guard doesn't read as a
+                # fingerprint mismatch on legitimate data.
+                "counterparty": _strip_injection_quote(
+                    (row.get(cp_col) or "").strip()).strip(),
+                "memo": (row.get(memo_col) or "").strip(),
+                "category": (row.get(cat_col) or "").strip(),
+                "flags": (row.get(flags_col) or "").strip(),
             })
     return rows
 
@@ -266,9 +300,10 @@ def run_verification(
                 # Add field-level detail (input already pre-normalised, output in standard format)
                 field_diffs = []
                 for field in ("date", "amount", "counterparty"):
-                    # For amount, normalise to .2f for comparison (pandas trailing zeros)
-                    v_in = f"{float(inp[field]):.2f}" if field == "amount" else inp[field]
-                    v_out = f"{float(out[field]):.2f}" if field == "amount" else out[field]
+                    # For amount, normalise to .2f for comparison (pandas trailing zeros);
+                    # _amount_2dp passes non-numeric values through rather than crashing.
+                    v_in = _amount_2dp(inp[field]) if field == "amount" else inp[field]
+                    v_out = _amount_2dp(out[field]) if field == "amount" else out[field]
                     if v_in != v_out:
                         field_diffs.append(f"{field}: '{inp[field]}' → '{out[field]}'")
                 mismatch["field_diffs"] = "; ".join(field_diffs) if field_diffs else "hash differs (fields appear equal)"
@@ -276,8 +311,8 @@ def run_verification(
         elif mode == "full":
             # Even if fingerprints match, verify fields individually
             for field in ("date", "amount", "counterparty"):
-                v_in = f"{float(inp[field]):.2f}" if field == "amount" else inp[field]
-                v_out = f"{float(out[field]):.2f}" if field == "amount" else out[field]
+                v_in = _amount_2dp(inp[field]) if field == "amount" else inp[field]
+                v_out = _amount_2dp(out[field]) if field == "amount" else out[field]
                 if v_in != v_out:
                     mismatches.append({
                         "csv_row": out["csv_row"],
