@@ -35,6 +35,11 @@ def load_rulepack_text(filename: str) -> str:
     return resources.files("finlang.rulepacks").joinpath(filename).read_text(encoding="utf-8")
 
 def list_rulepacks() -> List[str]:
-    """List available top-level files in finlang.rulepacks (non-recursive)."""
+    """List available .fin rulepacks in finlang.rulepacks (non-recursive).
+
+    Filters to *.fin so package plumbing (__init__.py) never leaks into
+    the public listing.
+    """
     pkg = resources.files("finlang.rulepacks")
-    return sorted([p.name for p in pkg.iterdir() if p.is_file()])
+    return sorted([p.name for p in pkg.iterdir()
+                   if p.is_file() and p.name.endswith(".fin")])
