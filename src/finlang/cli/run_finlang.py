@@ -154,12 +154,17 @@ except NameError:
     _LOCAL_RULEPACKS = _PKG_ROOT / "rulepacks"
 
 
-def _read_pack_text(pack_name: str) -> str:
-    """Read a packaged rulepack by short name, with a local dev-folder fallback."""
+def _read_pack_text(pack_name: str) -> Optional[str]:
+    """Read a packaged rulepack by short name, with a local dev-folder fallback.
+
+    Returns None when the pack is unknown or unreadable — a NAMED source
+    that cannot be loaded is fatal upstream (4-Jul sweep: warn-and-continue
+    produced partial categorisation with exit 0).
+    """
     fname = PACK_MAP.get(pack_name.lower())
     if not fname:
-        print(f"Unknown pack '{pack_name}'. Known: {', '.join(sorted(PACK_MAP))}", file=sys.stderr)
-        return ""
+        print(f"FATAL: Unknown pack '{pack_name}'. Known: {', '.join(sorted(PACK_MAP))}", file=sys.stderr)
+        return None
 
     # Package-first (BOM-safe read)
     try:
@@ -169,7 +174,8 @@ def _read_pack_text(pack_name: str) -> str:
         p = _LOCAL_RULEPACKS / fname
         if p.exists():
             return p.read_text(encoding="utf-8-sig")
-        return ""  # be permissive in CLI; earlier stage will catch missing rules
+        print(f"FATAL: Pack '{pack_name}' ({fname}) could not be read from the package or dev folder.", file=sys.stderr)
+        return None
 
 
 def _load_default_bank_map_text() -> str:
@@ -197,30 +203,41 @@ def _load_default_bank_map_text() -> str:
 # --------------------------------------------------------------------------------------
 # Rules concatenation & parsing
 # --------------------------------------------------------------------------------------
-def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
+def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Optional[Path]:
+    """Combine named rules files + packs into one temp .fin.
+
+    Returns None on any fatal condition. Every NAMED source must load —
+    warn-and-continue on a missing file produced partial categorisation
+    with exit 0 (4-Jul sweep), which an audit-positioned engine must not do.
+    The sentinel is None, not Path(): Path() is Path('.') — truthy and
+    .exists() — which made the callers' failure guards dead code.
+    """
     parts: List[str] = []
 
     # 1) Personal rules first (highest precedence)
     for rf in (rules_files or []):
         p = Path(rf)
         if not p.exists():
-            print(f"Rules file not found: {p}", file=sys.stderr)
-            continue
+            print(f"FATAL: Rules file not found: {p}", file=sys.stderr)
+            return None
         try:
             # Ensure BOM-safe reading
             parts.append(f"# --- BEGIN {p.name} ---\n{p.read_text(encoding='utf-8-sig')}\n# --- END ---")
         except Exception as e:
-            print(f"Error reading rules file {p}: {e}", file=sys.stderr)
+            print(f"FATAL: Error reading rules file {p}: {e}", file=sys.stderr)
+            return None
 
     # 2) Packs (lower precedence)
     for name in pack_list:
         txt = _read_pack_text(name)
+        if txt is None:
+            return None  # _read_pack_text printed the FATAL
         if txt:
             parts.append(f"# --- BEGIN PACK {name} ---\n{txt}\n# --- END PACK ---")
 
     if not parts:
         print("FATAL: No rules provided or found. Use --rules and/or --include-pack.", file=sys.stderr)
-        return Path()
+        return None
 
     try:
         # Write combined rules using standard utf-8
@@ -231,7 +248,7 @@ def _combine_rules(rules_files: List[str], pack_list: List[str]) -> Path:
         return Path(tmp.name)
     except Exception as e:
         print(f"FATAL: Could not create temporary rules file: {e}", file=sys.stderr)
-        return Path()
+        return None
 
 
 def _strip_inline_comment(line: str) -> str:
