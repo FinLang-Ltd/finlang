@@ -173,7 +173,7 @@ For the full form-field schema on each endpoint, response shapes, and curl recip
 
 ### Auth
 
-Auth is **opt-in via env var**. Set `FINLANG_API_KEY` in the process environment, and every non-`/health` endpoint requires the matching `X-API-Key` header on incoming requests.
+Auth is **opt-in via env var**. Set `FINLANG_API_KEY` to a **non-empty** value in the process environment, and every non-`/health` endpoint requires the matching `X-API-Key` header on incoming requests. An **empty** `FINLANG_API_KEY` is treated as unset — auth disabled — so an unset host variable passed through docker-compose cannot arm a gate that an empty header would satisfy *(v0.8.1 behaviour change)*.
 
 ```bash
 export FINLANG_API_KEY="your-secret-string"
@@ -213,7 +213,7 @@ The engine returns four exit codes; the API maps them to clean HTTP statuses.
 | `0` | `200 OK` | Engine succeeded; output CSV + audit + stats returned |
 | `1` | `500 Internal Server Error` | Ops error — file not found, IO failure, unexpected crash |
 | `2` | `422 Unprocessable Entity` | Validation/parse error — malformed CSV, bad flag combination, missing required field |
-| `3` | `422 Unprocessable Entity` | Verify mismatch (when `--verify` or `--verify-full` is on) |
+| `3` | `422 Unprocessable Entity` | Verify mismatch (when `--verify` or `--verify-full` is on). *(v0.8.1)* the 422 `detail` is a structured object carrying `verify_report` — see [api_reference.md](api_reference.md) |
 
 Other HTTP statuses the API can return:
 

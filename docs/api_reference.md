@@ -33,7 +33,7 @@ Interactive Swagger UI at `http://localhost:8000/docs`.
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `FINLANG_API_KEY` | unset (auth disabled) | When set, all non-health endpoints require `X-API-Key: <key>` |
+| `FINLANG_API_KEY` | unset (auth disabled) | When set to a **non-empty** value, all non-health endpoints require `X-API-Key: <key>`. **An empty string is treated as unset (auth disabled)** — an unset host variable passed through compose must not arm a gate an empty header would satisfy. Key comparison is constant-time. *(v0.8.1 behaviour change: previously an empty value armed auth.)* |
 | `FINLANG_API_HOST` | `127.0.0.1` | Bind host for `finlang-api` script |
 | `FINLANG_API_PORT` | `8000` | Bind port |
 | `FINLANG_API_TIMEOUT` | `300` | Subprocess timeout in seconds |
@@ -107,7 +107,9 @@ Categorise a transactions CSV. Multipart form upload.
 | 0 | 200 | Success |
 | 1 | 500 | Ops error (file not found, IO failure) |
 | 2 | 422 | Validation/parse error |
-| 3 | 422 | Verification mismatch |
+| 3 | 422 | Verification mismatch — **structured detail, see below** |
+
+> **Verification-failure detail is structured (v0.8.1 compatibility change).** When `verify=true` and the engine exits 3, the 422 `detail` is an **object**, not a string: `{"error": "verify_failed", "exit_code": 3, "message": ..., "verify_report": <parsed verify_report.json, or null>, "stderr": <tail>}`. Consumers that parsed `detail` as a string must branch on its type — other 422s on this endpoint keep their existing shape. The report artefact is attached because it is the thing that explains the failure (previously it was destroyed with the request's temp dir).
 
 ### `POST /discover`
 
