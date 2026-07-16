@@ -26,6 +26,7 @@ import json
 import os
 import re
 import time
+import warnings
 from datetime import datetime
 from typing import NamedTuple, List, Optional
 
@@ -138,6 +139,27 @@ def _strip_injection_quote(value: str) -> str:
     return value
 
 
+def _strip_injection_quote_series(s: "pd.Series") -> "pd.Series":
+    """Vectorised twin of _strip_injection_quote (SOL-110).
+
+    Must stay value-for-value identical to the scalar function — the
+    equivalence property test in test_verify.py holds the two in lockstep.
+    """
+    rest = s.str.slice(1)
+    mask = s.str.startswith("'") & rest.str.lstrip(" ").str.startswith(_SAFE_TEXT_DANGER)
+    return s.where(~mask, rest)
+
+
+def _map_uniques(series: "pd.Series", fn) -> "pd.Series":
+    """Apply a scalar normaliser once per unique value, then broadcast (SOL-110).
+
+    Keeps the scalar functions authoritative — no vectorised re-implementation
+    of amount/date semantics to drift — while collapsing per-row calls to
+    per-unique-value calls (dates and amounts repeat heavily in real ledgers).
+    """
+    return series.map({u: fn(u) for u in series.unique()})
+
+
 def _amount_2dp(value: str) -> str:
     """Format an amount to .2f for comparison; non-numeric values pass through.
 
@@ -184,6 +206,15 @@ def _normalize_field(field: str, value: str, decimal: str = ".",
     return value
 
 
+def _sha16(composite: str) -> str:
+    """SHA-256 of a composite fingerprint key, first 16 hex chars.
+
+    Module-level so tests can monkeypatch it to force collisions and prove
+    the full-mode field comparison catches what the hash then cannot.
+    """
+    return hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
+
+
 def _fingerprint(date: str, amount: str, counterparty: str) -> str:
     """SHA-256 fingerprint of immutable fields (first 16 hex chars).
 
@@ -192,7 +223,7 @@ def _fingerprint(date: str, amount: str, counterparty: str) -> str:
     """
     normalized_amount = _amount_2dp(amount)
     composite = f"{date}|{normalized_amount}|{counterparty}"
-    return hashlib.sha256(composite.encode("utf-8")).hexdigest()[:16]
+    return _sha16(composite)
 
 
 def _read_immutable_fields(path: str) -> List[dict]:
@@ -236,6 +267,68 @@ def _read_immutable_fields(path: str) -> List[dict]:
     return rows
 
 
+_FIELD_COLUMNS = ("csv_row", "date", "amount", "counterparty", "memo", "category", "flags")
+
+
+def _rows_to_df(rows: List[dict]) -> "pd.DataFrame":
+    """Convert scalar-reader row dicts to the DataFrame shape used by verify."""
+    return pd.DataFrame(rows, columns=list(_FIELD_COLUMNS))
+
+
+def _read_immutable_fields_df(path: str) -> Optional["pd.DataFrame"]:
+    """Vectorised twin of _read_immutable_fields (SOL-110).
+
+    Returns None on any structure the scalar reader tolerates but pandas
+    parses differently (exactly-duplicated header names, ragged long rows,
+    empty file) — the caller falls back to the scalar reader, which stays
+    authoritative for CSV semantics.
+    """
+    try:
+        with open(path, "r", newline="", encoding="utf-8-sig") as f:
+            sample = f.read(8192)
+            f.seek(0)
+            try:
+                dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+            except csv.Error:
+                dialect = None  # csv "excel" defaults, as in the scalar reader
+            header = next(csv.reader(f, dialect=dialect or "excel"), None)
+        if header and len(set(header)) != len(header):
+            return None  # DictReader is last-wins on exact duplicates; pandas mangles
+        # index_col=False stops pandas promoting columns to an index on ragged
+        # long rows — the C parser raises instead, and we fall back to the
+        # scalar reader (which tolerates them via DictReader's None key).
+        kwargs = dict(dtype=str, keep_default_na=False, encoding="utf-8-sig",
+                      engine="c", index_col=False)
+        if dialect is not None:
+            kwargs.update(sep=dialect.delimiter, quotechar=dialect.quotechar,
+                          doublequote=dialect.doublequote,
+                          skipinitialspace=dialect.skipinitialspace)
+        with warnings.catch_warnings():
+            # Ragged long rows truncate to the header width (as DictReader
+            # ignores extras) — silence the ParserWarning so console output
+            # stays identical to the scalar reader's.
+            warnings.simplefilter("ignore")
+            raw = pd.read_csv(path, **kwargs)
+        raw = raw.fillna("")  # ragged short rows pad with NaN, DictReader pads with ""
+        # Canonical lowercase mapping, last occurrence wins (mirrors the scalar reader)
+        lower_map = {str(c).lower(): c for c in raw.columns}
+        n = len(raw)
+        df = pd.DataFrame(index=pd.RangeIndex(n))
+        df["csv_row"] = range(2, n + 2)  # 1-indexed, header = row 1
+        for name in _FIELD_COLUMNS[1:]:
+            col = lower_map.get(name)
+            if col is None:
+                df[name] = [""] * n
+            else:
+                s = raw[col].astype(str).str.strip()
+                if name == "counterparty":
+                    s = _strip_injection_quote_series(s).str.strip()
+                df[name] = s
+        return df
+    except Exception:
+        return None
+
+
 def run_verification(
     input_path: str,
     output_path: str,
@@ -265,69 +358,88 @@ def run_verification(
     """
     t0 = time.perf_counter()
 
-    input_rows = _read_immutable_fields(input_path)
-    output_rows = _read_immutable_fields(output_path)
+    df_in = _read_immutable_fields_df(input_path)
+    if df_in is None:
+        df_in = _rows_to_df(_read_immutable_fields(input_path))
+    df_out = _read_immutable_fields_df(output_path)
+    if df_out is None:
+        df_out = _rows_to_df(_read_immutable_fields(output_path))
 
-    # Pre-normalise input rows: the engine normalises amounts (via _to_number)
-    # and dates (via pd.to_datetime) before writing output. We must apply the
-    # same transformations to the raw input so fingerprints match.
-    # Output rows are already in standard format (decimal '.', ISO dates).
-    for row in input_rows:
-        row["amount"] = _normalize_amount_string(row["amount"], decimal, thousands)
-        row["date"] = _normalize_date_string(row["date"], dayfirst, date_format)
-
-    row_count = min(len(input_rows), len(output_rows))
+    n_in, n_out = len(df_in), len(df_out)
+    row_count = min(n_in, n_out)
     mismatches: List[dict] = []
 
-    for i in range(row_count):
-        inp = input_rows[i]
-        out = output_rows[i]
+    if row_count:
+        # Pre-normalise input columns: the engine normalises amounts (via
+        # _to_number) and dates (via pd.to_datetime) before writing output.
+        # Output columns are already in standard format (decimal '.', ISO dates).
+        # _map_uniques keeps the scalar normalisers authoritative (SOL-110).
+        d_in = _map_uniques(df_in["date"].iloc[:row_count],
+                            lambda v: _normalize_date_string(v, dayfirst, date_format))
+        a_in = _map_uniques(df_in["amount"].iloc[:row_count],
+                            lambda v: _normalize_amount_string(v, decimal, thousands))
+        c_in = df_in["counterparty"].iloc[:row_count]
+        d_out = df_out["date"].iloc[:row_count]
+        a_out = df_out["amount"].iloc[:row_count]
+        c_out = df_out["counterparty"].iloc[:row_count]
 
-        fp_in = _fingerprint(inp["date"], inp["amount"], inp["counterparty"])
-        fp_out = _fingerprint(out["date"], out["amount"], out["counterparty"])
+        # Amounts compare at .2f (pandas trailing zeros); _amount_2dp passes
+        # non-numeric values through rather than crashing.
+        a2_in = _map_uniques(a_in, _amount_2dp)
+        a2_out = _map_uniques(a_out, _amount_2dp)
 
-        inp["_fingerprint"] = fp_in
-        out["_fingerprint"] = fp_out
+        fp_in = _map_uniques(d_in + "|" + a2_in + "|" + c_in, _sha16)
+        fp_out = _map_uniques(d_out + "|" + a2_out + "|" + c_out, _sha16)
 
-        if fp_in != fp_out:
-            mismatch = {
-                "csv_row": out["csv_row"],
-                "reason": "fingerprint mismatch",
-                "fingerprint_in": fp_in,
-                "fingerprint_out": fp_out,
-            }
-            if mode == "full":
-                # Add field-level detail (input already pre-normalised, output in standard format)
-                field_diffs = []
-                for field in ("date", "amount", "counterparty"):
-                    # For amount, normalise to .2f for comparison (pandas trailing zeros);
-                    # _amount_2dp passes non-numeric values through rather than crashing.
-                    v_in = _amount_2dp(inp[field]) if field == "amount" else inp[field]
-                    v_out = _amount_2dp(out[field]) if field == "amount" else out[field]
-                    if v_in != v_out:
-                        field_diffs.append(f"{field}: '{inp[field]}' → '{out[field]}'")
-                mismatch["field_diffs"] = "; ".join(field_diffs) if field_diffs else "hash differs (fields appear equal)"
-            mismatches.append(mismatch)
-        elif mode == "full":
-            # Even if fingerprints match, verify fields individually
-            for field in ("date", "amount", "counterparty"):
-                v_in = _amount_2dp(inp[field]) if field == "amount" else inp[field]
-                v_out = _amount_2dp(out[field]) if field == "amount" else out[field]
-                if v_in != v_out:
-                    mismatches.append({
-                        "csv_row": out["csv_row"],
-                        "reason": f"field mismatch ({field})",
-                        "fingerprint_in": fp_in,
-                        "fingerprint_out": fp_out,
-                        "field_diffs": f"{field}: '{inp[field]}' → '{out[field]}'",
-                    })
-                    break  # One mismatch per row is enough
+        fp_mm = fp_in.ne(fp_out)
+        if mode == "full":
+            # Field masks catch what a hash collision would hide.
+            d_mm = d_in.ne(d_out)
+            a_mm = a2_in.ne(a2_out)
+            c_mm = c_in.ne(c_out)
+            flagged = fp_mm | d_mm | a_mm | c_mm
+        else:
+            flagged = fp_mm
+
+        for i in flagged[flagged].index:
+            csv_row = int(df_out["csv_row"].iat[i])
+            if fp_mm.iat[i]:
+                mismatch = {
+                    "csv_row": csv_row,
+                    "reason": "fingerprint mismatch",
+                    "fingerprint_in": fp_in.iat[i],
+                    "fingerprint_out": fp_out.iat[i],
+                }
+                if mode == "full":
+                    # Field-level detail (input pre-normalised, output standard)
+                    field_diffs = []
+                    for field, mm, vi, vo in (("date", d_mm, d_in, d_out),
+                                              ("amount", a_mm, a_in, a_out),
+                                              ("counterparty", c_mm, c_in, c_out)):
+                        if mm.iat[i]:
+                            field_diffs.append(f"{field}: '{vi.iat[i]}' → '{vo.iat[i]}'")
+                    mismatch["field_diffs"] = "; ".join(field_diffs) if field_diffs else "hash differs (fields appear equal)"
+                mismatches.append(mismatch)
+            else:
+                # Full mode only: fingerprints match but a field differs
+                for field, mm, vi, vo in (("date", d_mm, d_in, d_out),
+                                          ("amount", a_mm, a_in, a_out),
+                                          ("counterparty", c_mm, c_in, c_out)):
+                    if mm.iat[i]:
+                        mismatches.append({
+                            "csv_row": csv_row,
+                            "reason": f"field mismatch ({field})",
+                            "fingerprint_in": fp_in.iat[i],
+                            "fingerprint_out": fp_out.iat[i],
+                            "field_diffs": f"{field}: '{vi.iat[i]}' → '{vo.iat[i]}'",
+                        })
+                        break  # One mismatch per row is enough
 
     # Row count mismatch
-    if len(input_rows) != len(output_rows):
+    if n_in != n_out:
         mismatches.append({
             "csv_row": 0,
-            "reason": f"row count mismatch: input={len(input_rows)}, output={len(output_rows)}",
+            "reason": f"row count mismatch: input={n_in}, output={n_out}",
             "fingerprint_in": "",
             "fingerprint_out": "",
         })
@@ -350,10 +462,15 @@ def run_verification(
     if not headless:
         _print_result(result)
 
-    # Artifacts
+    # Artifacts — per-row dicts are materialised only here, so the writers
+    # (and their byte-for-byte output) are unchanged from the scalar build.
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
         _write_report_json(result, output_dir)
+        input_rows = [{"_fingerprint": fp_in.iat[i]} for i in range(row_count)]
+        output_rows = df_out.to_dict("records")
+        for i in range(row_count):
+            output_rows[i]["_fingerprint"] = fp_out.iat[i]
         _write_proof_csv(input_rows, output_rows, row_count, output_dir)
         if mismatches:
             _write_mismatches_csv(mismatches, output_dir)

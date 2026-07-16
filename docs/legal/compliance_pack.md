@@ -39,7 +39,7 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
 ## 🔹 Product Assurance & Validation
 - **Deterministic engine** — no machine learning, no randomness, no network calls in the engine; every output row attributable to a named rule via the audit trail.
 - **Trust layer** — `--verify` (SHA-256 output integrity), `--reconcile` (independent row-by-row comparison against an external/ML system, with orphan detection), `--impact` (pre-change blast-radius analysis of rulepack edits).
-- **Test discipline** — 182-test daily suite across 10 gates; 7-gate full pre-release suite (golden-master matrix, adversarial edge cases, data-integrity run, AST contract tests); 26-test standalone HTTP API suite; post-publish cleanroom validation from PyPI.
+- **Test discipline** — 185-test daily suite across 10 gates; 7-gate full pre-release suite (golden-master matrix, adversarial edge cases, data-integrity run, AST contract tests); 26-test standalone HTTP API suite; post-publish cleanroom validation from PyPI.
 - **Reproducibility** — the same input and rules can be re-run to produce the same categorised output, with a run-reproducible audit artefact (v0.8.1).
 - **Release governance** — versioned changelog and per-release notes; checklist-gated publishing.
 
