@@ -564,7 +564,10 @@ def _normalize_canonical(
     bad_amt = df["amount"].isna()
     invalid_mask = bad_date | bad_amt
     
-    df_out = df[~invalid_mask].copy()
+    # reset_index: downstream audit attribution treats row identity as
+    # positional; a gapped label index after drops shifted impact/reconcile
+    # rule attribution for every row past the gap (4-Jul sweep F1).
+    df_out = df[~invalid_mask].copy().reset_index(drop=True)
 
     total = len(df)
     dropped = int(invalid_mask.sum())

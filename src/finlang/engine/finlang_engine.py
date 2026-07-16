@@ -109,7 +109,9 @@ def _wildcard_to_regex(pattern: str) -> str:
     escaped = re.escape(pattern).replace(r"\*", ".*")
     # Anchor the regex for full match semantics
     # (?s) activates DOTALL mode inline. Returns raw string.
-    return f"(?s)^{escaped}$"
+    # \Z (not $): '$' also matches before a string-final newline, which made
+    # the regex fallback accept values the fast paths correctly rejected.
+    return f"(?s)^{escaped}\\Z"
 
 def parse_condition(condition: str) -> Tuple[str, str, Any]:
     """Parse a single condition into (field, operator, value).
@@ -336,8 +338,11 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
             # 2. Capture BEFORE state for audit (NEW)
             matched_indices = df.index[mask]
             
-            # Determine which fields might change
-            mutable_fields = {"category", "flags", "memo", "status", "exclude"}
+            # Determine which fields might change.
+            # Tuple, NOT a set: fields_to_watch order feeds the audit
+            # 'changes' key order, and set iteration varies per process
+            # (hash randomisation) — audit.json must be run-reproducible.
+            mutable_fields = ("category", "flags", "memo", "status", "exclude")
             fields_to_watch = [f for f in mutable_fields if f in df.columns]
             
             # Snapshot before state
@@ -392,8 +397,13 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
             # 4. Log audit with DIFF TRACKING (NEW)
             if audit_mode != "none" and not audit_capped:
                 num_matched = len(matched_indices)
-                
-                if audit_count + num_matched > audit_cap:
+
+                # Pre-slicing by matched count is only valid in FULL mode,
+                # where every matched row logs an entry. In LITE mode entries
+                # append only on actual change — counting matches tripped the
+                # cap early and silently unlogged later rules' changes
+                # (4-Jul sweep F3). Lite enforces the cap at append time.
+                if audit_mode != "lite" and audit_count + num_matched > audit_cap:
                     num_to_log = audit_cap - audit_count
                     indices_to_log = matched_indices[:num_to_log]
                     audit_capped = True
@@ -432,6 +442,11 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
                         # LITE mode: only log if something changed
                         if audit_mode == "lite":
                             if diffs:  # Only add entry if there were changes
+                                if len(audit_log) >= audit_cap:
+                                    # Cap reached on ACTUAL entries — stop
+                                    # logging; remaining rules see audit_capped.
+                                    audit_capped = True
+                                    break
                                 entry["changes"] = diffs
                                 audit_log.append(entry)
                                 # Don't increment audit_count here, do it after the if/else
