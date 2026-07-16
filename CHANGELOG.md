@@ -6,6 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.1] - 2026-07-16
+
+### Fixed
+- **Verify/reconcile no longer contradict the engine's own output**: the write-time CSV formula-injection guard prefixes `'` to danger-leading text (`=` `+` `-` `@`, tab); verify fingerprinting and reconcile identity/key canonicalisation now strip that guard symmetrically on both sides before comparing. Previously a counterparty like `+44 ...` made `--verify` report an integrity failure (exit 3) on perfectly processed data, and produced spurious identity failures / orphans in reconcile.
+- **`--verify-full` no longer crashes on blank/unparseable amounts**: guarded numeric conversion at all comparison sites — a dropped-row misalignment reports as a mismatch instead of aborting with a generic error and no artefacts.
+- **Rule attribution correct after dropped rows**: the drop-rate guard now resets the frame index, so `old_rule`/`new_rule` in `impact_changes.csv` and reconcile audit linkage no longer shift by one for every row after a dropped row (the reconcile side pre-existed since v0.7.8).
+- **`audit.json` is run-reproducible**: the audit `changes` key order was set-iteration-dependent and could vary per process in the default (lite) audit mode; the field order is now canonical.
+- **Lite-mode audit cap counts logged entries, not matched rows**: a wide-matching rule that changed few rows no longer trips the cap early and silently un-logs later rules' changes.
+- **Named rules sources that fail to load are fatal**: a missing `--rules` file or unknown `--include-pack` now exits 2 with a FATAL message instead of warning and continuing with partial rules (previously exit 0 with output missing an entire rulepack).
+- **Malformed/empty third-party CSVs fail structurally in reconcile**: ragged rows raise a row-named error instead of a raw AttributeError; zero-data-row files are rejected instead of reporting "0 rows compared, all match".
+- **Wildcard `~` regex fallback anchors with `\Z`**: values with a trailing newline no longer match patterns the fast paths correctly reject.
+- `list_rulepacks()` returns only `.fin` packs (a Python package file no longer leaks into the listing).
+
+### Changed
+- **API compatibility — `/process` verification-failure detail is now a structured object** (was a string): HTTP 422 `detail` carries `error`, `exit_code`, `message`, the full `verify_report`, and `stderr`. Consumers parsing `detail` as a string should branch on its type. Other 422 shapes on the endpoint are unchanged.
+- **API compatibility — empty `FINLANG_API_KEY` is treated as unset (auth disabled)**; previously an empty value armed a gate that an empty `X-API-Key` header satisfied. Key comparison is now constant-time.
+- Test-suite contract: the paranoia gate's unknown-pack check expects fatal exit 2 (the old warn/continue expectation asserted the bug this release fixes).
+- **Daily test gate: 168 -> 182 tests, 10 gates unchanged** (Gate 4: 26, Gate 8: 13, Gate 10: 55). Standalone API gate: 24 -> 26.
+
+### Added
+- (none — hardening release: no new features, flags, or schema changes; categorisation output unchanged)
+
+---
+
 ## [0.8.0] - 2026-06-29
 
 ### Added

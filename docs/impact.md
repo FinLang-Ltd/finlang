@@ -1,7 +1,7 @@
 # 📊 Rule-Change Impact Analysis
 > **Applies to:** FinLang v0.8.0+
 > **Status:** Two-pass in-process analysis (baseline vs candidate rulepack); JSON + CSV + self-contained HTML artefacts.
-> **Last verified:** v0.8.0
+> **Last verified:** v0.8.1
 
 Impact analysis runs the **same input dataset through two rulepack versions** — your current rules (`--rules`) and a proposed change (`--impact-rules`) — and reports exactly what the change does: which rows re-categorise, the indicative amount moved between categories, which rules gain or lose matches, and a row-level before/after record. It answers the Tuesday-afternoon question — *"if I widen this rule, what else moves?"* — **before** the change goes live, not after the quarter's numbers are wrong.
 
