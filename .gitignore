@@ -218,3 +218,4 @@ RELEASE_CHECKLIST.md
 #  disk; it just doesn't get committed to public history.)
 CLAUDE.md
 .claude/
+.playwright-mcp/
