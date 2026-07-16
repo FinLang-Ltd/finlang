@@ -284,7 +284,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Component | Version | Validation |
 |:--|:--|:--|
 | Core Engine      | v0.8.1   | Hardening: dropped-row attribution fix, run-reproducible audit ordering; categorisation output unchanged |
-| CLI Suite        | v0.8.1   | 185 tests across 10 gates (daily); 7-gate full pre-release suite |
+| CLI Suite        | v0.8.1   | 187 tests across 10 gates (daily); 7-gate full pre-release suite |
 | FastAPI Wrapper  | v0.8.1   | 26 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.8.1   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.1   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |

@@ -279,9 +279,11 @@ def _read_immutable_fields_df(path: str) -> Optional["pd.DataFrame"]:
     """Vectorised twin of _read_immutable_fields (SOL-110).
 
     Returns None on any structure the scalar reader tolerates but pandas
-    parses differently (exactly-duplicated header names, ragged long rows,
-    empty file) — the caller falls back to the scalar reader, which stays
-    authoritative for CSV semantics.
+    parses differently (exactly-duplicated header names, empty file, or any
+    unexpected parse failure) — the caller falls back to the scalar reader,
+    which stays authoritative for CSV semantics. Ragged long rows stay on
+    the fast path: pandas truncates surplus fields to the header width,
+    which matches DictReader ignoring extras under its None key.
     """
     try:
         with open(path, "r", newline="", encoding="utf-8-sig") as f:
@@ -295,8 +297,8 @@ def _read_immutable_fields_df(path: str) -> Optional["pd.DataFrame"]:
         if header and len(set(header)) != len(header):
             return None  # DictReader is last-wins on exact duplicates; pandas mangles
         # index_col=False stops pandas promoting columns to an index on ragged
-        # long rows — the C parser raises instead, and we fall back to the
-        # scalar reader (which tolerates them via DictReader's None key).
+        # long rows; surplus fields are instead truncated to the header width,
+        # matching DictReader's behaviour of ignoring extras (None key).
         kwargs = dict(dtype=str, keep_default_na=False, encoding="utf-8-sig",
                       engine="c", index_col=False)
         if dialect is not None:
