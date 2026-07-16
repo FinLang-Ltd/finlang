@@ -100,3 +100,44 @@ def test_regex_wildcard_no_flags_crash_py313(tmp_path):
     assert "category" in header
     cat_idx = header.index("category")
     assert rows[1][cat_idx] == "Groceries"
+
+# ---------------------------------------------------------------------------
+# Rules-source hardening (4-Jul sweep, Branch 3): a NAMED rules source that
+# cannot be loaded is a fatal validation error (exit 2), never a warn-and-
+# continue -- partial categorisation with exit 0 is an audit-integrity bug.
+# ---------------------------------------------------------------------------
+
+def _write_min_fixtures(tmp_path):
+    data = tmp_path / "in.csv"
+    data.write_text("date,amount,counterparty\n2026-01-05,-12.50,ACME TAXI\n", encoding="utf-8")
+    rules = tmp_path / "good.fin"
+    rules.write_text(
+        'rule "taxi" {\n  match:\n    - counterparty ~ "*TAXI*"\n'
+        '  set:\n    - category = "Transport"\n}\n', encoding="utf-8")
+    return data, rules
+
+
+def test_missing_named_rules_file_is_fatal(tmp_path):
+    data, rules = _write_min_fixtures(tmp_path)
+    out = tmp_path / "out.csv"
+    r = subprocess.run(
+        f'{BIN} --input "{data}" --output "{out}" --rules "{rules}" "{tmp_path / "typo.fin"}" --headless',
+        shell=True, capture_output=True, text=True)
+    assert r.returncode == 2, (
+        f"missing named rules file must be fatal (exit 2), got {r.returncode}; "
+        f"partial rules + exit 0 silently omits categorisation.\nstderr: {r.stderr}"
+    )
+    assert "not found" in (r.stderr + r.stdout).lower()
+
+
+def test_unknown_include_pack_is_fatal(tmp_path):
+    data, rules = _write_min_fixtures(tmp_path)
+    out = tmp_path / "out.csv"
+    r = subprocess.run(
+        f'{BIN} --input "{data}" --output "{out}" --rules "{rules}" --include-pack no_such_pack --headless',
+        shell=True, capture_output=True, text=True)
+    assert r.returncode == 2, (
+        f"unknown --include-pack must be fatal (exit 2), got {r.returncode}.\n"
+        f"stderr: {r.stderr}"
+    )
+    assert "unknown pack" in (r.stderr + r.stdout).lower()
