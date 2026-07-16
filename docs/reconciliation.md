@@ -1,7 +1,7 @@
 # ⚖️ ML Reconciliation
 > **Applies to:** FinLang v0.7.8+
 > **Status:** Two alignment modes — positional (default, with optional identity guard via `--reconcile-identity-fields`) and key-based (`--reconcile-key`, with orphan detection). Single-field default; strict mode.
-> **Last verified:** v0.8.0
+> **Last verified:** v0.8.1
 
 Reconciliation compares FinLang's deterministic categorisation against an external system's output — typically an ML model — and produces a row-by-row report of every mismatch, complete with the rule that fired and the audit reason. **It is not an alternative to ML categorisation. It is an independent challenge layer that bolts onto an existing pipeline through one CLI flag**, producing evidence a compliance review or model-risk-management process can use to identify silent drift in categorisation outputs.
 
@@ -222,7 +222,7 @@ Both post-engine checks run independently. Verify writes its artefacts to `verif
 >
 > **Mitigation:** set `--reconcile-identity-fields date,amount,counterparty`. The identity guard checks those fields positionally before any comparison and refuses to report (exit 1, with a row-level failure artefact) when row order has drifted. Or switch to `--reconcile-key` — key-based alignment removes the row-order dependency entirely: rows match by content, so a reordering ML pipeline reconciles cleanly.
 
-**Field canonicalisation contract** (applies to both `--reconcile-identity-fields` comparison and `--reconcile-key` key construction): `amount` values compare numerically after the engine's amount normalisation (`-10.00` matches `-10.0`, CR/DR suffixes and parens handled); `date` values compare after ISO-8601 normalisation; all other fields compare case-insensitively with whitespace trimmed. Raw values — exactly as the files contain them — are what land in the artefacts.
+**Field canonicalisation contract** (applies to both `--reconcile-identity-fields` comparison and `--reconcile-key` key construction): `amount` values compare numerically after the engine's amount normalisation (`-10.00` matches `-10.0`, CR/DR suffixes and parens handled); `date` values compare after ISO-8601 normalisation; all other fields compare case-insensitively with whitespace trimmed, and *(v0.8.1)* tolerate the CSV formula-injection guard — a leading `'` the engine added at write time (before `=` `+` `-` `@` or tab) is stripped symmetrically on both sides before comparison, so an engine-written FinLang row matches the same transaction in a raw ML file. Raw values — exactly as the files contain them — are what land in the artefacts.
 
 **Choosing a key:** the composite key must be unique per row on both sides. Duplicate keys are a hard error (exit 1) rather than a silent first-match, because first-match alignment quietly degenerates into positional behaviour — the exact failure mode key alignment exists to remove. If `date,amount,counterparty` collides (two identical transactions on the same day), add `memo` or use a transaction-ID column if your data carries one.
 

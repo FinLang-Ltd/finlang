@@ -1,7 +1,7 @@
 # 🛡 Integrity Verification
 > **Applies to:** FinLang v0.7.7+
 > **Status:** Production
-> **Last verified:** v0.8.0
+> **Last verified:** v0.8.1
 
 FinLang's `--verify` and `--verify-full` flags produce a SHA-256 fingerprint of every transaction's immutable fields — date, amount, counterparty — before and after engine processing, and emit a JSON report plus optional proof CSV showing whether any immutable field was modified, any row was lost, or cross-row contamination occurred. **It is the integrity primitive**: an evidence artefact that can be presented in an audit, regulatory challenge, or model-risk review to show that the categorisation layer did not silently corrupt the underlying data.
 
@@ -203,7 +203,7 @@ Exit code 3 was introduced in v0.7.7 alongside `--verify`. It is FinLang's share
 
 ## 🛣️ Roadmap (direction, not promises)
 
-- **Verify vectorisation** (SOL-039) — confirm the current vectorisation path is being used; the observed performance ceiling suggests a scalar fallback in some paths. Removes a visible performance wart; makes demos snappier.
+- **Verify vectorisation** (SOL-110, supersedes SOL-039) — vectorise the read/normalise/compare path while keeping byte-identical output. Removes a visible performance wart; makes demos snappier.
 - **Verify progress indicator** — for long-running verification on large fixtures. UX polish for live demos where a spinning cursor reads as "hanging".
 - **Cryptographic signing of artefacts** — out of scope for FinLang itself; a downstream tooling decision. Can sign `verify_report.json` + `verify_proof.csv` with any standard tool without changes to FinLang.
 
