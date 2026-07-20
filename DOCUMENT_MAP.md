@@ -251,10 +251,10 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | `..\..\PROJECT_FOLDER_STRUCTURE.md` | Single-tree folder pattern (post-consolidation 27 April 2026), operational rules, two-CLAUDE.md single-tree variant, solo-maintainer trunk workflow as reasoned deviation (Process Lock 280426, 28 April 2026 — single `origin` remote with augmented pre-push hook blocking non-`main`/non-tag pushes; Layer 4 retracted with conditional reinstatement triggers; release gate as target state) | Structure changes, new operational rules, deviation status changes |
 | `..\strategy-backlog\BACKLOG.md` | Tactical project backlog (Now / Next / Later / Done). Canonical source for in-flight work. | When items move between horizons, are shipped, or new items land |
 | `..\strategy-backlog\ROADMAP.md` | Living strategic roadmap. Quarterly horizons + exit calibration. | On strategic shifts, portfolio rebalances |
-| `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | **Archived** 21 April 2026. Historical engineering backlog from v0.7.7 cycle. Not maintained — see BACKLOG.md for current work. | Never (archived) |
+| `..\strategy-backlog\archive\SANDBOX_PARKING_LOT_ARCHIVED.md` | **Archived** 21 April 2026. Historical engineering backlog from v0.7.7 cycle. Not maintained — see BACKLOG.md for current work. | Never (archived) |
 | `..\..\scratch\archive\RELEASE_PREFLIGHT_SPEC-pre-consolidation-20260427.md` | Pre-consolidation release-preflight spec (archived 27 April — content described retired infrastructure). Active release-gate spec lives at `angus-os/engineering/DRAFT-release-gate-package-v1.md`. | Reference only — superseded |
-| `..\..\ANGUS_OS_CANDIDATES.md` | Curated list of FinLang process & discipline files that are candidates for lifting into angus-os. Filtered, not a complete inventory. | When angus-os scaffolding evolves, when new top-level discipline files are added |
-| `..\..\ANGUS_OS_ENGINEERING_CANDIDATES.md` | Curated list of FinLang engineering patterns (source layout, test contracts, CI templates, workspace patterns) that are candidates for lifting into angus-os. Filtered, not a complete code inventory. | When angus-os scaffolding evolves, when new transferable patterns emerge |
+| `..\..\scratch\ANGUS_OS_CANDIDATES.md` | Curated list of FinLang process & discipline files that are candidates for lifting into angus-os. Filtered, not a complete inventory. | When angus-os scaffolding evolves, when new top-level discipline files are added |
+| `..\..\scratch\ANGUS_OS_ENGINEERING_CANDIDATES.md` | Curated list of FinLang engineering patterns (source layout, test contracts, CI templates, workspace patterns) that are candidates for lifting into angus-os. Filtered, not a complete code inventory. | When angus-os scaffolding evolves, when new transferable patterns emerge |
 
 ---
 
@@ -270,7 +270,7 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | Living roadmap | `..\strategy-backlog\ROADMAP.md` | 21 Apr 2026 |
 | Frozen roadmap snapshot | `..\strategy-backlog\ROADMAP-detailed-110426.md` | 11 Apr 2026 |
 | Solution outlines (archived) | `..\strategy-backlog\archive\SOLUTIONS_ARCHIVED_040426.md` | 4 Apr 2026 (archived; SOL-040 + future SOL-041 are standalone specs in `..\strategy-backlog\`) |
-| Engineering parking lot (archived) | `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | 21 Apr 2026 (archived; current work in BACKLOG.md) |
+| Engineering parking lot (archived) | `..\strategy-backlog\archive\SANDBOX_PARKING_LOT_ARCHIVED.md` | 21 Apr 2026 (archived; current work in BACKLOG.md) |
 
 ### File Catalog
 | File | Contains | Update When |
@@ -279,8 +279,8 @@ These sit one level above `prod\` and span multiple subdirectories. They are wor
 | `..\strategy-backlog\ROADMAP.md` | Living strategic narrative | Strategic shifts, portfolio rebalances |
 | `..\strategy-backlog\ROADMAP-detailed-110426.md` | Frozen 11 Apr 2026 detailed snapshot | Never (frozen) |
 | `..\strategy-backlog\archive\SOLUTIONS_ARCHIVED_040426.md` | SOL-001 through SOL-039 historical specs | Never (archived) |
-| `..\strategy-backlog\SANDBOX_PARKING_LOT_ARCHIVED.md` | v0.7.7 parking-lot items with mapping to current BACKLOG | Never (archived) |
-| `..\strategy-backlog\SOL-040_reconcile_specification.md` | `--reconcile` feature spec (think tank reviewed) | Spec changes, post-implementation review |
+| `..\strategy-backlog\archive\SANDBOX_PARKING_LOT_ARCHIVED.md` | v0.7.7 parking-lot items with mapping to current BACKLOG | Never (archived) |
+| `..\docs\release_notes\release_notes_v0_7_8.md` | `--reconcile` shipped in v0.7.8 | Historical release record |
 | `..\strategy-backlog\reference\finlang-post-acquisition-roadmap.md` | Post-acquisition product/platform roadmap | Strategic discussions about post-exit phase |
 | `..\strategy-backlog\archive\roadmap_timeline_050426.mermaid` | Pre-16-April visual roadmap timeline (archived) | Never (archived) |
 | `..\strategy-backlog\reference\finlang_vertical_analysis.md` | Vertical expansion analysis (procurement, healthcare, insurance) + arbitrary column matching spec | When vertical strategy changes or engine modification is built |
