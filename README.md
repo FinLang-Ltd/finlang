@@ -287,7 +287,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | CLI Suite        | v0.8.2   | 187 tests across 10 gates (daily); 7-gate full pre-release suite |
 | FastAPI Wrapper  | v0.8.2   | 26 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
-| Integrity Test   | v0.8.1   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |
+| Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |
 | Verify           | v0.8.2   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison), vectorised — ~570s → ~15s on the 500K full-mode benchmark |
 | Reconcile        | v0.8.2   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
 | Cleanroom        | v0.8.2   | 5-gate disposable-venv PyPI validation (incl. API surface) |
