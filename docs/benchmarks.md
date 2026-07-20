@@ -50,7 +50,7 @@ python integrity_testv2.py --rows 20000000 --full
 | Standard | 181,566 rows/s | 179,668 rows/s | PASS — 20,000,000 rows, full field-by-field |
 | FastIO | 217,068 rows/s | **226,871 rows/s** | PASS — 20,000,000 rows, full field-by-field |
 
-All 20M fingerprints validated, no cross-row contamination, immutable fields (date, amount, counterparty) verified. A repeat run tracked consistently (standard 182,646 rows/s; FastIO 226,589 rows/s). The engine's categorisation path is unchanged since the v0.8.1 hardening release — v0.8.2's change is confined to `--verify` (see [verify.md](verify.md) § Performance) — so these figures confirm continuity at scale rather than a performance change.
+All 20M fingerprints validated, no cross-row contamination, immutable fields (date, amount, counterparty) verified. A second full run also passed (standard 182,646 rows/s; FastIO 226,589 rows/s — full transcript in § Integrity Test Results below). The engine's categorisation path is unchanged since the v0.8.1 hardening release — v0.8.2's change is confined to `--verify` (see [verify.md](verify.md) § Performance) — so these figures confirm continuity at scale rather than a performance change.
 
 ---
 
@@ -179,7 +179,7 @@ python integrity_testv2.py --rows 500000 --full --proof
 
 ---
 
-## 🔐 Integrity Test Results (v0.7.7)
+## 🔐 Integrity Test Results (v0.8.2)
 
 Cryptographic verification using SHA-256 fingerprints on every row.
 
@@ -189,9 +189,11 @@ Cryptographic verification using SHA-256 fingerprints on every row.
 |------|------------|--------------|---------------|-------------------|-------|
 | 5M | 18.1s | 27.9s (**178,903 rows/s**) | 25.2s (**198,448 rows/s**) | ~3.1m | ~5 min |
 | 10M | 37.4s | 56.0s (**178,511 rows/s**) | 46.7s (**214,136 rows/s**) | ~6.0m | ~10 min |
-| **20M** | **1.2m** | **1.8m (181,566 rows/s)** | **1.5m (217,068 rows/s)** | **~11.8m** | **~18 min** |
+| **20M** | **1.2m** | **1.8m (182,646 rows/s)** | **1.5m (226,589 rows/s)** | **~12.8m** | **~18 min** |
 
-### 20M Row Validation — Full Output
+> 5M and 10M rows are the v0.7.7 baseline runs. The 20M row was re-validated at v0.8.2 (20 July 2026); the v0.7.7 20M baseline (181,566 / 217,068 rows/s) is preserved in § v0.8.2 Re-validation above.
+
+### 20M Row Validation — Full Output (v0.8.2, 20 July 2026)
 
 ```
 === FinLang Data Integrity Test (Python) ===
@@ -201,18 +203,19 @@ Cryptographic verification using SHA-256 fingerprints on every row.
   Proof output: No
 [1/6] Generating 20,000,000 test rows with fingerprints... OK (1.2m)
 [2/6] Creating test rules... OK
-       Loading input data for validation... OK (20.9s)
-[3/6] Running FinLang engine (standard)... OK (1.8m, 181,566 rows/s)
-[4/6] Validating integrity (standard, full)... OK (20,000,000 categorized, 5.9m)
-[5/6] Running FinLang engine (--fastio)... OK (1.5m, 217,068 rows/s)
-[6/6] Validating integrity (--fastio, full)... OK (20,000,000 categorized, 5.9m)
+       Loading input data for validation... OK (21.1s)
+[3/6] Running FinLang engine (standard)... OK (1.8m, 182,646 rows/s)
+[4/6] Validating integrity (standard, full)... OK (20,000,000 categorized, 5.8m)
+[5/6] Running FinLang engine (--fastio)... OK (1.5m, 226,589 rows/s)
+[6/6] Validating integrity (--fastio, full)... OK (20,000,000 categorized, 7.0m)
+
 === Integrity Test PASSED ===
   Rows tested: 20,000,000
   Immutable fields verified: date, amount, counterparty
   Fingerprints validated: 20,000,000 (no cross-row contamination)
   Validation mode: Full (field-by-field + fingerprint)
-  Standard mode: PASS (181,566 rows/s)
-  FastIO mode:   PASS (217,068 rows/s)
+  Standard mode: PASS (182,646 rows/s)
+  FastIO mode:   PASS (226,589 rows/s)
 ```
 
 ### Why Integrity Test Shows Higher Throughput
@@ -221,7 +224,7 @@ The integrity test uses a **minimal 6-column schema** (date, amount, counterpart
 
 | Test Type | Columns | Throughput (FastIO) |
 |-----------|---------|---------------------|
-| Integrity test | 6 | 217K rows/s |
+| Integrity test | 6 | ~227K rows/s |
 | Enterprise benchmark | 50 | ~28K rows/s |
 
 This is expected: narrower data = less I/O, less memory pressure, faster processing. Both numbers are valid for their respective use cases. The integrity test isolates engine performance from CSV I/O overhead; the enterprise harness measures real-world end-to-end throughput.
