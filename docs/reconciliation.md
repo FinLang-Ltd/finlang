@@ -1,7 +1,7 @@
 # ⚖️ ML Reconciliation
 > **Applies to:** FinLang v0.7.8+
 > **Status:** Two alignment modes — positional (default, with optional identity guard via `--reconcile-identity-fields`) and key-based (`--reconcile-key`, with orphan detection). Single-field default; strict mode.
-> **Last verified:** v0.8.1
+> **Last verified:** v0.8.2
 
 Reconciliation compares FinLang's deterministic categorisation against an external system's output — typically an ML model — and produces a row-by-row report of every mismatch, complete with the rule that fired and the audit reason. **It is not an alternative to ML categorisation. It is an independent challenge layer that bolts onto an existing pipeline through one CLI flag**, producing evidence a compliance review or model-risk-management process can use to identify silent drift in categorisation outputs.
 
