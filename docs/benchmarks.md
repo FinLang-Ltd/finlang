@@ -1,9 +1,9 @@
 # 📊 FinLang Benchmarks
 > **Applies to:** FinLang v0.7.7+  
 > **Status:** Reference  
-> **Last verified:** v0.7.7 (11 April 2026)
+> **Last verified:** v0.8.2 (20 July 2026 — 20M-row integrity harness re-validated; the full benchmark suite below remains the v0.7.7 baseline)
 
-This guide presents validated benchmark data for FinLang v0.7.7, tested on a real developer workstation.
+This guide presents validated benchmark data for FinLang v0.7.7, tested on a real developer workstation, plus the v0.8.2 20M re-validation.
 
 ---
 
@@ -34,6 +34,23 @@ Removing the `\b` aligned the detection regex with its sibling stripping regex (
 - **FastIO mode: ~217K rows/sec** at 20M rows
 - **20M rows in ~90 seconds** (FastIO), full field-by-field SHA-256 verified
 - **+30-50% throughput improvement** vs v0.7.6 on the integrity harness
+
+---
+
+## ✅ v0.8.2 Re-validation (20 July 2026)
+
+The 20M-row integrity harness was re-run against FinLang 0.8.2 on the same workstation class (clean boot, background services stopped), with full field-by-field validation enabled explicitly:
+
+```
+python integrity_testv2.py --rows 20000000 --full
+```
+
+| Mode | v0.7.7 baseline | v0.8.2 measured | Result |
+|:--|:--|:--|:--|
+| Standard | 181,566 rows/s | 179,668 rows/s | PASS — 20,000,000 rows, full field-by-field |
+| FastIO | 217,068 rows/s | **226,871 rows/s** | PASS — 20,000,000 rows, full field-by-field |
+
+All 20M fingerprints validated, no cross-row contamination, immutable fields (date, amount, counterparty) verified. A repeat run tracked consistently (standard 182,646 rows/s; FastIO 226,589 rows/s). The engine's categorisation path is unchanged since the v0.8.1 hardening release — v0.8.2's change is confined to `--verify` (see [verify.md](verify.md) § Performance) — so these figures confirm continuity at scale rather than a performance change.
 
 ---
 
