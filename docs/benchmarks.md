@@ -241,6 +241,14 @@ This is expected: narrower data = less I/O, less memory pressure, faster process
 | 10M | 122K rows/s | **179K rows/s** | **+46.3%** | 156K rows/s | **214K rows/s** | **+37.3%** |
 | 20M | 146K rows/s | **182K rows/s** | **+24.4%** | 167K rows/s | **217K rows/s** | **+30.0%** |
 
+The 20M scale — the only one re-measured since — shows the v0.7.7 gain holding through three releases (reconcile-v2, impact analysis, the v0.8.1 hardening sweep, and the v0.8.2 verify work):
+
+| Scale | v0.7.7 (std) | v0.8.2 (std) | v0.7.7 (fast) | v0.8.2 (fast) |
+|---:|---:|---:|---:|---:|
+| 20M | 182K rows/s | 183K rows/s | 217K rows/s | **227K rows/s** |
+
+*(5M / 10M not re-measured; v0.8.2 figures from the 20 July 2026 re-validation runs above.)*
+
 ### Single Ruleset Harness (5M × 50)
 
 | Version | Runtime (s) | Throughput |
@@ -270,6 +278,10 @@ The `\b` word boundary was inconsistent with the sibling stripping regex (which 
 - Delivered 30-50% throughput improvement on the integrity harness
 
 The performance gain is a direct side effect of the bug fix, not a separate optimisation.
+
+### What Changed in v0.8.2
+
+Nothing in the engine — the tables above confirm continuity at scale. The v0.8.2 speed story is in **`--verify`**: the read/normalise/compare path was vectorised (SOL-110), taking a 500,000-row full-mode verification from ~570s to ~15s on the same hardware, with byte-identical artefacts. That change is outside the integrity harness's measurement scope; see [verify.md](verify.md) § Performance for the details.
 
 ---
 
