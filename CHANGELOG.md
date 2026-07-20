@@ -6,6 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.2] - 2026-07-20
+
+### Changed
+- **`--verify` is vectorised (SOL-110, supersedes SOL-039)** — the read/normalise/compare path now loads both CSVs through a pandas fast path (with automatic fallback to the original reader on unusual CSV structures) and runs normalisation/fingerprinting once per *unique* value instead of once per row. On the 500,000-row full-mode benchmark, wall-clock dropped from ~570s to ~15s on the same hardware (~38×). Artefacts are byte-identical and results field-identical to the scalar implementation — no semantic fork: the vectorised path reuses the same scalar normalisation functions. (Profiling attributed ~92% of the old runtime to per-row date-format guessing; the once-per-unique-value pass removes it.)
+- **Daily test gate: 182 -> 187 tests, 10 gates unchanged** (Gate 8: 13 -> 18). The five new tests pin the equivalence: byte-identical artefact comparison, scalar/vector unquote property, hash-collision guard, reader equivalence + path selection across 19 hostile CSV structures, and fast-path liveness (the fallback reader cannot silently become the default). Standalone API gate unchanged at 26.
+
+### Added
+- (none — performance release: no new features, flags, or schema changes)
+
+### Fixed
+- (none — verify semantics, exit codes, and artefact formats are unchanged)
+
+---
+
 ## [0.8.1] - 2026-07-16
 
 ### Fixed

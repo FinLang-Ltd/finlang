@@ -66,7 +66,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.8.1)
+## ⚙️ Key Features (v0.8.2)
 
 | Feature | Description |
 |:--|:--|
@@ -283,14 +283,14 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Validation |
 |:--|:--|:--|
-| Core Engine      | v0.8.1   | Hardening: dropped-row attribution fix, run-reproducible audit ordering; categorisation output unchanged |
-| CLI Suite        | v0.8.1   | 187 tests across 10 gates (daily); 7-gate full pre-release suite |
-| FastAPI Wrapper  | v0.8.1   | 26 standalone integration tests + CLI/API parity contract test |
-| Discover/Suggest | v0.8.1   | 97.8% average coverage gain across 5 validation runs |
+| Core Engine      | v0.8.1   | Hardening: dropped-row attribution fix, run-reproducible audit ordering; categorisation output unchanged (engine untouched in v0.8.2) |
+| CLI Suite        | v0.8.2   | 187 tests across 10 gates (daily); 7-gate full pre-release suite |
+| FastAPI Wrapper  | v0.8.2   | 26 standalone integration tests + CLI/API parity contract test |
+| Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.1   | 20M rows verified field-by-field, ~217K rows/sec FastIO on the integrity harness |
-| Verify           | v0.8.1   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison) |
-| Reconcile        | v0.8.1   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
-| Cleanroom        | v0.8.1   | 5-gate disposable-venv PyPI validation (incl. API surface) |
-| CI               | v0.8.1   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
-| Docs             | v0.8.1   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
+| Verify           | v0.8.2   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison), vectorised — ~570s → ~15s on the 500K full-mode benchmark |
+| Reconcile        | v0.8.2   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
+| Cleanroom        | v0.8.2   | 5-gate disposable-venv PyPI validation (incl. API surface) |
+| CI               | v0.8.2   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
+| Docs             | v0.8.2   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
 | Python Support   | 3.10—3.14 | Tested across all five versions via CI matrix |
