@@ -201,9 +201,14 @@ Exit code 3 was introduced in v0.7.7 alongside `--verify`. It is FinLang's share
 
 ---
 
+## ⚡ Performance
+
+Verification is vectorised (SOL-110, July 2026): both CSVs load through a pandas fast path (with automatic fallback to the original reader on unusual CSV structures), and normalisation/fingerprinting run once per *unique* value rather than once per row. On a 500,000-row full-mode measurement, wall-clock dropped from ~570s (scalar implementation) to ~15s on the same hardware — with byte-identical artefacts and field-identical results, held in place by dedicated equivalence tests in the daily gate. Real-world ledgers, where dates and amounts repeat heavily, can see proportionally better times than that deliberately repeat-hostile fixture.
+
+---
+
 ## 🛣️ Roadmap (direction, not promises)
 
-- **Verify vectorisation** (SOL-110, supersedes SOL-039) — vectorise the read/normalise/compare path while keeping byte-identical output. Removes a visible performance wart; makes demos snappier.
 - **Verify progress indicator** — for long-running verification on large fixtures. UX polish for live demos where a spinning cursor reads as "hanging".
 - **Cryptographic signing of artefacts** — out of scope for FinLang itself; a downstream tooling decision. Can sign `verify_report.json` + `verify_proof.csv` with any standard tool without changes to FinLang.
 
