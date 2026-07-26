@@ -37,6 +37,17 @@ import pandas as pd
 # Result type
 # ---------------------------------------------------------------------------
 
+# Single source of truth for what verification does and does not cover.
+# The HTML report renders these verbatim so it cannot drift from the code
+# (SOL-111 §8: a report that disagrees with the engine is worse than none).
+IMMUTABLE_FIELDS = ("date", "amount", "counterparty")
+CATEGORISATION_FIELDS = ("category", "flags", "memo")
+
+# How many fingerprint pairs the HTML report shows inline. The full set is
+# always in verify_proof.csv; this is a readable sample, not a data dump.
+PROOF_SAMPLE_SIZE = 10
+
+
 class VerifyResult(NamedTuple):
     success: bool
     rows_checked: int
@@ -46,6 +57,14 @@ class VerifyResult(NamedTuple):
     duration_seconds: float
     input_file: str
     output_file: str
+    # --- SOL-111 additions (additive; defaults immutable) ---------------
+    # First N rows of the fingerprint proof, for the HTML report's evidence
+    # sample. Held here rather than re-read from verify_proof.csv so the
+    # report never depends on another artefact existing.
+    proof_sample: tuple = ()
+    # Locale parameters the run actually used, so the report can state them
+    # in plain English instead of assuming defaults.
+    run_params: Optional[dict] = None
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +477,12 @@ def run_verification(
         duration_seconds=round(duration, 3),
         input_file=os.path.basename(input_path),
         output_file=os.path.basename(output_path),
+        run_params={
+            "decimal": decimal,
+            "thousands": thousands,
+            "dayfirst": dayfirst,
+            "date_format": date_format,
+        },
     )
 
     # Console output
@@ -476,6 +501,26 @@ def run_verification(
         _write_proof_csv(input_rows, output_rows, row_count, output_dir)
         if mismatches:
             _write_mismatches_csv(mismatches, output_dir)
+
+        # Evidence sample for the HTML report (SOL-111): the first
+        # PROOF_SAMPLE_SIZE fingerprint pairs, taken from the rows already
+        # materialised above so this costs a bounded slice and nothing more.
+        # Attached here rather than earlier because the vectorised path does
+        # not materialise per-row dicts until this point.
+        sample = []
+        for i in range(min(PROOF_SAMPLE_SIZE, row_count)):
+            f_in = input_rows[i].get("_fingerprint", "")
+            f_out = output_rows[i].get("_fingerprint", "")
+            sample.append({
+                "row": i + 1,
+                "counterparty": output_rows[i].get("counterparty", ""),
+                "date": output_rows[i].get("date", ""),
+                "amount": output_rows[i].get("amount", ""),
+                "fingerprint_in": f_in,
+                "fingerprint_out": f_out,
+                "status": "PASS" if f_in == f_out else "FAIL",
+            })
+        result = result._replace(proof_sample=tuple(sample))
 
     return result
 

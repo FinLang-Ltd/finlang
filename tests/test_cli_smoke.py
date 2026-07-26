@@ -141,3 +141,60 @@ def test_unknown_include_pack_is_fatal(tmp_path):
         f"stderr: {r.stderr}"
     )
     assert "unknown pack" in (r.stderr + r.stdout).lower()
+
+
+def test_help_renders_for_every_entry_point():
+    """--help must render for every console entry point.
+
+    Regression guard (26 Jul 2026): argparse %-formats help strings, so an
+    unescaped literal like '%d/%m/%Y' in a help= string raises
+    "TypeError: %d format: a real number is required, not dict" and takes
+    --help down completely. That shipped through a 200-test daily gate and a
+    7/7 full suite untouched, because nothing ran --help.
+
+    Cheap to keep, and it covers the entire flag surface at once: any future
+    help string with a stray % fails here instead of in a user's terminal.
+    """
+    for entry in ("finlang", "finlang-discover", "finlang-suggest"):
+        result = subprocess.run(
+            [entry, "--help"], capture_output=True, text=True, timeout=30
+        )
+        assert result.returncode == 0, (
+            f"{entry} --help exited {result.returncode}:\n{result.stderr}"
+        )
+        assert "Traceback" not in result.stderr, (
+            f"{entry} --help raised:\n{result.stderr}"
+        )
+        assert "usage:" in result.stdout.lower(), (
+            f"{entry} --help produced no usage block:\n{result.stdout[:400]}"
+        )
+
+
+def test_audit_max_env_var_is_validated(tmp_path):
+    """FINLANG_AUDIT_MAX must be validated, not crash or silently corrupt.
+
+    Regression guard (Codex review, 26 Jul 2026): `int(os.getenv(...))` at
+    module import meant a non-integer value produced a raw ValueError
+    traceback during import, and a negative value was accepted -- silently
+    disabling audit capping arithmetic. Both are now a clean FATAL exit 2.
+    """
+    data, rules = _write_min_fixtures(tmp_path)
+    out = tmp_path / "out.csv"
+    cmd = f'{BIN} --input "{data}" --output "{out}" --rules "{rules}" --audit-mode none --headless'
+
+    for bad in ("abc", "-5"):
+        env = dict(os.environ, FINLANG_AUDIT_MAX=bad)
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=env)
+        combined = r.stdout + r.stderr
+        assert r.returncode == 2, (
+            f"FINLANG_AUDIT_MAX={bad!r} must be fatal (exit 2), got "
+            f"{r.returncode}.\nstderr: {r.stderr}")
+        assert "FINLANG_AUDIT_MAX" in combined, combined
+        assert "Traceback" not in r.stderr, (
+            f"validation must be a clean FATAL, not a traceback:\n{r.stderr}")
+
+    # A valid override still works end-to-end.
+    env = dict(os.environ, FINLANG_AUDIT_MAX="9000")
+    r = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=env)
+    assert r.returncode == 0, (
+        f"valid FINLANG_AUDIT_MAX must not fail: exit {r.returncode}\n{r.stderr}")

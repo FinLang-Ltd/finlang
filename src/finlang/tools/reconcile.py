@@ -406,6 +406,64 @@ def _orphan_context(row: Dict[str, str], row_number: int) -> dict:
     }
 
 
+def _validate_ml_date_format(
+    ml_rows: List[Dict[str, str]],
+    fields: List[str],
+    date_format: str,
+) -> None:
+    """An explicit --reconcile-date-format must actually parse the ML dates.
+
+    Without this, an invalid or mismatched format was recorded as
+    mode: "explicit" while the normaliser quietly caught the failure and
+    returned the RAW string — so the artefact claimed a format was applied
+    when it never was, and a reconciliation could even pass on raw-string
+    coincidence. (Codex review, 26 Jul 2026.)
+
+    Raises:
+        ValueError: If the format itself is invalid, or any non-empty ML
+            date value fails to parse under it. Structural — the caller
+            maps this to FATAL exit 1, same as other reconcile input errors.
+    """
+    import pandas as pd
+
+    date_fields = [f for f in fields if f.lower() == "date"]
+    if not date_fields:
+        return
+    # One vectorised parse over unique values, not a scalar pd.to_datetime
+    # per row — the per-call cost (~45 µs) would otherwise double the
+    # date-parsing share of a large explicit-format reconciliation.
+    first_row: Dict[str, int] = {}
+    for i, row in enumerate(ml_rows):
+        for f in date_fields:
+            v = (_resolve_field(row, f) or "").strip()
+            if v and v not in first_row:
+                first_row[v] = i
+    if not first_row:
+        raise ValueError(
+            f"--reconcile-date-format {date_format!r} was given, but the ML "
+            f"output contains no non-empty date values to apply it to."
+        )
+    values = list(first_row)
+    try:
+        parsed = pd.to_datetime(values, format=date_format, errors="coerce")
+    except (ValueError, TypeError) as e:
+        raise ValueError(
+            f"--reconcile-date-format {date_format!r} is not a valid "
+            f"date format: {e}"
+        )
+    # Insertion order = first-appearance order, so the first failing value
+    # here is the one at the earliest failing row (matches the old per-row
+    # scan's error attribution).
+    for v, dt in zip(values, parsed):
+        if pd.isna(dt):
+            raise ValueError(
+                f"--reconcile-date-format {date_format!r} does not parse "
+                f"ML output date {v!r} (row {first_row[v] + 1}). The stated "
+                f"format must match the ML file's dates — fix the format, or "
+                f"omit it to infer from the column."
+            )
+
+
 def _infer_ml_date_convention(
     ml_rows: List[Dict[str, str]],
     fields: List[str],
@@ -775,6 +833,7 @@ def run_reconciliation(
         _validate_field_presence(finlang_rows, identity_fields, "FinLang output")
         _validate_field_presence(ml_rows, identity_fields, "ML output")
         if ml_date_format:
+            _validate_ml_date_format(ml_rows, identity_fields, ml_date_format)
             date_decision = {"mode": "explicit", "dayfirst": False,
                              "ambiguous_values": 0, "evidence": ml_date_format}
         else:
@@ -834,6 +893,7 @@ def run_reconciliation(
         # The ML side is an external system's CSV: infer its date convention
         # from the column unless the caller stated one explicitly.
         if ml_date_format:
+            _validate_ml_date_format(ml_rows, key_fields, ml_date_format)
             date_decision = {"mode": "explicit", "dayfirst": False,
                              "ambiguous_values": 0, "evidence": ml_date_format}
         else:

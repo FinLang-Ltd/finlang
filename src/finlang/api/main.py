@@ -121,6 +121,10 @@ class ProcessResponse(BaseModel):
     output_csv: str
     audit: Optional[list] = None
     verify_report: Optional[dict] = None
+    # SOL-111: the rendered integrity report, only when verify_html=True.
+    # Returned inline (same shape as /reconcile's report_html) so a caller
+    # never has to reach into the server's filesystem for it.
+    verify_report_html: Optional[str] = None
     stats: ProcessStats
     stderr: str = ""
 
@@ -339,8 +343,17 @@ async def process_csv(
     return_audit: bool = Form(True),
     verify: bool = Form(False, description="Run --verify after categorisation"),
     verify_full: bool = Form(False, description="Run --verify-full after categorisation"),
+    verify_html: bool = Form(False, description="Also return a self-contained HTML integrity report (requires verify or verify_full)"),
 ):
     """Categorise transactions. Returns output CSV + audit + stats."""
+    # Mirror the CLI's exit-2 validation: verify_html without a verify mode
+    # previously ran normally and returned verify_report_html: null — a
+    # silent no-op contradicting the documented "requires" contract
+    # (Codex review, 26 Jul 2026). CLI exit 2 maps to 422 elsewhere, so 422.
+    if verify_html and not (verify or verify_full):
+        raise HTTPException(
+            422, "verify_html requires verify or verify_full."
+        )
     if rules is None and not include_pack:
         raise HTTPException(
             400, "Provide either a rules file or include_pack (or both)."
@@ -398,6 +411,8 @@ async def process_csv(
             cmd.append("--verify")
         if verify_dir:
             cmd += ["--verify-output-dir", str(verify_dir)]
+            if verify_html:
+                cmd.append("--verify-html")
 
         t0 = time.perf_counter()
         result = _run(cmd)
@@ -415,12 +430,24 @@ async def process_csv(
                         verify_report_on_fail = json.loads(report_path.read_text(encoding="utf-8"))
                     except Exception:
                         verify_report_on_fail = None
+                # The HTML twin must survive too: a FAILED verification is
+                # exactly when the readable report matters most, and it is
+                # destroyed with the temp dir otherwise (Codex, 26 Jul).
+                verify_html_on_fail = None
+                if verify_html:
+                    html_path = verify_dir / "verify_report.html"
+                    if html_path.exists():
+                        try:
+                            verify_html_on_fail = html_path.read_text(encoding="utf-8")
+                        except Exception:
+                            verify_html_on_fail = None
                 raise HTTPException(
                     status_code=422,
                     detail={
                         "error": "verify_failed",
                         "exit_code": 3,
                         "message": "Output verification reported mismatches.",
+                        "verify_report_html": verify_html_on_fail,
                         "verify_report": verify_report_on_fail,
                         "stderr": (result.stderr or "")[-2000:],
                     },
@@ -438,6 +465,7 @@ async def process_csv(
                 audit_data = None
 
         verify_report: Optional[dict] = None
+        verify_report_html: Optional[str] = None
         if verify_dir:
             report_path = verify_dir / "verify_report.json"
             if report_path.exists():
@@ -445,11 +473,16 @@ async def process_csv(
                     verify_report = json.loads(report_path.read_text(encoding="utf-8"))
                 except Exception:
                     verify_report = None
+            if verify_html:
+                html_path = verify_dir / "verify_report.html"
+                if html_path.exists():
+                    verify_report_html = html_path.read_text(encoding="utf-8")
 
         return ProcessResponse(
             output_csv=out_csv.read_text(encoding="utf-8"),
             audit=audit_data,
             verify_report=verify_report,
+            verify_report_html=verify_report_html,
             stats=ProcessStats(
                 rows_in=_row_count(in_csv),
                 rows_out=_row_count(out_csv),
@@ -602,6 +635,7 @@ async def reconcile(
     reconcile_html: bool = Form(False, description="Emit self-contained HTML report"),
     reconcile_identity_fields: Optional[str] = Form(None, description="Comma-separated fields to identity-check positionally before comparison (e.g. date,amount,counterparty). Misaligned rows = structural failure (422)."),
     reconcile_key: Optional[str] = Form(None, description="Comma-separated fields for key-based alignment (e.g. date,amount,counterparty) — match by content, report orphans. Mutually exclusive with reconcile_identity_fields."),
+    reconcile_date_format: Optional[str] = Form(None, description="Explicit strftime format for dates in the ML output (e.g. '%d/%m/%Y'). The ML file is a separate system's export and may use a different convention. Omit to infer from the column."),
     audit_mode: str = Form("full", description="Reconcile requires --audit-mode full"),
     fastio: bool = Form(False),
     decimal: str = Form("."),
@@ -700,6 +734,8 @@ async def reconcile(
             cmd += ["--reconcile-identity-fields", reconcile_identity_fields]
         if reconcile_key:
             cmd += ["--reconcile-key", reconcile_key]
+        if reconcile_date_format:
+            cmd += ["--reconcile-date-format", reconcile_date_format]
 
         t0 = time.perf_counter()
         result = _run(cmd)

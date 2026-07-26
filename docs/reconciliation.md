@@ -209,10 +209,19 @@ Both post-engine checks run independently. Verify writes its artefacts to `verif
 | `--reconcile-html` | (boolean) | Additionally emit a self-contained HTML report. Requires both `--reconcile` and `--reconcile-output-dir`. |
 | `--reconcile-identity-fields` | comma-separated field names | Identity guard: verify the named fields match positionally **before** comparing reconcile fields (e.g. `date,amount,counterparty`). Misaligned rows = structural failure (exit 1) with `reconcile_identity_failures.{csv,json}` artefacts; normal mismatch reporting is suppressed. Requires `--reconcile`. Mutually exclusive with `--reconcile-key`. |
 | `--reconcile-key` | comma-separated field names | Key-based alignment: match rows by canonicalised composite key (e.g. `date,amount,counterparty`) instead of position. Row counts may differ; unmatched rows are reported as **orphans** (exit 3, `reconcile_orphans_finlang.csv` / `reconcile_orphans_ml.csv`). Duplicate keys on either side = structural failure (exit 1) — no silent first-match. Requires `--reconcile`. Mutually exclusive with `--reconcile-identity-fields`. |
+| `--reconcile-date-format` | strftime format (e.g. `%d/%m/%Y`) | States the ML output's date convention explicitly instead of letting reconcile infer it (see *ML date convention* below). Validated against the actual ML dates — an unparseable format is a structural failure (exit 1). Requires an alignment mode (`--reconcile-identity-fields` or `--reconcile-key`); positional field comparison does not parse dates, so the inert combination is rejected (exit 2) rather than silently ignored. |
 
 > **⚠️ Audit-mode requirement:** `--reconcile` rejects with exit code 2 if `--audit` is absent or `--audit-mode` is not `full`. This is a deliberate design point — silent reconciliation without rule attribution is worse than no reconciliation at all.
 
-> **🌍 Locale flags inherited:** The same i18n flags that the engine honours (`--decimal`, `--thousands`, `--dayfirst`, `--date-format`, `--encoding`) apply during reconciliation. If your data uses European formats, the reconcile output picks up the same locale handling automatically.
+> **🌍 Locale flags inherited — FinLang side only:** The i18n flags that the engine honours (`--decimal`, `--thousands`, `--dayfirst`, `--date-format`, `--encoding`) describe **your input file**, and reconcile applies them to the FinLang side of the comparison. They are deliberately NOT applied to the ML file: it is a separate system's export and can carry a different date convention entirely (a UK-locale ML system emitting `05/01/2026` against FinLang's ISO `2026-01-05`).
+
+**ML date convention (identity/key alignment).** When `date` is among the alignment fields, reconcile decides how to read the ML side's dates before comparing:
+
+1. **Inferred** — the ML date column is scanned; any value with a component above 12 settles the convention deterministically (e.g. `19/01/2026` can only be day-first). Two values that settle it in *opposite* directions is a structural failure (exit 1) — mixed conventions in one file have no single correct reading.
+2. **Explicit** — `--reconcile-date-format` states the convention. The format is validated against every non-empty ML date first; a format that does not parse the data is exit 1, never recorded as applied.
+3. **Assumed** — every date in the column is ambiguous (all components ≤ 12), so nothing can settle it. Reconcile proceeds month-first, **warns on stderr**, and records the assumption. If your ML export is day-first, this is the case `--reconcile-date-format '%d/%m/%Y'` exists for.
+
+Whichever path ran, the decision is recorded in `reconcile_report.json` under `ml_date_convention` — the artefact states its own assumption rather than hiding it.
 
 > **⚠️ Critical assumption — row order:** Reconcile compares FinLang row N to ML row N positionally. By itself it does NOT verify that both rows represent the same transaction. If your ML pipeline reorders, batches, or async-processes rows, positional comparison can silently compare unrelated rows and produce nonsense mismatches with confident-looking attribution — or a false-confident perfect match.
 >
@@ -245,6 +254,7 @@ Machine-readable summary. Contains:
 - `reconcile_fields` — list of fields compared
 - `alignment_mode` — `"positional"` or `"key:<fields>"` (e.g. `"key:date,amount,counterparty"`)
 - `orphans_finlang_count`, `orphans_ml_count` — unmatched-row counts (always `0` in positional mode)
+- `ml_date_convention` — how the ML side's date convention was decided: `{"mode": "inferred" | "explicit" | "assumed" | "not_applicable", "dayfirst": bool, "ambiguous_values": int, "evidence": ...}`. `evidence` carries the value that settled an inferred convention, or the format string when explicit. `not_applicable` = date was not among the alignment fields (including all positional-mode runs)
 - `total_rows`, `matches`, `mismatches`, `match_rate_percent`
 - `perfect_match` — boolean (closes any rounding ambiguity around the percent)
 - `audit_entries_loaded` — count of audit entries indexed by row. Sentinel: `0` = no audit requested, `-1` = requested but unloadable, `>0` = loaded count
