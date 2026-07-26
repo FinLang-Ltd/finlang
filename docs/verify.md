@@ -1,7 +1,7 @@
 # 🛡 Integrity Verification
 > **Applies to:** FinLang v0.7.7+
 > **Status:** Production
-> **Last verified:** v0.8.2
+> **Last verified:** v0.8.3
 
 FinLang's `--verify` and `--verify-full` flags produce a SHA-256 fingerprint of every transaction's immutable fields — date, amount, counterparty — before and after engine processing, and emit a JSON report plus optional proof CSV showing whether any immutable field was modified, any row was lost, or cross-row contamination occurred. **It is the integrity primitive**: an evidence artefact that can be presented in an audit, regulatory challenge, or model-risk review to show that the categorisation layer did not silently corrupt the underlying data.
 

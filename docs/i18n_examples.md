@@ -1,7 +1,7 @@
 # 🌍 Internationalization Examples
 > **Applies to:** FinLang v0.6+
 > **Status:** Reference
-> **Last verified:** v0.8.2
+> **Last verified:** v0.8.3
 
 FinLang supports locale-specific date and number formats for global datasets.
 

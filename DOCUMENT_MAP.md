@@ -1,5 +1,5 @@
 # FinLang Document Map
-*Last updated: 26 July 2026 | v0.8.2 (shipped 20 Jul 2026, SOL-110 verify vectorisation) + in-flight branch: reconcile ML-date inference + SOL-111 `--verify-html` (unreleased) | reconcile-v2 (SOL-103 identity guard `--reconcile-identity-fields`, SOL-104 key alignment `--reconcile-key` + orphan artefacts) + impact analysis (SOL-105 `--impact-rules`) + HTTP API parity (`/reconcile` identity/key params + orphan CSVs, new `POST /impact`). Daily quick_check 204/10 (Gate 8 = verify, 29 tests; Gate 10 = reconcile + impact, 60 tests); standalone API gate 29. Builds on v0.7.9 SOL-041 FastAPI wrapper (shipped 18 May 2026).*
+*Last updated: 26 July 2026 | v0.8.3 (released 26 Jul 2026: SOL-111 `--verify-html`, reconcile ML-date inference + `--reconcile-date-format`, review-round hardening; prior: v0.8.2 SOL-110 verify vectorisation, 20 Jul 2026) | reconcile-v2 (SOL-103 identity guard `--reconcile-identity-fields`, SOL-104 key alignment `--reconcile-key` + orphan artefacts) + impact analysis (SOL-105 `--impact-rules`) + HTTP API parity (`/reconcile` identity/key params + orphan CSVs, new `POST /impact`). Daily quick_check 204/10 (Gate 8 = verify, 29 tests; Gate 10 = reconcile + impact, 60 tests); standalone API gate 29. Builds on v0.7.9 SOL-041 FastAPI wrapper (shipped 18 May 2026).*
 
 This document is the authoritative map of the FinLang codebase, documentation, testing infrastructure, and demo environment. It exists to ensure that changes to the system update the correct files, tests, and documentation consistently. This document should be updated whenever new files, tests, or major documentation are introduced.
 
@@ -94,6 +94,11 @@ These files live in `prod\` because they reference prod-side files extensively. 
 | `docs/release_notes/release_notes_v0_7_6.md` | v0.7.6 release: rulepack patch, linter fix, cleanroom seal | Only for that release (new releases get new files) |
 | `docs/release_notes/release_notes_v0_7_7.md` | v0.7.7 release: `--verify`, CR/DR regex fix, suggest improvements | Only for that release (new releases get new files) |
 | `docs/release_notes/release_notes_v0_7_8.md` | v0.7.8 release: SOL-040 `--reconcile` MVP (ML validation layer), HTML report, memo enrichment, Gate 10 (137 tests / 10 gates), new docs `reconciliation.md` + `verify.md`, `examples/reconcile/` worked-example fixtures | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_7_9.md` | v0.7.9 release: SOL-041 FastAPI wrapper (`finlang[api]`, seven endpoints) | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_8_0.md` | v0.8.0 release: reconcile-v2 (identity guard, key alignment, orphans), impact analysis (`--impact-rules`) | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_8_1.md` | v0.8.1 release: hardening (injection-guard symmetry, dropped-row attribution, fatal rules-source errors) | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_8_2.md` | v0.8.2 release: SOL-110 verify vectorisation (~38x on 500K full-mode) | Only for that release (new releases get new files) |
+| `docs/release_notes/release_notes_v0_8_3.md` | v0.8.3 release: SOL-111 `--verify-html`, reconcile ML-date convention (inference + `--reconcile-date-format` + `ml_date_convention` artefact field), review-round hardening | Only for that release (new releases get new files) |
 
 ### Legal (`docs/legal/`)
 
