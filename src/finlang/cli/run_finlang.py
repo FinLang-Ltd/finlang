@@ -934,6 +934,15 @@ def main(args_list=None):
     ap.add_argument("--decimal", default=".", help="Decimal separator for numeric fields (e.g., '.').")
     ap.add_argument("--thousands", default=None, help="Thousands separator for numeric fields (e.g., ',').")
     ap.add_argument("--dayfirst", action="store_true", help="Parse ambiguous dates as DD/MM/YYYY (UK/EU style).")
+    ap.add_argument(
+        "--reconcile-date-format",
+        help=(
+            "Explicit strftime format for dates in the ML output (e.g. "
+            "'%d/%m/%Y'). The ML file is a separate system's export and may "
+            "use a different convention from --input. Omit to infer from the "
+            "column; FinLang warns if every value is ambiguous."
+        ),
+    )
     ap.add_argument("--date-format", default=None, help="Explicit strftime format for date parsing.")
     ap.add_argument("--output-encoding", default="utf-8", help="Encoding for output CSV (e.g., 'utf-8', 'utf-8-sig').")
 
@@ -1353,6 +1362,10 @@ def main(args_list=None):
                     emit_html=args.reconcile_html,
                     identity_fields=identity_fields,
                     key_fields=key_fields,
+                    # The ML side is a separate system's CSV and may carry a
+                    # different date convention from --input, so it gets its own
+                    # format flag; otherwise reconcile infers from the column.
+                    ml_date_format=args.reconcile_date_format,
                 )
             except FileNotFoundError as e:
                 print(f"FATAL: {e}", file=sys.stderr)
