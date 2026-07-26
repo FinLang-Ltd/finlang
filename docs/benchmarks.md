@@ -110,7 +110,8 @@ python -m benchmarks.bench_finlang_rulesets `
 Validates data integrity with SHA-256 fingerprinting. Proves zero data corruption or cross-row contamination.
 
 ```powershell
-# Default: 5K rows, fingerprint-only (daily use)
+# Default: 5K rows, full field-by-field + fingerprint validation (daily use)
+# (fingerprint-only fast mode kicks in above the --threshold row count, default 100,000)
 python integrity_testv2.py
 
 # Full validation: field-by-field + fingerprint

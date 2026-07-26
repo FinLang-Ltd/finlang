@@ -82,6 +82,7 @@ Categorise a transactions CSV. Multipart form upload.
 | `return_audit` | bool | no | Include audit log in response (default true) |
 | `verify` | bool | no | Run SHA-256 verify after categorisation |
 | `verify_full` | bool | no | Run full verify (overrides `verify`) |
+| `verify_html` | bool | no | Also return a self-contained HTML integrity report in `verify_report_html` (requires `verify` or `verify_full`) |
 
 **Response 200:**
 ```json
@@ -89,6 +90,7 @@ Categorise a transactions CSV. Multipart form upload.
   "output_csv": "date,counterparty,amount,...,category,flags\n2024-01-15,...",
   "audit": [{"row": 0, "rule": "GROCERIES: Tesco", "changes": {...}}],
   "verify_report": {"status": "PASS", "rows": 5, "mismatches": 0, ...},
+  "verify_report_html": "<!DOCTYPE html>…",   // only when verify_html=true
   "stats": {
     "rows_in": 5,
     "rows_out": 5,
@@ -179,6 +181,7 @@ optional self-contained HTML report, and the full audit trail.
 | `reconcile_html` | bool | no | Emit self-contained HTML report alongside JSON. Default: `false`. |
 | `reconcile_identity_fields` | string | no | Identity guard — comma-separated fields verified positionally *before* comparison (e.g. `date,amount,counterparty`). Misaligned rows → structural failure (HTTP 422). Mutually exclusive with `reconcile_key`. |
 | `reconcile_key` | string | no | Key-based alignment — comma-separated composite key (e.g. `date,amount,counterparty`). Matches by content; row counts may differ; unmatched rows surface in `orphans_finlang_csv` / `orphans_ml_csv`. Duplicate keys → HTTP 422. Mutually exclusive with `reconcile_identity_fields`. |
+| `reconcile_date_format` | string | no | Explicit strftime format for the ML output's dates (e.g. `%d/%m/%Y`) — the ML file is another system's export and can use a different convention. Omitted: inferred from the ML date column. Validated against the actual data (unparseable format → HTTP 422); requires `reconcile_identity_fields` or `reconcile_key` (inert in positional mode → HTTP 422). Decision recorded in `summary.ml_date_convention`. |
 | `audit_mode` | string | no | Always `full` for `/reconcile`. Other values rejected with HTTP 400. |
 | `fastio` | bool | no | Use PyArrow IO |
 | `decimal`, `thousands`, `dayfirst`, `encoding`, `output_encoding`, `strict_parse`, `fail_threshold` | various | no | Same as `/process` |

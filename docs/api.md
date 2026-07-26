@@ -155,7 +155,7 @@ Two rules fired (Tesco, Shell). Three rows were left uncategorised — FinLang d
 |---|---|---|---|
 | `GET` | `/` | HTML landing page → `/docs` | no |
 | `GET` | `/health` | Liveness check + version + cli_resolved | no |
-| `POST` | `/process` | Categorise transactions; optional `--verify` | yes |
+| `POST` | `/process` | Categorise transactions; optional `--verify`, and `verify_html` for a readable integrity report | yes |
 | `POST` | `/discover` | Find uncategorised counterparties | yes |
 | `POST` | `/suggest` | Generate draft `.fin` rules from candidates | yes |
 | `POST` | `/reconcile` | Reconcile against ML output (positional, identity-guard, or key alignment); JSON summary + orphans + (optional) HTML report | yes |
@@ -260,7 +260,7 @@ Async job queues, persistent storage, multi-tenancy, OAuth/JWT, and rate meterin
 - [cli_reference.md](cli_reference.md) — the underlying CLI surface that the API dispatches to
 - [workflows.md](workflows.md) — Daily Run / Growth Loop patterns the API can drive
 - [reconciliation.md](reconciliation.md) — `--reconcile` engine feature (exposed via `/reconcile`)
-- [verify.md](verify.md) — `--verify` integrity primitive (already wired to `/process` via the `verify` form field)
+- [verify.md](verify.md) — `--verify` integrity primitive (wired to `/process` via the `verify` / `verify_full` form fields; `verify_html` returns the readable report inline as `verify_report_html`)
 - [install.md](install.md) — `pip install finlang[api]` and getting `finlang-api` on PATH
 - [faq.md](faq.md) — general FinLang FAQ
 

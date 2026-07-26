@@ -87,15 +87,17 @@ Independent ML validation layer. Compares FinLang's deterministic categorisation
 |-----|------------------|--------|------|
 | `--reconcile` | Path to ML output CSV | Trigger reconciliation against this file | Requires `--audit` AND `--audit-mode full`. Row count must match FinLang's output in positional mode; `--reconcile-key` relaxes this (match by key instead). |
 | `--reconcile-fields` | Comma list (e.g., `category` or `category,flags`) | Fields to compare | Default: `category`. Empty value rejected at parse time. |
+| `--verify-html` | *(flag, no value)* | Additionally emit `verify_report.html` — a readable integrity report | Requires `--verify` or `--verify-full`, AND `--verify-output-dir`. |
 | `--reconcile-output-dir` | Directory path | Where to write `reconcile_report.json` and `reconcile_mismatches.csv` | Required when `--reconcile-html` is set. |
 | `--reconcile-html` | *(flag, no value)* | Additionally emit `reconcile_report.html` | Requires BOTH `--reconcile` AND `--reconcile-output-dir`. |
 | `--reconcile-identity-fields` | Comma list (e.g., `date,amount,counterparty`) | Identity guard: verify the named fields match positionally before comparing reconcile fields | Requires `--reconcile`. Empty value rejected at parse time. Misalignment = exit 1 + `reconcile_identity_failures.{csv,json}`; mismatch reporting suppressed. Mutually exclusive with `--reconcile-key`. |
 | `--reconcile-key` | Comma list (e.g., `date,amount,counterparty`) | Key-based alignment: match rows by canonicalised composite key instead of position | Requires `--reconcile`. Empty value rejected at parse time. Row counts may differ; orphans → exit 3 + `reconcile_orphans_*.csv`; duplicate keys (either side) → exit 1. Mutually exclusive with `--reconcile-identity-fields`. |
+| `--reconcile-date-format` | strftime format (e.g., `%d/%m/%Y`) | State the ML output's date convention explicitly instead of letting reconcile infer it from the column | Requires `--reconcile` plus `--reconcile-identity-fields` or `--reconcile-key` (the format only acts during alignment; positional field comparison does not parse dates, so the inert combination is exit 2, not a silent no-op). The format is validated against the actual ML dates — a format that does not parse them is exit 1. The decision (inferred / explicit / assumed) is recorded in `reconcile_report.json` as `ml_date_convention`. |
 
 **Exit codes for reconciliation:**
 - `0` — engine succeeded, all post-engine checks passed (verify and reconcile both clean)
-- `1` — structural error (row-count mismatch in positional mode, missing reconcile/key field on either side, missing ML file, identity-guard failure via `--reconcile-identity-fields`, duplicate keys in `--reconcile-key` mode)
-- `2` — validation error (`--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`/`--reconcile-identity-fields`/`--reconcile-key`, alignment flags without `--reconcile`, both alignment flags together)
+- `1` — structural error (row-count mismatch in positional mode, missing reconcile/key field on either side, missing ML file, identity-guard failure via `--reconcile-identity-fields`, duplicate keys in `--reconcile-key` mode, explicit `--reconcile-date-format` that does not parse the ML dates)
+- `2` — validation error (`--reconcile` without `--audit-mode full`, `--reconcile-html` without `--reconcile-output-dir`, empty `--reconcile-fields`/`--reconcile-identity-fields`/`--reconcile-key`, alignment flags without `--reconcile`, both alignment flags together, `--reconcile-date-format` without an alignment mode)
 - `3` — reconciliation mismatch detected (one or more rows disagree, and/or orphan rows in key mode)
 
 `--verify` and `--reconcile` are orthogonal. Both can run in the same invocation; both report independently. Exit code 3 is set if either fails.

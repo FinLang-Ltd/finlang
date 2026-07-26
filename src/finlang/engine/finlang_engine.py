@@ -23,6 +23,7 @@
 
 
 import os
+import sys
 import re
 import pandas as pd
 from typing import List, Dict, Any, Tuple
@@ -262,7 +263,37 @@ def get_condition_mask(condition: str, df: pd.DataFrame, cache: Dict[str, pd.Ser
 
 
 # Define audit limit globally
-AUDIT_MAX = int(os.getenv("FINLANG_AUDIT_MAX", 5000))
+def _read_audit_max() -> int:
+    """Read FINLANG_AUDIT_MAX, requiring a non-negative integer.
+
+    Validated once at import. Previously a malformed value ('abc') crashed
+    here with a raw ValueError traceback before any CLI error handling, and
+    a negative value was accepted silently and fed negative slicing into
+    the audit cap. (Codex review, 26 Jul 2026.)
+    """
+    raw = os.getenv("FINLANG_AUDIT_MAX")
+    if raw is None or raw.strip() == "":
+        return 5000
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        print(
+            f"FATAL: FINLANG_AUDIT_MAX must be a non-negative integer, "
+            f"got {raw!r}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    if value < 0:
+        print(
+            f"FATAL: FINLANG_AUDIT_MAX must be a non-negative integer, "
+            f"got {raw!r}.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return value
+
+
+AUDIT_MAX = _read_audit_max()
 
 def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str = "lite", audit_max: int = None) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
     """Execute the ruleset against the DataFrame and return the processed DataFrame and audit log.
@@ -276,7 +307,19 @@ def run_audit(df_in: pd.DataFrame, rules: List[Dict[str, Any]], audit_mode: str 
     """
     df = df_in.copy()
     audit_log = []
-    audit_cap = AUDIT_MAX if audit_max is None else int(audit_max)
+    if audit_max is None:
+        audit_cap = AUDIT_MAX
+    else:
+        # Direct callers bypass the FINLANG_AUDIT_MAX env validation, so the
+        # parameter needs the same non-negative contract enforced here.
+        try:
+            audit_cap = int(audit_max)
+        except (ValueError, TypeError):
+            raise ValueError(
+                f"audit_max must be a non-negative integer, got {audit_max!r}")
+        if audit_cap < 0:
+            raise ValueError(
+                f"audit_max must be a non-negative integer, got {audit_max!r}")
     
     # Preamble: Ensure text columns exist, are string type, and handle NaN/None (v0.6.4 requirement)
     for col in TEXT_COLS:

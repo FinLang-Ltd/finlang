@@ -934,6 +934,17 @@ def main(args_list=None):
     ap.add_argument("--decimal", default=".", help="Decimal separator for numeric fields (e.g., '.').")
     ap.add_argument("--thousands", default=None, help="Thousands separator for numeric fields (e.g., ',').")
     ap.add_argument("--dayfirst", action="store_true", help="Parse ambiguous dates as DD/MM/YYYY (UK/EU style).")
+    ap.add_argument(
+        "--reconcile-date-format",
+        help=(
+            # NB: argparse %-formats help strings, so literal % must be
+            # doubled. An unescaped '%d/%m/%Y' here crashes --help outright.
+            "Explicit strftime format for dates in the ML output (e.g. "
+            "'%%d/%%m/%%Y'). The ML file is a separate system's export and may "
+            "use a different convention from --input. Omit to infer from the "
+            "column; FinLang warns if every value is ambiguous."
+        ),
+    )
     ap.add_argument("--date-format", default=None, help="Explicit strftime format for date parsing.")
     ap.add_argument("--output-encoding", default="utf-8", help="Encoding for output CSV (e.g., 'utf-8', 'utf-8-sig').")
 
@@ -946,6 +957,7 @@ def main(args_list=None):
     ap.add_argument("--reconcile", default=None, help="Path to ML output CSV to reconcile against. Requires --audit and --audit-mode full.")
     ap.add_argument("--reconcile-fields", default="category", help="Comma-separated fields to compare. Default: category.")
     ap.add_argument("--reconcile-output-dir", default=None, help="Directory for reconciliation artifacts (JSON report + mismatches CSV).")
+    ap.add_argument("--verify-html", action="store_true", help="Additionally emit a self-contained HTML integrity report (verify_report.html). Requires --verify or --verify-full, and --verify-output-dir.")
     ap.add_argument("--reconcile-html", action="store_true", help="Additionally emit a self-contained HTML report (reconcile_report.html). Requires --reconcile and --reconcile-output-dir.")
     ap.add_argument("--reconcile-identity-fields", default=None, help="Comma-separated fields to identity-check positionally before comparison (e.g. date,amount,counterparty). Misaligned rows = structural failure (exit 1), mismatch reporting suppressed. Requires --reconcile.")
     ap.add_argument("--reconcile-key", default=None, help="Comma-separated fields forming a composite key for key-based alignment (e.g. date,amount,counterparty). Replaces positional alignment: rows match by key, row counts may differ, unmatched rows are reported as orphans (exit 3). Duplicate keys = exit 1. Requires --reconcile; mutually exclusive with --reconcile-identity-fields.")
@@ -1020,6 +1032,15 @@ def main(args_list=None):
         _key_fields_parsed = [s.strip() for s in args.reconcile_key.split(",") if s.strip()]
         if not _key_fields_parsed:
             print("FATAL: --reconcile-key cannot be empty (got '%s')." % args.reconcile_key, file=sys.stderr); sys.exit(2)
+    # An explicit ML date format only ever applies during identity/key
+    # alignment (field comparison is raw-string). Silently ignoring an
+    # explicit user instruction is the trap class this flag exists to close,
+    # so an inert combination is fatal, not a no-op.
+    if args.reconcile_date_format is not None:
+        if not args.reconcile:
+            print("FATAL: --reconcile-date-format requires --reconcile.", file=sys.stderr); sys.exit(2)
+        if args.reconcile_identity_fields is None and args.reconcile_key is None:
+            print("FATAL: --reconcile-date-format has no effect without --reconcile-identity-fields or --reconcile-key (positional field comparison does not parse dates). Remove the flag or add an alignment mode.", file=sys.stderr); sys.exit(2)
     # Impact analysis (SOL-105): analysis run, mutually exclusive with the
     # post-engine checks; writes no categorised output (--output not needed)
     if args.impact_rules:
@@ -1039,6 +1060,13 @@ def main(args_list=None):
     # (Branch 3 thinktank-mandated dual-flag validation: no place to write
     # the HTML without an output dir; no reconciliation to render without
     # --reconcile.)
+    # --verify-html requires a verify mode AND an output directory to write into
+    if args.verify_html:
+        if not (args.verify or args.verify_full):
+            print("FATAL: --verify-html requires --verify or --verify-full.", file=sys.stderr); sys.exit(2)
+        if not args.verify_output_dir:
+            print("FATAL: --verify-html requires --verify-output-dir.", file=sys.stderr); sys.exit(2)
+
     if args.reconcile_html:
         if not args.reconcile:
             print("FATAL: --reconcile-html requires --reconcile.", file=sys.stderr); sys.exit(2)
@@ -1325,6 +1353,15 @@ def main(args_list=None):
                 dayfirst=args.dayfirst,
                 date_format=args.date_format,
             )
+            if args.verify_html and args.verify_output_dir:
+                from finlang.tools.verify_html import generate_html_report as _verify_html
+                _verify_html(
+                    verify_result,
+                    os.path.join(args.verify_output_dir, "verify_report.html"),
+                )
+                if not args.headless:
+                    print(f"-> Wrote verify_report.html to {args.verify_output_dir}")
+
             if not verify_result.success:
                 post_engine_failure = True
 
@@ -1353,6 +1390,10 @@ def main(args_list=None):
                     emit_html=args.reconcile_html,
                     identity_fields=identity_fields,
                     key_fields=key_fields,
+                    # The ML side is a separate system's CSV and may carry a
+                    # different date convention from --input, so it gets its own
+                    # format flag; otherwise reconcile infers from the column.
+                    ml_date_format=args.reconcile_date_format,
                 )
             except FileNotFoundError as e:
                 print(f"FATAL: {e}", file=sys.stderr)

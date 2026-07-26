@@ -6,6 +6,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **`--verify-html` (SOL-111)** — a readable integrity report alongside the existing JSON/CSV artefacts. Verification was the only trust-layer feature without one, while being the one aimed most directly at auditors. The report opens by stating the run in plain English (rows read, how dates and amounts were parsed, which locale overrides were supplied — or explicitly that none were), then shows the scope of the check (which fields were compared and which were deliberately not), a fingerprint sample with real before/after hashes, and mismatch detail only when there is any. Self-contained: no JavaScript, no external references, opens offline. Exposed via the API as `verify_html` on `/process`, returning the rendered report inline as `verify_report_html`.
+
+### Changed
+- **Reconcile infers the ML side's date convention (fix).** Reconcile canonicalised the ML output's dates with FinLang's own defaults, on a documented assumption that both sides are post-engine CSVs. That does not hold for the feature's main use case — an external ML system emits local formats. An identical transaction whose ML date read `05/01/2026` against FinLang's ISO `2026-01-05` was reported as **two orphans**, silently (pandas only warns when it must override, i.e. the unambiguous case). Reconcile now infers the convention from the ML date column, accepts `--reconcile-date-format` when the data cannot settle it, and records the decision in `reconcile_report.json` as `ml_date_convention` (`inferred` / `explicit` / `assumed`). Measured ~6% faster than before, since pandas no longer re-parses values under a mismatched convention. An explicit format is validated against the actual ML dates before being applied — a format that does not parse the data is a structural failure (exit 1), never recorded as applied; and because the format only ever acts during identity/key alignment, passing it in positional mode is fatal (exit 2) rather than a silent no-op. Exposed via the API as `reconcile_date_format` on `/reconcile`.
+- **Daily test gate: 187 -> 204 tests**, 10 gates unchanged (Gate 4 engine: 26 -> 27; Gate 8 verify: 18 -> 29; Gate 10 reconcile + impact: 55 -> 60). Standalone API gate: 26 -> 29. Ship-with-repo CLI smoke tests: 5 -> 7 (`--help` renders for every entry point; `FINLANG_AUDIT_MAX` validation).
+
+### Fixed
+- **`FINLANG_AUDIT_MAX` is validated at startup.** A non-integer value previously crashed engine import with a raw traceback, and a negative value was accepted — silently corrupting audit capping arithmetic. Both are now a clean `FATAL` exit 2 naming the variable. The `run_audit(audit_max=...)` parameter enforces the same non-negative contract for direct in-process callers (raises `ValueError` instead of accepting `-1`).
+- **docs: the default 5K integrity-harness run was described as fingerprint-only** (`benchmarks.md`); it runs full field-by-field + fingerprint validation — fast mode starts above the `--threshold` row count (default 100,000).
+
 ## [0.8.2] - 2026-07-20
 
 ### Changed

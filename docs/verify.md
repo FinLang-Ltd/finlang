@@ -140,6 +140,7 @@ If a fingerprint mismatched, the corresponding row in `verify_proof.csv` would s
 | `--verify` | (boolean) | **Fast mode**: SHA-256 fingerprint comparison on immutable fields (date, amount, counterparty). ~milliseconds for typical data. |
 | `--verify-full` | (boolean) | **Full mode**: fingerprint + per-field comparison. Surfaces the specific field that drifted when a fingerprint mismatch is detected. Still fast. |
 | `--verify-output-dir` | directory path | Where to write verification artefacts (`verify_report.json`, `verify_proof.csv`, and `verify_mismatches.csv` on failure). Requires `--verify` or `--verify-full`. |
+| `--verify-html` | *(flag)* | Additionally write `verify_report.html` — the same evidence in a form a reviewer reads rather than parses. Requires a verify mode and `--verify-output-dir`. |
 
 > **⚠️ Fast vs Full mode:** Use `--verify` for CI/CD gating where you only need the yes/no answer. Use `--verify-full` for pre-audit evidence where you need to know *which field* drifted on FAIL. The proof CSV is identical in both modes; only the mismatch detail differs.
 
@@ -174,6 +175,36 @@ Per-row fingerprint evidence. Columns: `date`, `amount`, `counterparty`, `memo`,
 ### 📊 `verify_mismatches.csv` *(written when mismatches > 0)*
 
 One row per integrity violation. Columns: `csv_row`, `reason` (e.g. "fingerprint mismatch", "field mismatch (amount)", "row count mismatch"), `fingerprint_in`, `fingerprint_out`, `field_diffs` (the specific field that drifted with old → new values). **Read this first when verification fails** — it tells you exactly what was modified.
+
+### 🖥 `verify_report.html` *(written when `--verify-html` is set)*
+
+A single self-contained page — no JavaScript, no external references, opens
+offline. Unlike the CSVs it is designed to be **read**, and it opens by stating
+the run in plain English before any table:
+
+> FinLang read **58 rows** from `input.csv` and wrote `output.csv`.
+> Dates were read **month-first** (the default) — no date override was supplied.
+> **No locale overrides were supplied.**
+> The **date, amount and counterparty** of every row were fingerprinted with
+> SHA-256 before processing and again afterwards, then compared.
+> **All 58 rows matched.** No immutable field was altered, no row was lost.
+
+When locale flags *were* given, they are named (`--dayfirst`, `--decimal`, …)
+rather than left implicit — silence and "defaults applied" are not the same
+statement, and a reviewer needs the difference on the page.
+
+It then shows the **scope** of the check (which fields were compared, and which
+were deliberately not — `category`, `flags`, `memo` are meant to change), a
+**fingerprint sample** with the actual before/after hashes, and — only when
+there are any — the **mismatch detail**. A clean run renders no empty mismatch
+table: an empty table reads as "nothing ran", whereas omission plus a PASS
+banner reads as "nothing was wrong".
+
+> **Why a report at all, when nothing was found?** Reconcile and impact reports
+> exist to show findings. Verification's healthy outcome has none — "58 rows,
+> 0 mismatches". This report's job is to make that *absence* legible as
+> evidence: what was checked, over what, by what method, with which settings.
+> A reviewer should not have to take the exit code on trust.
 
 > **Two-CSV asymmetry note:** Verify produces both `verify_proof.csv` (always — per-row evidence) and `verify_mismatches.csv` (on FAIL — failure detail). This is deliberate: the proof CSV is the always-on evidence artefact for an auditor; the mismatches CSV is the diagnostic for an engineer. Reconcile only produces one mismatches CSV because there is no equivalent "always-on per-row evidence" output for it.
 
