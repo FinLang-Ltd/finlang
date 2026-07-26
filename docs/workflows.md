@@ -1,7 +1,7 @@
 # 📖 Core Workflows
 > **Applies to:** FinLang v0.7+
 > **Status:** Stable
-> **Last verified:** v0.8.2
+> **Last verified:** v0.8.3
 
 
 
@@ -275,6 +275,9 @@ finlang --input data.csv --output out.csv --rules rules.fin --verify-full
 
 # CI/CD pipeline: verify + save artifacts for audit trail
 finlang --input data.csv --output out.csv --rules rules.fin --verify --verify-output-dir ./audit
+
+# v0.8.3: add --verify-html to also render a self-contained plain-English report
+finlang --input data.csv --output out.csv --rules rules.fin --verify --verify-output-dir ./audit --verify-html
 ```
 
 Exit code `3` indicates a verification failure. Artifacts include `verify_report.json`, `verify_proof.csv`, and `verify_mismatches.csv` (on failure only).
@@ -299,6 +302,8 @@ finlang --input transactions.csv \
         --reconcile-output-dir audit/ \
         --reconcile-html
 ```
+
+> **ML date conventions (v0.8.3):** the ML file's dates are read on their own terms — the convention is inferred from the column, or stated with `--reconcile-date-format`, and recorded in `reconcile_report.json` as `ml_date_convention`. See [reconciliation.md](reconciliation.md).
 
 `--audit --audit-mode full` is required so mismatch rows can carry rule name + match condition. `--reconcile-html` is optional but recommended for compliance-context reports. `--reconcile-identity-fields` is recommended in CI: if the ML pipeline ever reorders its output (parallel batching, async writes), the identity guard fails structurally (exit `1`) instead of reporting nonsense mismatches over misaligned rows — exactly the failure mode an unattended pipeline won't catch by eye.
 

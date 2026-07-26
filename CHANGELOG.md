@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [0.8.3] - 2026-07-26
 
 ### Added
 - **`--verify-html` (SOL-111)** — a readable integrity report alongside the existing JSON/CSV artefacts. Verification was the only trust-layer feature without one, while being the one aimed most directly at auditors. The report opens by stating the run in plain English (rows read, how dates and amounts were parsed, which locale overrides were supplied — or explicitly that none were), then shows the scope of the check (which fields were compared and which were deliberately not), a fingerprint sample with real before/after hashes, and mismatch detail only when there is any. Self-contained: no JavaScript, no external references, opens offline. Exposed via the API as `verify_html` on `/process`, returning the rendered report inline as `verify_report_html`.

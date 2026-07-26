@@ -66,7 +66,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.8.2)
+## ⚙️ Key Features (v0.8.3)
 
 | Feature | Description |
 |:--|:--|
@@ -81,8 +81,8 @@ rule "TRAVEL: High Value Flight" {
 | **Amount Synthesis** | Auto-computes `amount = abs(credit) – abs(debit)` across 9 edge cases. |
 | **Strict Parsing** | Locale-aware normalization with configurable thresholds (`--strict-parse`). |
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
-| **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output. See [docs/verify.md](docs/verify.md). |
-| **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`. See [docs/reconciliation.md](docs/reconciliation.md). |
+| **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output; `--verify-html` *(v0.8.3)* can render a self-contained plain-English report. See [docs/verify.md](docs/verify.md). |
+| **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`; the ML side's date convention is inferred from the data (or stated via `--reconcile-date-format`, v0.8.3) and recorded in the report. See [docs/reconciliation.md](docs/reconciliation.md). |
 | **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — seven endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`. Subprocess-dispatched (no second engine surface). 29 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
 
 ---
@@ -283,14 +283,14 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 
 | Component | Version | Validation |
 |:--|:--|:--|
-| Core Engine      | v0.8.1   | Hardening: dropped-row attribution fix, run-reproducible audit ordering; categorisation output unchanged (engine untouched in v0.8.2) |
-| CLI Suite        | v0.8.2   | 204 tests across 10 gates (daily); 7-gate full pre-release suite |
-| FastAPI Wrapper  | v0.8.2   | 29 standalone integration tests + CLI/API parity contract test |
+| Core Engine      | v0.8.3   | Hardening: `FINLANG_AUDIT_MAX`/`audit_max` validation; categorisation output unchanged |
+| CLI Suite        | v0.8.3   | 204 tests across 10 gates (daily); 7-gate full pre-release suite |
+| FastAPI Wrapper  | v0.8.3   | 29 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |
-| Verify           | v0.8.2   | `--verify` / `--verify-full` (SHA-256 fingerprint + field comparison), vectorised — ~570s → ~15s on the 500K full-mode benchmark |
-| Reconcile        | v0.8.2   | `--reconcile` / `--reconcile-html` (row-by-row mismatch + audit reason) |
-| Cleanroom        | v0.8.2   | 5-gate disposable-venv PyPI validation (incl. API surface) |
-| CI               | v0.8.2   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
-| Docs             | v0.8.2   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
+| Verify           | v0.8.3   | `--verify` / `--verify-full` / `--verify-html` (SHA-256 fingerprint + field comparison + readable report), vectorised — ~570s → ~15s on the 500K full-mode benchmark |
+| Reconcile        | v0.8.3   | `--reconcile` / `--reconcile-html` / `--reconcile-date-format` (row-by-row mismatch + audit reason; ML date convention inferred and recorded) |
+| Cleanroom        | v0.8.3   | 5-gate disposable-venv PyPI validation (incl. API surface) |
+| CI               | v0.8.3   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
+| Docs             | v0.8.3   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
 | Python Support   | 3.10—3.14 | Tested across all five versions via CI matrix |
