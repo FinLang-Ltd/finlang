@@ -40,42 +40,43 @@ Reconciliation compares FinLang's deterministic categorisation against an extern
 ## 🔄 The Reconciliation Flow
 
 ```
-   ┌─────────────────────┐         ┌─────────────────────┐
-   │  Raw transactions   │ ←same → │  Same raw data      │
-   │  (your bank CSV)    │  data   │                     │
-   └──────────┬──────────┘         └──────────┬──────────┘
-              │                               │
-              ▼                               ▼
-   ┌─────────────────────┐         ┌─────────────────────┐
-   │  ML Pipeline        │         │  FinLang Engine     │
-   │  External output.   │         │  Deterministic.     │
-   │  Audit varies.      │         │  Rule + audit.json. │
-   └──────────┬──────────┘         └──────────┬──────────┘
-              │                               │
-              ▼                               ▼
-   ┌─────────────────────┐         ┌─────────────────────┐
-   │  ml_output.csv      │         │  finlang_out.csv    │
-   │                     │         │  + audit.json       │
-   └──────────┬──────────┘         └──────────┬──────────┘
-              │                               │
-              └───────────────┬───────────────┘
-                              │
-                              ▼
-                   ┌─────────────────────┐
-                   │  --reconcile        │
-                   │  row-by-row,        │
-                   │  field comparison   │
-                   └──────────┬──────────┘
-                              │
-                ┌─────────────┼─────────────┐
-                ▼             ▼             ▼
-          ┌──────────┐  ┌──────────┐  ┌──────────┐
-          │ 📄 JSON  │  │ 📊 CSV   │  │ 🌐 HTML  │
-          │ report   │  │ mismatch │  │ report   │
-          └──────────┘  └──────────┘  └──────────┘
+                  Raw transactions (your bank CSV)
+                                │
+                   ┌────────────┴────────────┐
+                   │                         │
+                   ▼                         ▼
+          ┌─────────────────┐   ╔══════════════════════════════════╗
+          │  ML pipeline    │   ║  ONE FinLang run                 ║
+          │  a separate     │   ║                                  ║
+          │  system, on its │   ║   categorise ─► categorized.csv  ║
+          │  own schedule   │   ║              ─► audit.json       ║
+          └────────┬────────┘   ║                     │            ║
+                   │            ║                     ▼            ║
+                   │            ║   --reconcile   compare row by   ║
+                   └───────────►║                 row, using the   ║
+                    ml_out.csv  ║                 audit trail for  ║
+                                ║                 the reasoning    ║
+                                ╚══════════════════╤═══════════════╝
+                                                   │
+                     ┌─────────────────────────────┼──────────────────┐
+                     ▼                             ▼                  ▼
+            reconcile_report.json    reconcile_mismatches.csv   reconcile_
+                                                                report.html
 ```
 
-The **two-pipeline pattern** — ML on one side, FinLang on the other, fed the same raw data — is the load-bearing design. Reconciliation is the join.
+**Reconciliation is not a separate step you run afterwards.** `--reconcile` is a
+flag on a normal FinLang run: one invocation categorises your transactions,
+writes the audit trail, and compares the result against your model's existing
+output. The ML side is genuinely a separate system on its own schedule — you
+simply hand its CSV to the same command.
+
+That is also why `--reconcile` **requires `--audit --audit-mode full`** and exits
+`2` without it. The reasoning attached to every mismatch comes from the audit
+trail, so the trail has to exist in the same run that does the comparing.
+
+The **two-pipeline pattern** — ML on one side, FinLang on the other, fed the same
+raw data — is the load-bearing design. Reconciliation is the join, and it happens
+inside the FinLang invocation rather than after it.
 
 ---
 
