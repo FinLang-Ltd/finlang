@@ -65,6 +65,16 @@ app = FastAPI(
     version=__version__,
 )
 
+# SOL-112: the Workbench (local UI) is static files served by this same app —
+# one server, one engine, no second surface to keep honest. The mount is
+# guarded so an install without the ui package data (or a trimmed vendored
+# copy) still serves the API exactly as before.
+_UI_STATIC = Path(__file__).resolve().parent.parent / "ui" / "static"
+if _UI_STATIC.is_dir():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/ui", StaticFiles(directory=str(_UI_STATIC), html=True), name="ui")
+
 # CLI entry points — resolved at import time. shutil.which is cross-platform.
 FINLANG_CLI = shutil.which("finlang") or "finlang"
 FINLANG_DISCOVER_CLI = shutil.which("finlang-discover") or "finlang-discover"

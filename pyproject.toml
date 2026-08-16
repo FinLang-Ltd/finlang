@@ -30,6 +30,7 @@ finlang = "finlang.cli.run_finlang:main"
 finlang-discover = "finlang.tools.discover:main"
 finlang-suggest = "finlang.tools.suggest:main"
 finlang-api = "finlang.api.main:run"
+finlang-ui = "finlang.ui.launcher:run"
 
 [project.optional-dependencies]
 dev = ["pytest", "build", "twine", "check-manifest", "PyYAML"]
@@ -50,6 +51,7 @@ finlang = [
   "rulepacks/*.fin",
   "mapping/*.json"
 ]
+"finlang.ui" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
