@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run — FinLang Workbench</title>
+<style>
+  /* House style per FORMAT.md / house_style.py. Same tokens as index.html. */
+  :root{
+    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
+    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --dim:#6f82a6;
+    --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
+    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  header{position:relative;z-index:1;display:flex;align-items:center;
+    justify-content:space-between;padding:20px 32px 16px}
+  header a.home{display:block}
+  .lk{width:140px;display:block}
+  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
+  main{position:relative;z-index:1;display:grid;grid-template-columns:340px 1fr;
+    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
+  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
+    border-radius:8px;padding:14px 16px;margin-bottom:12px}
+  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+    margin-bottom:10px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=file]{width:100%;font-size:12px;color:var(--muted)}
+  input[type=text],input[type=number],select{width:100%;background:#0a1633;color:#dbe4f5;
+    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
+    font-family:var(--mono);font-size:13px}
+  .tick{display:flex;align-items:flex-start;gap:8px;margin:9px 0;font-size:14px}
+  .tick input{margin-top:3px}
+  .tick .why{display:block;font-size:12px;color:var(--dim);margin-top:2px}
+  .sub-opts{margin:4px 0 4px 24px;padding-left:10px;border-left:2px solid rgba(255,255,255,.09)}
+  .sub-opts.off{display:none}
+  details{margin:10px 0}
+  summary{cursor:pointer;font-size:13px;color:var(--blue)}
+  button#go{width:100%;margin-top:12px;padding:11px;border:0;border-radius:6px;
+    background:var(--mark);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  button#go:disabled{background:#1c355f;color:var(--dim);cursor:not-allowed}
+  /* results */
+  #banner{border-radius:8px;padding:13px 16px;margin-bottom:12px;font-size:15px;display:none}
+  #banner.clean{display:block;background:rgba(58,214,165,.12);border:1px solid var(--green);color:var(--green)}
+  #banner.findings{display:block;background:rgba(245,181,68,.10);border:1px solid var(--amber);color:var(--amber)}
+  #banner.failed{display:block;background:rgba(255,122,133,.10);border:1px solid var(--pink);color:var(--pink)}
+  #banner small{display:block;margin-top:4px;color:var(--muted);font-size:12.5px}
+  .tabs{display:flex;gap:2px;margin-bottom:-1px;flex-wrap:wrap}
+  .tabs button{background:transparent;border:1px solid rgba(255,255,255,.13);
+    border-bottom:0;border-radius:6px 6px 0 0;color:var(--muted);padding:7px 14px;
+    font-size:13px;cursor:pointer}
+  .tabs button.on{background:rgba(13,27,60,.9);color:#fff}
+  .pane{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
+    border-radius:0 8px 8px 8px;padding:14px 16px;min-height:220px}
+  .pane>div{display:none}
+  .pane>div.on{display:block}
+  table.rows{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}
+  table.rows th{text-align:left;color:var(--dim);font-weight:400;padding:4px 12px 6px 0;
+    border-bottom:1px solid rgba(255,255,255,.14);position:sticky;top:0;background:#0f1e42}
+  table.rows td{padding:5px 12px 5px 0;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.05)}
+  td.rule{color:var(--amber);cursor:pointer}
+  td.rule:hover{text-decoration:underline}
+  .scroll{max-height:430px;overflow:auto}
+  iframe{width:100%;height:520px;border:1px solid rgba(255,255,255,.13);border-radius:6px;background:#fff}
+  pre.log{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:pre-wrap;
+    word-break:break-all;background:#0a1633;border-radius:6px;padding:12px}
+  .dl{display:inline-block;margin:4px 10px 4px 0;color:var(--mark);font-size:13px;
+    text-decoration:none;font-family:var(--mono)}
+  #auditbox{position:fixed;right:20px;bottom:20px;max-width:460px;max-height:50vh;overflow:auto;
+    background:#0a1633;border:1px solid var(--amber);border-radius:8px;padding:14px;
+    font-family:var(--mono);font-size:12px;display:none;z-index:2;white-space:pre-wrap}
+  #spin{display:none;color:var(--blue);font-family:var(--mono);font-size:13px;margin-top:10px}
+</style>
+</head>
+<body>
+<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
+    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
+  </pattern></defs>
+  <rect width="100%" height="100%" fill="#0d1b3c"/>
+  <rect width="100%" height="100%" fill="url(#ht)"/>
+</svg>
+<header>
+  <a class="home" href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+  <small>WORKBENCH &middot; RUN</small>
+</header>
+<!-- The lockup paths are injected from lockup.js (shared with index at Phase 5;
+     inline here via fetch of the svg fragment to avoid duplicating 4.5KB). -->
+<main>
+  <section>
+    <h1>Run</h1>
+    <form id="f">
+      <div class="card">
+        <div class="t">FILES</div>
+        <label>Transactions CSV</label>
+        <input type="file" id="input_csv" accept=".csv" required>
+        <label>Rules</label>
+        <select id="rules_mode">
+          <option value="file">a .fin file from disk</option>
+          <option value="pack">a bundled rulepack</option>
+        </select>
+        <div id="rules_file_row"><input type="file" id="rules_file" accept=".fin"></div>
+        <div id="rules_pack_row" style="display:none">
+          <select id="include_pack">
+            <option>01_core_uk</option><option>02_core_us</option><option>03_core_eu</option>
+            <option>04_corporate</option><option>05_ecommerce</option><option>06_saas</option>
+            <option>07_energy</option><option>08_banking</option>
+          </select>
+        </div>
+        <details id="locale">
+          <summary>My file isn't a UK/US-style CSV</summary>
+          <label>Day-first dates</label>
+          <select id="dayfirst"><option value="">no</option><option value="1">yes</option></select>
+          <label>Decimal separator</label>
+          <input type="text" id="decimal" placeholder="." maxlength="1">
+          <label>Thousands separator</label>
+          <input type="text" id="thousands" placeholder="(none)" maxlength="1">
+          <label>Encoding</label>
+          <input type="text" id="encoding" placeholder="utf-8-sig">
+          <label>Header mapping (.json) &mdash; needed if your columns aren't date/amount/counterparty/memo</label>
+          <input type="file" id="map_file" accept=".json">
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="t">WHAT TO RUN</div>
+        <div class="tick"><input type="checkbox" id="audit" checked>
+          <div>Audit trail
+            <select id="audit_mode" style="width:auto;margin-left:6px"><option>lite</option><option selected>full</option></select>
+            <span class="why">full records the rule, condition and changes for every decision</span>
+          </div></div>
+        <div class="tick"><input type="checkbox" id="verify">
+          <div>Verify
+            <div class="sub-opts off" id="verify_opts">
+              <select id="verify_kind" style="width:auto"><option value="fast">fast (fingerprint)</option><option value="full" selected>full (field-by-field)</option></select>
+              <label style="display:inline;margin-left:10px"><input type="checkbox" id="verify_html" checked> HTML report</label>
+            </div>
+            <span class="why">date, amount and counterparty came out the way they went in</span>
+          </div></div>
+        <div class="tick"><input type="checkbox" id="reconcile">
+          <div>Reconcile against a model
+            <div class="sub-opts off" id="rec_opts">
+              <label>Model output CSV</label>
+              <input type="file" id="ml_csv" accept=".csv">
+              <label style="display:inline"><input type="checkbox" id="rec_html" checked> HTML report</label>
+              <div class="why" id="rec_forces" style="margin-top:6px"></div>
+              <details><summary>Advanced alignment</summary>
+                <label>Key columns (content match, reports orphans)</label>
+                <input type="text" id="rec_key" placeholder="e.g. date,amount,counterparty">
+                <label>ML date format</label>
+                <input type="text" id="rec_datefmt" placeholder="e.g. %d/%m/%Y &mdash; blank = infer">
+              </details>
+            </div>
+            <span class="why">compared row by row &middot; every disagreement, with its rule</span>
+          </div></div>
+      </div>
+      <button id="go" type="submit" disabled>Run</button>
+      <div id="spin">running&hellip; <span id="elapsed"></span></div>
+    </form>
+  </section>
+
+  <section>
+    <h1>Results</h1>
+    <div id="banner"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="pane" id="pane"><div class="on" id="empty" style="display:block;color:var(--dim)">
+      Nothing yet. Pick a CSV and rules, tick what you want, and Run.
+    </div></div>
+  </section>
+</main>
+<div id="auditbox"></div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const state = {audit:null, resp:null, rec:null, t0:0};
+
+/* ---------- form wiring ---------- */
+$("rules_mode").onchange = e => {
+  $("rules_file_row").style.display = e.target.value==="file" ? "" : "none";
+  $("rules_pack_row").style.display = e.target.value==="pack" ? "" : "none";
+  gate();
+};
+$("verify").onchange = e => $("verify_opts").classList.toggle("off", !e.target.checked);
+$("reconcile").onchange = e => {
+  $("rec_opts").classList.toggle("off", !e.target.checked);
+  // reconcile requires audit-mode full - not a choice, a requirement (exit 2 without).
+  const on = e.target.checked;
+  $("audit").checked = on || $("audit").checked;
+  $("audit").disabled = on; $("audit_mode").disabled = on;
+  if (on) $("audit_mode").value = "full";
+  $("rec_forces").textContent = on ?
+    "audit is locked to full: the mismatch reasoning comes from the audit trail" : "";
+  gate();
+};
+["input_csv","rules_file","ml_csv"].forEach(id => $(id).onchange = gate);
+function gate(){
+  const rulesOk = $("rules_mode").value==="pack" || $("rules_file").files.length;
+  const recOk = !$("reconcile").checked || $("ml_csv").files.length;
+  $("go").disabled = !($("input_csv").files.length && rulesOk && recOk);
+}
+
+/* ---------- run ---------- */
+$("f").onsubmit = async ev => {
+  ev.preventDefault();
+  $("go").disabled = true; $("spin").style.display = "block";
+  state.t0 = Date.now();
+  const tick = setInterval(()=>{$("elapsed").textContent =
+    Math.round((Date.now()-state.t0)/1000)+"s";}, 500);
+  try {
+    const fd = new FormData();
+    fd.append("input_csv", $("input_csv").files[0]);
+    if ($("rules_mode").value==="file") fd.append("rules", $("rules_file").files[0]);
+    else fd.append("include_pack", $("include_pack").value);
+    if ($("map_file").files.length) fd.append("map_file", $("map_file").files[0]);
+    if ($("dayfirst").value) fd.append("dayfirst","true");
+    if ($("decimal").value) fd.append("decimal", $("decimal").value);
+    if ($("thousands").value) fd.append("thousands", $("thousands").value);
+    if ($("encoding").value) fd.append("encoding", $("encoding").value);
+    fd.append("audit_mode", $("audit").checked ? $("audit_mode").value : "none");
+    fd.append("return_audit", $("audit").checked ? "true" : "false");
+    if ($("verify").checked){
+      fd.append($("verify_kind").value==="full" ? "verify_full" : "verify", "true");
+      if ($("verify_html").checked) fd.append("verify_html","true");
+    }
+    const r = await fetch("/process", {method:"POST", body:fd});
+    const body = await r.json();
+    if (!r.ok) return fail(body);
+    state.resp = body; state.audit = body.audit || null;
+
+    /* reconcile = a second call: /reconcile has no verify passthrough, so the
+       Workbench mirrors the CLI reality of one flag-set per concern. The run
+       log shows both invocations. */
+    state.rec = null;
+    if ($("reconcile").checked){
+      const fr = new FormData();
+      fr.append("input_csv", $("input_csv").files[0]);
+      fr.append("ml_output_csv", $("ml_csv").files[0]);
+      if ($("rules_mode").value==="file") fr.append("rules", $("rules_file").files[0]);
+      else fr.append("include_pack", $("include_pack").value);
+      if ($("map_file").files.length) fr.append("map_file", $("map_file").files[0]);
+      if ($("dayfirst").value) fr.append("dayfirst","true");
+      if ($("decimal").value) fr.append("decimal", $("decimal").value);
+      if ($("thousands").value) fr.append("thousands", $("thousands").value);
+      if ($("rec_html").checked) fr.append("reconcile_html","true");
+      if ($("rec_key").value) fr.append("reconcile_key", $("rec_key").value);
+      if ($("rec_datefmt").value) fr.append("reconcile_date_format", $("rec_datefmt").value);
+      const r2 = await fetch("/reconcile", {method:"POST", body:fr});
+      const b2 = await r2.json();
+      if (!r2.ok) return fail(b2);
+      state.rec = b2;
+    }
+    render();
+  } catch(e){
+    fail({detail: String(e)});
+  } finally {
+    clearInterval(tick);
+    $("spin").style.display="none"; gate();
+  }
+};
+
+function fail(body){
+  const d = typeof body.detail==="string" ? body.detail : JSON.stringify(body.detail, null, 2);
+  banner("failed", "Run failed", d);
+  // dropped rows / missing columns are locale problems - open the block for them
+  if (/Dropped|Missing required columns|delimiter/i.test(d)) $("locale").open = true;
+  setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
+}
+
+function banner(cls, head, small){
+  const b = $("banner");
+  b.className = cls;
+  b.innerHTML = `<b>${esc(head)}</b>` + (small?`<small>${esc(small)}</small>`:"");
+}
+
+/* ---------- results ---------- */
+function render(){
+  const p = state.resp, rec = state.rec;
+  const ex = Math.max(p.stats.exit_code, rec ? rec.stats.exit_code : 0);
+  const bits = [`${p.stats.rows_out} rows categorised in ${p.stats.duration_seconds}s`];
+  if (p.verify_report) bits.push("verify ran");
+  if (rec) bits.push(rec.stats.mismatches_found ? "reconcile found disagreements" : "reconcile: all rows agree");
+  if (ex===0) banner("clean","Clean", bits.join(" · "));
+  else if (ex===3) banner("findings","Findings — the product working, not failing", bits.join(" · "));
+  else banner("failed", `Exit ${ex}`, bits.join(" · "));
+
+  const tabs = [["rows", rowsTab(p)]];
+  if (p.verify_report_html) tabs.push(["verify report", iframeTab(p.verify_report_html)]);
+  if (rec){
+    if (rec.summary) tabs.push(["reconcile", recTab(rec)]);
+    if (rec.report_html) tabs.push(["reconcile report", iframeTab(rec.report_html)]);
+  }
+  tabs.push(["downloads", dlTab(p, rec)]);
+  tabs.push(["run log", logTab()]);
+  setTabs(tabs);
+}
+
+function rowsTab(p){
+  const lines = p.output_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+  const head = lines[0], rows = lines.slice(1);
+  // join the audit reason by row index - presentational only; audit.json is the artefact
+  const byIdx = {};
+  (state.audit||[]).forEach(e => { byIdx[e.index] = e; });
+  let h = '<div class="scroll"><table class="rows"><thead><tr>' +
+    head.map(c=>`<th>${esc(c)}</th>`).join("") +
+    (state.audit ? "<th>rule</th>" : "") + "</tr></thead><tbody>";
+  rows.forEach((r,i) => {
+    h += "<tr>" + r.map(c=>`<td>${esc(c)}</td>`).join("");
+    if (state.audit){
+      const e = byIdx[i];
+      h += e ? `<td class="rule" data-i="${i}">&#8592; ${esc(e.rule)}</td>` : "<td></td>";
+    }
+    h += "</tr>";
+  });
+  return h + "</tbody></table></div>";
+}
+function recTab(rec){
+  const s = rec.summary;
+  let h = `<p style="font-family:var(--mono);font-size:14px">${s.total_rows} rows compared · ` +
+    `<span style="color:var(--green)">${s.matches} agree</span> · ` +
+    `<span style="color:var(--amber)">${s.mismatches} do not</span>` +
+    (s.status?` · ${esc(s.status)}`:"") + "</p>";
+  if (rec.mismatches_csv){
+    const L = rec.mismatches_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+    h += '<div class="scroll"><table class="rows"><thead><tr>' +
+      L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
+      L.slice(1).map(r=>"<tr>"+r.map(c=>`<td>${esc(c)}</td>`).join("")+"</tr>").join("") +
+      "</tbody></table></div>";
+  }
+  return h;
+}
+function iframeTab(html){
+  return `<iframe sandbox="" srcdoc="${html.replace(/&/g,"&amp;").replace(/"/g,"&quot;")}"></iframe>`;
+}
+function dlTab(p, rec){
+  const items = [["categorized.csv", p.output_csv, "text/csv"]];
+  if (state.audit) items.push(["audit.json", JSON.stringify(state.audit,null,2), "application/json"]);
+  if (p.verify_report) items.push(["verify_report.json", JSON.stringify(p.verify_report,null,2), "application/json"]);
+  if (p.verify_report_html) items.push(["verify_report.html", p.verify_report_html, "text/html"]);
+  if (rec){
+    if (rec.mismatches_csv) items.push(["reconcile_mismatches.csv", rec.mismatches_csv, "text/csv"]);
+    if (rec.report_html) items.push(["reconcile_report.html", rec.report_html, "text/html"]);
+    if (rec.orphans_finlang_csv) items.push(["orphans_finlang.csv", rec.orphans_finlang_csv, "text/csv"]);
+    if (rec.orphans_ml_csv) items.push(["orphans_ml.csv", rec.orphans_ml_csv, "text/csv"]);
+  }
+  return items.map(([name, data, type]) =>
+    `<a class="dl" download="${name}" href="${URL.createObjectURL(new Blob([data],{type}))}">${name}</a>`
+  ).join("");
+}
+function logTab(){
+  // the UI teaching the CLI: the equivalent command for every run
+  const a = [];
+  let c = "finlang --input <your csv>";
+  c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules <your .fin>";
+  if ($("dayfirst").value) c += " --dayfirst";
+  if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
+  if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;
+  if ($("audit").checked) c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
+  if ($("verify").checked){
+    c += $("verify_kind").value==="full" ? " --verify-full" : " --verify";
+    c += " --verify-output-dir out/";
+    if ($("verify_html").checked) c += " --verify-html";
+  }
+  c += " --output categorized.csv";
+  a.push(c);
+  if (state.rec){
+    let r = "finlang --input <your csv> " +
+      ($("rules_mode").value==="pack" ? `--include-pack ${$("include_pack").value}` : "--rules <your .fin>") +
+      " --output categorized.csv --audit audit.json --audit-mode full" +
+      ` --reconcile <model output.csv> --reconcile-output-dir out/`;
+    if ($("rec_html").checked) r += " --reconcile-html";
+    if ($("rec_key").value) r += ` --reconcile-key ${$("rec_key").value}`;
+    if ($("rec_datefmt").value) r += ` --reconcile-date-format "${$("rec_datefmt").value}"`;
+    a.push(r);
+  }
+  const err = [state.resp && state.resp.stderr, state.rec && state.rec.stderr].filter(Boolean).join("\n");
+  return `<p style="font-size:13px;color:var(--muted)">The same run, from a terminal:</p>` +
+    `<pre class="log">${esc(a.join("\n\n"))}</pre>` +
+    (err?`<p style="font-size:13px;color:var(--muted)">Engine output:</p><pre class="log">${esc(err)}</pre>`:"");
+}
+
+/* ---------- plumbing ---------- */
+function setTabs(list){
+  const T = $("tabs"), P = $("pane");
+  T.innerHTML = ""; P.innerHTML = "";
+  list.forEach(([name, html], i) => {
+    const b = document.createElement("button");
+    b.textContent = name; b.type = "button";
+    b.className = i===0 ? "on" : "";
+    const d = document.createElement("div");
+    d.innerHTML = html; d.className = i===0 ? "on" : "";
+    b.onclick = () => {
+      T.querySelectorAll("button").forEach(x=>x.className="");
+      P.querySelectorAll(":scope>div").forEach(x=>x.className="");
+      b.className="on"; d.className="on";
+    };
+    T.appendChild(b); P.appendChild(d);
+  });
+  P.addEventListener("click", ev => {
+    const td = ev.target.closest("td.rule");
+    if (!td) return;
+    const e = (state.audit||[]).find(x => x.index === +td.dataset.i);
+    const box = $("auditbox");
+    box.textContent = JSON.stringify(e, null, 2);
+    box.style.display = box.style.display==="block" ? "none" : "block";
+  });
+}
+function csvSplit(line){
+  // display-only CSV split (quoted fields, embedded commas). The artefact users
+  // download is the engine's own output_csv, untouched by this.
+  const out = []; let cur = "", q = false;
+  for (const ch of line){
+    if (ch === '"'){ q = !q; continue; }
+    if (ch === "," && !q){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur); return out;
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+/* shared lockup: fetch the fragment once (kept in lockup.svg, also used by index) */
+fetch("lockup.svg").then(r=>r.text()).then(t=>{
+  const div = document.createElement("div");
+  div.style.display="none"; div.innerHTML =
+    `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
+  document.body.appendChild(div);
+});
+</script>
+</body>
+</html>
