@@ -102,6 +102,7 @@
         <select id="rules_mode">
           <option value="file">a .fin file from disk</option>
           <option value="pack">a bundled rulepack</option>
+          <option value="draft">my Workbench draft (Rules screen)</option>
         </select>
         <div id="rules_file_row"><input type="file" id="rules_file" accept=".fin"></div>
         <div id="rules_pack_row" style="display:none">
@@ -193,6 +194,17 @@ $("rules_mode").onchange = e => {
   $("rules_pack_row").style.display = e.target.value==="pack" ? "" : "none";
   gate();
 };
+// the dropdown asks the engine, so it can never lie again (GET /rulepacks
+// serves the CLI's own PACK_MAP); the hardcoded list below is the fallback
+// for the file:// case only.
+fetch("/rulepacks").then(r=>r.json()).then(b=>{
+  const s = $("include_pack"); s.innerHTML = "";
+  b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
+}).catch(()=>{});
+function draftRules(){
+  const t = localStorage.getItem("finlang_rules_draft") || "";
+  return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
+}
 $("verify").onchange = e => $("verify_opts").classList.toggle("off", !e.target.checked);
 $("reconcile").onchange = e => {
   $("rec_opts").classList.toggle("off", !e.target.checked);
@@ -207,7 +219,8 @@ $("reconcile").onchange = e => {
 };
 ["input_csv","rules_file","ml_csv"].forEach(id => $(id).onchange = gate);
 function gate(){
-  const rulesOk = $("rules_mode").value==="pack" || $("rules_file").files.length;
+  const m = $("rules_mode").value;
+  const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() : $("rules_file").files.length);
   const recOk = !$("reconcile").checked || $("ml_csv").files.length;
   $("go").disabled = !($("input_csv").files.length && rulesOk && recOk);
 }
@@ -222,7 +235,9 @@ $("f").onsubmit = async ev => {
   try {
     const fd = new FormData();
     fd.append("input_csv", $("input_csv").files[0]);
-    if ($("rules_mode").value==="file") fd.append("rules", $("rules_file").files[0]);
+    const rm = $("rules_mode").value;
+    if (rm==="file") fd.append("rules", $("rules_file").files[0]);
+    else if (rm==="draft") fd.append("rules", draftRules(), "workbench_draft.fin");
     else fd.append("include_pack", $("include_pack").value);
     if ($("map_file").files.length) fd.append("map_file", $("map_file").files[0]);
     if ($("dayfirst").value) fd.append("dayfirst","true");
@@ -248,7 +263,8 @@ $("f").onsubmit = async ev => {
       const fr = new FormData();
       fr.append("input_csv", $("input_csv").files[0]);
       fr.append("ml_output_csv", $("ml_csv").files[0]);
-      if ($("rules_mode").value==="file") fr.append("rules", $("rules_file").files[0]);
+      if (rm==="file") fr.append("rules", $("rules_file").files[0]);
+      else if (rm==="draft") fr.append("rules", draftRules(), "workbench_draft.fin");
       else fr.append("include_pack", $("include_pack").value);
       if ($("map_file").files.length) fr.append("map_file", $("map_file").files[0]);
       if ($("dayfirst").value) fr.append("dayfirst","true");
@@ -363,7 +379,8 @@ function logTab(){
   // the UI teaching the CLI: the equivalent command for every run
   const a = [];
   let c = "finlang --input <your csv>";
-  c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules <your .fin>";
+  c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
+     : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules <your .fin>";
   if ($("dayfirst").value) c += " --dayfirst";
   if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
   if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;

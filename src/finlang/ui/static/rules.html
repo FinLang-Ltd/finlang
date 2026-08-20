@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rules — FinLang Workbench</title>
+<style>
+  :root{
+    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
+    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --purple:#c4a7fa;
+    --dim:#6f82a6; --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
+    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  header{position:relative;z-index:1;display:flex;align-items:center;
+    justify-content:space-between;padding:20px 32px 16px}
+  .lk{width:140px;display:block}
+  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
+  main{position:relative;z-index:1;display:grid;grid-template-columns:420px 1fr;
+    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
+  @media (max-width:980px){main{grid-template-columns:1fr}}
+  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
+  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
+    border-radius:8px;padding:14px 16px;margin-bottom:12px}
+  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+    margin-bottom:10px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=text],select{background:#0a1633;color:#dbe4f5;
+    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
+    font-family:var(--mono);font-size:13px}
+  input[type=text]{width:100%}
+  .hint{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
+  .hint b{color:var(--amber);font-weight:600}
+  .cond{display:flex;gap:6px;align-items:center;margin:6px 0;flex-wrap:wrap}
+  .cond select{flex:0 0 auto}
+  .cond input{flex:1;min-width:120px}
+  .cond .x{cursor:pointer;color:var(--pink);font-family:var(--mono);padding:0 4px}
+  .andchip{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--navy);
+    background:var(--blue);border-radius:3px;padding:1px 6px;margin:2px 0 2px 2px}
+  .addbtn{background:transparent;border:1px dashed rgba(255,255,255,.25);color:var(--blue);
+    border-radius:5px;padding:5px 10px;font-size:12.5px;cursor:pointer;margin-top:6px}
+  .orlink{font-size:12px;color:var(--dim);margin-top:8px}
+  .orlink a{color:var(--blue);cursor:pointer;text-decoration:none}
+  pre#preview{font-family:var(--mono);font-size:13px;background:#0a1633;border-radius:6px;
+    padding:12px;white-space:pre-wrap;color:#c7d4ec;min-height:96px}
+  pre#preview .k{color:var(--purple)}
+  button.primary{padding:9px 16px;border:0;border-radius:6px;background:var(--mark);
+    color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+  button.ghost{padding:8px 14px;border:1px solid rgba(255,255,255,.2);border-radius:6px;
+    background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
+  /* editor pane */
+  .edhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .edhead input#fname{width:200px}
+  textarea#ed{width:100%;height:460px;background:#0a1633;color:#dbe4f5;
+    border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:12px;
+    font-family:var(--mono);font-size:13px;line-height:1.6;resize:vertical}
+  #verdict{border-radius:6px;padding:10px 14px;margin-top:10px;font-family:var(--mono);
+    font-size:13px;display:none;white-space:pre-wrap}
+  #verdict.ok{display:block;background:rgba(58,214,165,.12);border:1px solid var(--green);color:var(--green)}
+  #verdict.bad{display:block;background:rgba(255,122,133,.10);border:1px solid var(--pink);color:var(--pink)}
+</style>
+</head>
+<body>
+<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
+    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
+  </pattern></defs>
+  <rect width="100%" height="100%" fill="#0d1b3c"/>
+  <rect width="100%" height="100%" fill="url(#ht)"/>
+</svg>
+<header>
+  <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+  <small>WORKBENCH &middot; RULES</small>
+</header>
+<main>
+  <section>
+    <h1>Build a rule</h1>
+    <div class="card">
+      <div class="t">1 &middot; NAME</div>
+      <input type="text" id="rname" placeholder='e.g. Compliance: Offshore Jurisdictions'>
+      <div class="hint">The convention is <b>Area: Subject</b> &mdash; the name appears in the
+        audit trail against every row this rule decides, so make it say something.</div>
+    </div>
+
+    <div class="card">
+      <div class="t">2 &middot; MATCH &mdash; when does it fire?</div>
+      <div id="conds"></div>
+      <button type="button" class="addbtn" id="addcond">+ add a condition</button>
+      <div class="hint" id="andnote" style="display:none">All conditions must be true
+        together (<b>AND</b>) for the rule to fire.</div>
+      <div class="orlink">Want <b>OR</b>? That's a second rule &mdash;
+        <a id="dup">duplicate this one for another pattern</a> after inserting.</div>
+    </div>
+
+    <div class="card">
+      <div class="t">3 &middot; SET &mdash; what does it do?</div>
+      <div id="acts"></div>
+      <button type="button" class="addbtn" id="addact">+ add an action</button>
+    </div>
+
+    <div class="card">
+      <div class="t">4 &middot; THE RULE</div>
+      <pre id="preview"># fill in the steps above</pre>
+      <button type="button" class="primary" id="insert" disabled>Insert into file &darr;</button>
+      <span class="hint" style="margin-left:8px">inserting also checks the whole file
+        against the engine</span>
+    </div>
+  </section>
+
+  <section>
+    <h1>Your rules file</h1>
+    <div class="card">
+      <div class="edhead">
+        <input type="text" id="fname" value="rules.fin">
+        <button type="button" class="ghost" id="load">Load&hellip;</button>
+        <input type="file" id="loadf" accept=".fin" style="display:none">
+        <button type="button" class="ghost" id="save">Save .fin</button>
+        <button type="button" class="ghost" id="check">Check syntax</button>
+        <a class="ghost" href="run.html" style="text-decoration:none;padding:8px 14px">Test in a Run &rarr;</a>
+      </div>
+      <textarea id="ed" spellcheck="false" placeholder="# Your .fin file. The editor is the artefact — the builder on the left appends to it.
+# Rules apply in order: first match wins per field, last matching rule sets."></textarea>
+      <div id="verdict"></div>
+      <div class="hint" style="margin-top:8px">Checked by the real engine via
+        <span style="font-family:var(--mono)">/rules/validate</span> &mdash; the Workbench
+        contains no parser of its own, so "valid here" and "valid in a run" are the same fact.
+        Drafts autosave in this browser. Rules run in file order and the <b>last matching
+        rule sets the category</b> &mdash; put specific rules after general ones.</div>
+    </div>
+  </section>
+</main>
+<div style="display:none" id="lkhost"></div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* Field capabilities — transcribed from docs/rule_language.md §Field Reference.
+   AFFORDANCE ONLY: the parse on Insert/Check is the authority (SOL-112 P1/P4).
+   If this table and the engine ever disagree, the engine wins and this is a bug. */
+const MATCH_FIELDS = {
+  counterparty: {ops:["~","=="], hint:'<b>~</b> is a wildcard match, case-insensitive: <b>Tesco*</b> starts-with · <b>*Tesco</b> ends-with · <b>*Tesco*</b> contains. Without a <b>*</b>, ~ behaves exactly like == — for contains, you want <b>*TESCO*</b>.'},
+  amount:       {ops:["==","in"], hint:'<b>==</b> exact number (e.g. -45.99) · <b>in</b> a range: write it as <b>-100..-10</b>. Outgoings are negative.'},
+  memo:         {ops:["~","=="], hint:'Free text typed by a human — <b>~ "*keyword*"</b> is usually what you want.'},
+  category:     {ops:["==","~"], hint:'Matches what an <b>earlier</b> rule set — rule order matters. Use to refine: first a broad rule sets it, then this one narrows.'},
+  status:       {ops:["==","~"], hint:'Your own workflow state, if an earlier rule set one.'},
+  flags:        {ops:["==","~"], hint:'Matches a flag an earlier rule added.'},
+};
+const SET_FIELDS = {
+  category: {ops:["=","+="], hint:'The main output. <b>=</b> replaces, <b>+=</b> appends.'},
+  flags:    {ops:["+="],     hint:'Append-only, one word, no spaces — e.g. <b>ReviewRequired</b> or <b>Large_Tx</b>.'},
+  status:   {ops:["=","+="], hint:'Your own workflow state.'},
+  memo:     {ops:["=","+="], hint:'Add a note to the row.'},
+  exclude:  {ops:["="],      hint:'Marks the row excluded (<b>true</b>/<b>false</b>). A marker, not a filter — later rules can override it.'},
+};
+/* date is deliberately absent: not matchable in the current grammar. */
+
+function row(host, FIELDS, isMatch){
+  const d = document.createElement("div"); d.className = "cond";
+  const fs = document.createElement("select");
+  for (const f in FIELDS) fs.add(new Option(f, f));
+  const os = document.createElement("select");
+  const val = document.createElement("input"); val.type = "text";
+  const x = document.createElement("span"); x.className = "x"; x.textContent = "×";
+  const hint = document.createElement("div"); hint.className = "hint"; hint.style.flexBasis = "100%";
+  function syncOps(){
+    os.innerHTML = "";
+    FIELDS[fs.value].ops.forEach(o => os.add(new Option(o, o)));
+    hint.innerHTML = FIELDS[fs.value].hint;
+    val.placeholder = fs.value === "amount" ? (os.value === "in" ? "-100..-10" : "-45.99")
+                    : fs.value === "exclude" ? "true"
+                    : '"*PATTERN*"';
+  }
+  fs.onchange = syncOps; os.onchange = syncOps;
+  [fs, os, val].forEach(el => el.addEventListener("input", build));
+  x.onclick = () => { d.remove(); build(); };
+  d.append(fs, os, val, x, hint);
+  host.appendChild(d); syncOps(); build();
+}
+$("addcond").onclick = () => row($("conds"), MATCH_FIELDS, true);
+$("addact").onclick  = () => row($("acts"),  SET_FIELDS,  false);
+
+function quote(field, op, v){
+  v = v.trim();
+  if (field === "amount" || field === "exclude") return v;      // bare numbers / booleans
+  if (op === "in") return v;
+  if (!v.startsWith('"')) v = '"' + v.replace(/"/g,"") + '"';
+  return v;
+}
+function lines(host){
+  return [...host.querySelectorAll(".cond")].map(d => {
+    const [fs, os, val] = d.querySelectorAll("select, input");
+    return val.value.trim() ? `    - ${fs.value} ${os.value === "=" && fs.value === "exclude" ? "=" : os.value} ${quote(fs.value, os.value, val.value)}` : null;
+  }).filter(Boolean);
+}
+function build(){
+  const name = $("rname").value.trim();
+  const m = lines($("conds")), s = lines($("acts"));
+  $("andnote").style.display = m.length > 1 ? "block" : "none";
+  const ok = name && m.length && s.length;
+  $("insert").disabled = !ok;
+  if (!ok){ $("preview").textContent = "# fill in the steps above"; return; }
+  $("preview").innerHTML =
+    `<span class="k">rule</span> "${name}" {\n<span class="k">  match:</span>\n${m.join("\n")}\n<span class="k">  set:</span>\n${s.join("\n")}\n}`;
+}
+$("rname").addEventListener("input", build);
+
+/* ---------- editor: the artefact ---------- */
+const DRAFT = "finlang_rules_draft", DRAFTNAME = "finlang_rules_draftname";
+$("ed").value = localStorage.getItem(DRAFT) || "";
+$("fname").value = localStorage.getItem(DRAFTNAME) || "rules.fin";
+$("ed").addEventListener("input", () => localStorage.setItem(DRAFT, $("ed").value));
+$("fname").addEventListener("input", () => localStorage.setItem(DRAFTNAME, $("fname").value));
+
+$("insert").onclick = () => {
+  const ed = $("ed");
+  ed.value = (ed.value.trimEnd() ? ed.value.trimEnd() + "\n\n" : "") +
+             $("preview").textContent + "\n";
+  localStorage.setItem(DRAFT, ed.value);
+  check();                       // every inserted rule is parsed by the engine immediately
+};
+$("dup").onclick = () => { /* keep match/set, clear nothing: user edits the pattern */
+  window.scrollTo({top:0, behavior:"smooth"});
+};
+$("load").onclick = () => $("loadf").click();
+$("loadf").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $("ed").value = await f.text(); $("fname").value = f.name;
+  localStorage.setItem(DRAFT, $("ed").value); localStorage.setItem(DRAFTNAME, f.name);
+  check();
+};
+$("save").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([$("ed").value], {type:"text/plain"}));
+  a.download = $("fname").value || "rules.fin"; a.click();
+};
+$("check").onclick = check;
+async function check(){
+  const v = $("verdict");
+  if (!$("ed").value.trim()){ v.className=""; return; }
+  v.className = ""; v.style.display = "block"; v.textContent = "checking…";
+  const fd = new FormData(); fd.append("rules_text", $("ed").value);
+  try {
+    const r = await fetch("/rules/validate", {method:"POST", body:fd});
+    const b = await r.json();
+    if (b.ok){
+      v.className = "ok";
+      v.textContent = `✓ Parsed ${b.rule_count} rule(s)` +
+        (b.rule_names.length ? `: ${b.rule_names.join(", ")}` : "");
+    } else {
+      v.className = "bad";
+      v.textContent = b.error || JSON.stringify(b);
+    }
+  } catch(e){ v.className = "bad"; v.textContent = String(e); }
+}
+
+/* start with one condition + one action ready to fill */
+row($("conds"), MATCH_FIELDS, true);
+row($("acts"), SET_FIELDS, false);
+
+/* shared lockup */
+fetch("lockup.svg").then(r=>r.text()).then(t=>{
+  $("lkhost").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
+});
+</script>
+</body>
+</html>
