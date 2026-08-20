@@ -156,6 +156,8 @@ Two rules fired (Tesco, Shell). Three rows were left uncategorised — FinLang d
 | `GET` | `/` | HTML landing page → `/docs` | no |
 | `GET` | `/health` | Liveness check + version + cli_resolved | no |
 | `POST` | `/process` | Categorise transactions; optional `--verify`, and `verify_html` for a readable integrity report | yes |
+| `GET` | `/rulepacks` | Bundled rulepacks by `include_pack` short name (from the CLI's own map) | no |
+| `POST` | `/rules/validate` | Parse-check rules via the real engine; failure is a result, not an HTTP error | yes |
 | `POST` | `/discover` | Find uncategorised counterparties | yes |
 | `POST` | `/suggest` | Generate draft `.fin` rules from candidates | yes |
 | `POST` | `/reconcile` | Reconcile against ML output (positional, identity-guard, or key alignment); JSON summary + orphans + (optional) HTML report | yes |

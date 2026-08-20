@@ -139,6 +139,22 @@ class ProcessResponse(BaseModel):
     stderr: str = ""
 
 
+class RulepackInfo(BaseModel):
+    name: str          # the short name --include-pack accepts
+    file: str          # the shipped .fin it resolves to
+
+
+class RulepacksResponse(BaseModel):
+    packs: List[RulepackInfo]
+
+
+class ValidateRulesResponse(BaseModel):
+    ok: bool
+    rule_count: Optional[int] = None
+    rule_names: List[str] = []   # best-effort: the engine truncates its preview past 10
+    error: Optional[str] = None  # engine stderr, verbatim, when ok is False
+
+
 class DiscoverResponse(BaseModel):
     candidates_csv: str
     all_candidates_csv: Optional[str] = None
@@ -322,6 +338,82 @@ def health() -> HealthResponse:
         timestamp=time.time(),
         cli_resolved=shutil.which("finlang") is not None,
     )
+
+
+@app.get("/rulepacks", response_model=RulepacksResponse)
+def rulepacks() -> RulepacksResponse:
+    """The bundled rulepacks, by the short name --include-pack accepts.
+
+    Served from the CLI's own PACK_MAP rather than a copy, so this listing
+    cannot drift from what the engine resolves. (SOL-112: the Workbench's
+    pack dropdown shipped with eight invented names on day one — this
+    endpoint exists so that class of error is structurally impossible.)
+    """
+    from finlang.cli.run_finlang import PACK_MAP  # lazy: the API otherwise never imports the CLI
+
+    # PACK_MAP carries aliases (subs/subscriptions -> one file). One entry per
+    # file, keeping the most descriptive short name — this feeds a dropdown.
+    by_file: dict = {}
+    for k, v in PACK_MAP.items():
+        if v not in by_file or len(k) > len(by_file[v]):
+            by_file[v] = k
+    return RulepacksResponse(
+        packs=[RulepackInfo(name=n, file=f) for f, n in sorted(by_file.items())]
+    )
+
+
+@app.post(
+    "/rules/validate",
+    response_model=ValidateRulesResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def validate_rules(
+    rules: Optional[UploadFile] = File(None, description="A .fin rules file"),
+    rules_text: Optional[str] = Form(None, description="Rules source as text (alternative to the file)"),
+) -> ValidateRulesResponse:
+    """Parse-check rules against the real engine. One engine, no reimplementation.
+
+    Runs the CLI against a bundled one-row CSV with audit off: rule parsing is
+    step 1 and exits 2 with FATAL before any data work, so a bad pack fails
+    here for exactly the reason it would fail a real run, in the engine's own
+    words. Deliberately NOT --headless — the "Parsed N rule(s): ..." preview
+    this scrapes only prints in the normal mode.
+    """
+    import re as _re
+
+    if (rules is None) == (rules_text is None):
+        raise HTTPException(400, "Provide exactly one of: rules (file) or rules_text.")
+
+    with tempfile.TemporaryDirectory(prefix="finlang_api_val_") as tmp:
+        d = Path(tmp)
+        rules_fin = d / "rules.fin"
+        if rules is not None:
+            await _save_upload(rules, rules_fin)
+        else:
+            rules_fin.write_text(rules_text, encoding="utf-8")
+
+        probe = d / "probe.csv"
+        probe.write_text("date,amount,counterparty,memo\n"
+                         "2026-01-01,-1.00,VALIDATE PROBE,probe\n", encoding="utf-8")
+
+        p = _run([
+            FINLANG_CLI,
+            "--input", str(probe),
+            "--rules", str(rules_fin),
+            "--output", str(d / "out.csv"),
+            "--audit-mode", "none",
+        ])
+
+    if p.returncode != 0:
+        return ValidateRulesResponse(ok=False, error=(p.stderr or p.stdout).strip())
+
+    m = _re.search(r"Parsed (\d+) rule\(s\): (.+)", p.stdout)
+    names: List[str] = []
+    count: Optional[int] = None
+    if m:
+        count = int(m.group(1))
+        names = [n.strip() for n in m.group(2).split(",") if not n.strip().startswith("...")]
+    return ValidateRulesResponse(ok=True, rule_count=count, rule_names=names)
 
 
 @app.post(

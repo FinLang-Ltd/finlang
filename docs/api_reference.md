@@ -58,6 +58,48 @@ Liveness check. No auth required.
 }
 ```
 
+### `GET /rulepacks`
+
+The bundled rulepacks, by the short name `include_pack` accepts. Served from
+the CLI's own `PACK_MAP` (aliases deduped, one entry per shipped file), so the
+listing cannot drift from what the engine resolves. No auth required.
+
+```json
+{
+  "packs": [
+    {"name": "retail", "file": "01-vendors-retail.fin"},
+    {"name": "transport", "file": "02-transport.fin"}
+  ]
+}
+```
+
+### `POST /rules/validate`
+
+Parse-check a rules file against the real engine — no second parser. The API
+runs the CLI against a bundled one-row CSV with audit off; rule parsing is the
+CLI's first step and exits 2 with `FATAL` before any data work, so a bad pack
+fails here for exactly the reason it would fail a real run.
+
+Form fields (provide **exactly one**):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `rules` | file | a `.fin` rules file |
+| `rules_text` | string | rules source as text |
+
+Response — a parse failure is a **result**, not an HTTP error:
+
+```json
+{"ok": true, "rule_count": 1, "rule_names": ["Test: Shell"], "error": null}
+```
+
+```json
+{"ok": false, "rule_count": null, "rule_names": [], "error": "FATAL: ..."}
+```
+
+`rule_names` is best-effort: the engine's preview line truncates past ten
+rules; `rule_count` is always authoritative. Auth required (as `/process`).
+
 ### `POST /process`
 
 Categorise a transactions CSV. Multipart form upload.
