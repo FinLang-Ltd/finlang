@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Impact — FinLang Workbench</title>
+<style>
+  :root{
+    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
+    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --dim:#6f82a6;
+    --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
+    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  header{position:relative;z-index:1;display:flex;align-items:center;
+    justify-content:space-between;padding:20px 32px 16px}
+  .lk{width:140px;display:block}
+  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
+  main{position:relative;z-index:1;display:grid;grid-template-columns:340px 1fr;
+    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
+  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
+    border-radius:8px;padding:14px 16px;margin-bottom:12px}
+  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+    margin-bottom:10px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=file]{width:100%;font-size:12px;color:var(--muted)}
+  select{width:100%;background:#0a1633;color:#dbe4f5;
+    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
+    font-family:var(--mono);font-size:13px}
+  .why{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
+  .tick{display:flex;align-items:flex-start;gap:8px;margin:9px 0;font-size:14px}
+  button#go{width:100%;margin-top:12px;padding:11px;border:0;border-radius:6px;
+    background:var(--mark);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  button#go:disabled{background:#1c355f;color:var(--dim);cursor:not-allowed}
+  #spin{display:none;color:var(--blue);font-family:var(--mono);font-size:13px;margin-top:10px}
+  #banner{border-radius:8px;padding:13px 16px;margin-bottom:12px;font-size:15px;display:none}
+  #banner.clean{display:block;background:rgba(58,214,165,.12);border:1px solid var(--green);color:var(--green)}
+  #banner.findings{display:block;background:rgba(245,181,68,.10);border:1px solid var(--amber);color:var(--amber)}
+  #banner.failed{display:block;background:rgba(255,122,133,.10);border:1px solid var(--pink);color:var(--pink)}
+  #banner small{display:block;margin-top:4px;color:var(--muted);font-size:12.5px}
+  .tabs{display:flex;gap:2px;margin-bottom:-1px;flex-wrap:wrap}
+  .tabs button{background:transparent;border:1px solid rgba(255,255,255,.13);
+    border-bottom:0;border-radius:6px 6px 0 0;color:var(--muted);padding:7px 14px;
+    font-size:13px;cursor:pointer}
+  .tabs button.on{background:rgba(13,27,60,.9);color:#fff}
+  .pane{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
+    border-radius:0 8px 8px 8px;padding:14px 16px;min-height:220px}
+  .pane>div{display:none}
+  .pane>div.on{display:block}
+  table.rows{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}
+  table.rows th{text-align:left;color:var(--dim);font-weight:400;padding:4px 12px 6px 0;
+    border-bottom:1px solid rgba(255,255,255,.14)}
+  table.rows td{padding:5px 12px 5px 0;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.05)}
+  .scroll{max-height:430px;overflow:auto}
+  iframe{width:100%;height:520px;border:1px solid rgba(255,255,255,.13);border-radius:6px;background:#fff}
+  pre.log{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:pre-wrap;
+    word-break:break-all;background:#0a1633;border-radius:6px;padding:12px}
+  .dl{display:inline-block;margin:4px 10px 4px 0;color:var(--mark);font-size:13px;
+    text-decoration:none;font-family:var(--mono)}
+  .note{font-family:var(--mono);font-size:13px;color:var(--amber);margin-top:10px}
+</style>
+</head>
+<body>
+<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
+    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
+  </pattern></defs>
+  <rect width="100%" height="100%" fill="#0d1b3c"/>
+  <rect width="100%" height="100%" fill="url(#ht)"/>
+</svg>
+<header>
+  <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+  <small>WORKBENCH &middot; IMPACT</small>
+</header>
+<main>
+  <section>
+    <h1>Preview a rule change</h1>
+    <form id="f">
+      <div class="card">
+        <div class="t">FILES</div>
+        <label>Transactions CSV</label>
+        <input type="file" id="input_csv" accept=".csv" required>
+        <label>Baseline rules &mdash; what runs today</label>
+        <select id="base_mode">
+          <option value="file">a .fin file from disk</option>
+          <option value="pack">a bundled rulepack</option>
+        </select>
+        <div id="base_file_row"><input type="file" id="base_file" accept=".fin"></div>
+        <div id="base_pack_row" style="display:none"><select id="include_pack"></select></div>
+        <label>Candidate rules &mdash; the proposed change</label>
+        <select id="cand_mode">
+          <option value="file">a .fin file from disk</option>
+          <option value="draft">my Workbench draft (Rules screen)</option>
+        </select>
+        <div id="cand_file_row"><input type="file" id="cand_file" accept=".fin"></div>
+        <div class="tick" style="margin-top:12px"><input type="checkbox" id="impact_html" checked>
+          <div>HTML report</div></div>
+      </div>
+      <div class="card">
+        <div class="t">WHY THIS SCREEN HAS NO OTHER TICKS</div>
+        <div class="why">Impact can't run with verify or reconcile &mdash; the engine refuses,
+          in its own words: <i>"impact expects differences by design"</i> and <i>"impact
+          compares two rulepacks; reconcile compares against an external system."</i>
+          One question per run.</div>
+      </div>
+      <button id="go" type="submit" disabled>Compare</button>
+      <div id="spin">comparing&hellip; <span id="elapsed"></span></div>
+    </form>
+  </section>
+
+  <section>
+    <h1>Results</h1>
+    <div id="banner"></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="pane" id="pane"><div class="on" style="display:block;color:var(--dim)">
+      Baseline vs candidate over the same data. It won't say which is right &mdash;
+      it says exactly what changes if you switch.
+    </div></div>
+  </section>
+</main>
+<div style="display:none" id="lkhost"></div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const state = {resp:null, t0:0};
+
+$("base_mode").onchange = e => {
+  $("base_file_row").style.display = e.target.value==="file" ? "" : "none";
+  $("base_pack_row").style.display = e.target.value==="pack" ? "" : "none";
+  gate();
+};
+$("cand_mode").onchange = e => {
+  $("cand_file_row").style.display = e.target.value==="file" ? "" : "none";
+  gate();
+};
+["input_csv","base_file","cand_file"].forEach(id => $(id).onchange = gate);
+fetch("/rulepacks").then(r=>r.json()).then(b=>{
+  const s = $("include_pack");
+  b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
+}).catch(()=>{});
+function draftRules(){
+  const t = localStorage.getItem("finlang_rules_draft") || "";
+  return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
+}
+function gate(){
+  const baseOk = $("base_mode").value==="pack" || $("base_file").files.length;
+  const candOk = $("cand_mode").value==="draft" ? !!draftRules() : $("cand_file").files.length;
+  $("go").disabled = !($("input_csv").files.length && baseOk && candOk);
+}
+
+$("f").onsubmit = async ev => {
+  ev.preventDefault();
+  $("go").disabled = true; $("spin").style.display = "block";
+  state.t0 = Date.now();
+  const tick = setInterval(()=>{$("elapsed").textContent =
+    Math.round((Date.now()-state.t0)/1000)+"s";}, 500);
+  try {
+    const fd = new FormData();
+    fd.append("input_csv", $("input_csv").files[0]);
+    if ($("base_mode").value==="file") fd.append("rules", $("base_file").files[0]);
+    else fd.append("include_pack", $("include_pack").value);
+    if ($("cand_mode").value==="file") fd.append("impact_rules", $("cand_file").files[0]);
+    else fd.append("impact_rules", draftRules(), "workbench_draft.fin");
+    if ($("impact_html").checked) fd.append("impact_html","true");
+    const r = await fetch("/impact", {method:"POST", body:fd});
+    const b = await r.json();
+    if (!r.ok){
+      const d = typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail, null, 2);
+      banner("failed","Comparison failed", d);
+      setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
+      return;
+    }
+    state.resp = b; render();
+  } catch(e){
+    banner("failed","Comparison failed", String(e));
+  } finally {
+    clearInterval(tick); $("spin").style.display="none"; gate();
+  }
+};
+
+function banner(cls, head, small){
+  const b = $("banner"); b.className = cls;
+  b.innerHTML = `<b>${esc(head)}</b>` + (small?`<small>${esc(small)}</small>`:"");
+}
+
+function render(){
+  const b = state.resp, s = b.summary || {};
+  const changed = b.stats.behavioural_changes_found;
+  if (changed)
+    banner("findings", `${s.behavioural_changed ?? "Some"} row(s) change behaviour — review required`,
+      `${s.rows_stable ?? "?"} of ${s.rows_compared ?? "?"} stay the same` +
+      (s.status ? ` · ${s.status}` : ""));
+  else
+    banner("clean", "No behavioural changes",
+      `${s.rows_compared ?? "?"} rows compared · attribution-only differences, if any, are reported below and never gate`);
+
+  const tabs = [["summary", sumTab(b)]];
+  if (b.changes_csv && b.changes_csv.trim()) tabs.push(["changes", csvTab(b.changes_csv)]);
+  if (b.report_html) tabs.push(["impact report",
+    `<iframe sandbox="" srcdoc="${b.report_html.replace(/&/g,"&amp;").replace(/"/g,"&quot;")}"></iframe>`]);
+  tabs.push(["downloads", dlTab(b)]);
+  tabs.push(["run log", logTab(b)]);
+  setTabs(tabs);
+}
+function sumTab(b){
+  const s = b.summary || {};
+  let h = '<table class="rows"><tbody>';
+  for (const [k, v] of Object.entries(s)){
+    if (k === "amount_note") continue;
+    h += `<tr><td style="color:var(--dim)">${esc(k)}</td><td>${esc(v)}</td></tr>`;
+  }
+  h += "</tbody></table>";
+  if (s.amount_note)
+    h += `<div class="note">${esc(s.amount_note)}</div>` +
+         `<div class="why">The report marks its own figure — that caveat is the product's, shown verbatim.</div>`;
+  return h;
+}
+function csvTab(csv){
+  const L = csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+  return '<div class="scroll"><table class="rows"><thead><tr>' +
+    L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
+    L.slice(1).map(r=>"<tr>"+r.map(c=>`<td>${esc(c)}</td>`).join("")+"</tr>").join("") +
+    "</tbody></table></div>";
+}
+function dlTab(b){
+  const items = [];
+  if (b.summary) items.push(["impact_report.json", JSON.stringify(b.summary,null,2), "application/json"]);
+  if (b.changes_csv) items.push(["impact_changes.csv", b.changes_csv, "text/csv"]);
+  if (b.report_html) items.push(["impact_report.html", b.report_html, "text/html"]);
+  return items.map(([n,d,ty]) =>
+    `<a class="dl" download="${n}" href="${URL.createObjectURL(new Blob([d],{type:ty}))}">${n}</a>`).join("")
+    || '<span class="why">nothing to download</span>';
+}
+function logTab(b){
+  let c = "finlang --input <your csv>";
+  c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules <baseline .fin>";
+  c += $("cand_mode").value==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules <candidate .fin>";
+  c += " --impact-output-dir out/ --output categorized.csv";
+  if ($("impact_html").checked) c += " --impact-html";
+  return `<p style="font-size:13px;color:var(--muted)">The same comparison, from a terminal:</p>` +
+    `<pre class="log">${esc(c)}</pre>` +
+    (b.stderr?`<p style="font-size:13px;color:var(--muted)">Engine output:</p><pre class="log">${esc(b.stderr)}</pre>`:"");
+}
+function setTabs(list){
+  const T = $("tabs"), P = $("pane");
+  T.innerHTML = ""; P.innerHTML = "";
+  list.forEach(([name, html], i) => {
+    const bt = document.createElement("button");
+    bt.textContent = name; bt.type = "button"; bt.className = i===0 ? "on" : "";
+    const d = document.createElement("div");
+    d.innerHTML = html; d.className = i===0 ? "on" : "";
+    bt.onclick = () => {
+      T.querySelectorAll("button").forEach(x=>x.className="");
+      P.querySelectorAll(":scope>div").forEach(x=>x.className="");
+      bt.className="on"; d.className="on";
+    };
+    T.appendChild(bt); P.appendChild(d);
+  });
+}
+function csvSplit(line){
+  const out = []; let cur = "", q = false;
+  for (const ch of line){
+    if (ch === '"'){ q = !q; continue; }
+    if (ch === "," && !q){ out.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  out.push(cur); return out;
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+fetch("lockup.svg").then(r=>r.text()).then(t=>{
+  $("lkhost").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
+});
+gate();
+</script>
+</body>
+</html>
