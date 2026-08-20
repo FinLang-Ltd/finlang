@@ -105,10 +105,19 @@
         </select>
         <div id="rules_file_row"><input type="file" id="rules_file" accept=".fin"></div>
         <div id="rules_pack_row" style="display:none">
+          <!-- Values are the engine's short names (PACK_MAP, run_finlang.py);
+               labels show the shipped file each resolves to. Replaced by a
+               fetch of GET /rulepacks when that endpoint lands, so this list
+               can never drift from the engine again. -->
           <select id="include_pack">
-            <option>01_core_uk</option><option>02_core_us</option><option>03_core_eu</option>
-            <option>04_corporate</option><option>05_ecommerce</option><option>06_saas</option>
-            <option>07_energy</option><option>08_banking</option>
+            <option value="retail">retail &mdash; 01-vendors-retail.fin</option>
+            <option value="transport">transport &mdash; 02-transport.fin</option>
+            <option value="subscriptions">subscriptions &mdash; 03-subscriptions.fin</option>
+            <option value="travel">travel &mdash; 04-travel.fin</option>
+            <option value="financial">financial &mdash; 05-financial.fin</option>
+            <option value="compliance">compliance &mdash; 06-compliance.flags.fin</option>
+            <option value="sanity">sanity &mdash; 07-sanity.fin</option>
+            <option value="examples">examples &mdash; 08-examples.fin</option>
           </select>
         </div>
         <details id="locale">
