@@ -103,9 +103,9 @@
     <div class="card">
       <div class="t">4 &middot; THE RULE</div>
       <pre id="preview"># fill in the steps above</pre>
-      <button type="button" class="primary" id="insert" disabled>Insert into file &darr;</button>
-      <span class="hint" style="margin-left:8px">inserting also checks the whole file
-        against the engine</span>
+      <button type="button" class="primary" id="insert" disabled>Insert &amp; check &darr;</button>
+      <span class="hint" style="margin-left:8px">appends to the file and runs the whole
+        file through the engine</span>
     </div>
   </section>
 
@@ -230,11 +230,35 @@ $("loadf").onchange = async e => {
   localStorage.setItem(DRAFT, $("ed").value); localStorage.setItem(DRAFTNAME, f.name);
   check();
 };
-$("save").onclick = () => {
+let fileHandle = null;   // File System Access: first save picks the place, later saves write there
+$("save").onclick = async () => {
+  const name = $("fname").value || "rules.fin";
+  if (window.showSaveFilePicker){
+    try {
+      if (!fileHandle){
+        fileHandle = await showSaveFilePicker({
+          suggestedName: name,
+          types: [{description: "FinLang rules", accept: {"text/plain": [".fin"]}}],
+        });
+        $("fname").value = fileHandle.name;
+        localStorage.setItem(DRAFTNAME, fileHandle.name);
+      }
+      const w = await fileHandle.createWritable();
+      await w.write($("ed").value); await w.close();
+      const v = $("verdict"); v.className = "ok"; v.style.display = "block";
+      v.textContent = `saved to ${fileHandle.name}`;
+      return;
+    } catch(e){
+      if (e.name === "AbortError") return;   // user cancelled the picker
+      fileHandle = null;                     // permission lost etc - fall through
+    }
+  }
+  // Firefox/Safari: no picker API - plain download
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([$("ed").value], {type:"text/plain"}));
-  a.download = $("fname").value || "rules.fin"; a.click();
+  a.download = name; a.click();
 };
+$("fname").addEventListener("input", () => { fileHandle = null; });  // new name = new file
 $("check").onclick = check;
 async function check(){
   const v = $("verdict");
