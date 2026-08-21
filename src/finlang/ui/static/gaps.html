@@ -53,6 +53,13 @@
     text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
   nav a:hover{color:#fff}
   nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
+  /* design-canvas port: per-screen accent (Run blue, Rules purple,
+     Growth loop green, Impact amber) + help chips on section titles */
+  :root{--acc:var(--green)}
+  nav a.on{border-bottom:3px solid var(--acc);padding-bottom:5px}
+  .card{border-top:2px solid var(--acc)}
+  .card .t{color:var(--acc)}
+  .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--acc);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
 </style>
 </head>
 <body>

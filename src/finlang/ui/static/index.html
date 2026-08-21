@@ -27,7 +27,7 @@
   .lk{width:170px;display:block}
   header small{font-family:var(--mono);color:var(--dim);font-size:11px;
     letter-spacing:.08em}
-  main{position:relative;z-index:1;max-width:780px;margin:34px auto;padding:0 40px}
+  main{position:relative;z-index:1;max-width:1180px;margin:22px auto;padding:0 40px}
   h1{font-size:34px;color:#fff;margin:0 0 8px;letter-spacing:-.02em}
   p.sub{color:var(--muted);margin:0 0 34px;font-size:16px}
   p.sub a{color:var(--mark);text-decoration:none}
@@ -45,6 +45,24 @@
     text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
   nav a:hover{color:#fff}
   nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
+  /* design-canvas port: the vibrant home - flow diagram + accent feature cards */
+  .flow{display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;margin:18px 0 4px}
+  .fnode{border:1.5px solid;border-radius:8px;padding:13px 15px;background:rgba(13,27,60,.85);max-width:235px}
+  .fnode .ft{font-family:var(--mono);font-size:13px;font-weight:600}
+  .fnode .fs{font-size:12px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .farrow{color:var(--dim);font-size:22px;align-self:center}
+  .fchecks{display:flex;flex-direction:column;gap:8px;max-width:215px}
+  .fchk{border:1.5px solid;border-radius:8px;padding:8px 12px;background:rgba(13,27,60,.85);font-size:11.5px;color:var(--muted)}
+  .fchk b{font-family:var(--mono);font-size:12px}
+  .grid2{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:14px;margin-top:18px}
+  @media (max-width:900px){.grid2{grid-template-columns:1fr}}
+  .feat{border:1px solid rgba(255,255,255,.13);border-top:3px solid;border-radius:10px;
+    padding:18px 20px;background:rgba(13,27,60,.78);display:block;text-decoration:none;color:#dbe4f5}
+  .feat .ft{font-family:var(--mono);font-size:12px;letter-spacing:.06em;font-weight:600;display:flex;align-items:center}
+  .feat .ft::after{content:"?";display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border:1px solid currentColor;border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
+  .feat .fd{font-size:14.5px;margin-top:9px;line-height:1.5}
+  .feat .fc{margin-top:11px;font-size:13px}
 </style>
 </head>
 <body>
@@ -66,33 +84,45 @@
   <p class="sub">A local surface over the same engine. Everything here can be done
     in the <a href="/docs">API</a> or from the CLI.</p>
 
-  <div class="card">
+  <div class="flow">
+    <div class="fnode" style="border-color:var(--blue)"><div class="ft" style="color:var(--blue)">your CSV</div>
+      <div class="fs">any columns, any order &mdash; nothing leaves this machine</div></div>
+    <div class="farrow">&#8594;</div>
+    <div class="fnode" style="border-color:#c4a7fa"><div class="ft" style="color:#c4a7fa">rules applied</div>
+      <div class="fs">plain-text rules your team owns &middot; first match wins, last rule sets</div></div>
+    <div class="farrow">&#8594;</div>
+    <div class="fnode" style="border-color:var(--green)"><div class="ft" style="color:var(--green)">categorised + the reason</div>
+      <div class="fs">your file back, enriched &middot; every row carries the rule that decided it</div></div>
+    <div class="farrow">&#8594;</div>
+    <div class="fchecks">
+      <div class="fchk" style="border-color:var(--green)"><b style="color:var(--green)">verify</b> &middot; nothing underneath changed</div>
+      <div class="fchk" style="border-color:#ff7a85"><b style="color:#ff7a85">reconcile</b> &middot; vs your model, row by row</div>
+      <div class="fchk" style="border-color:var(--amber)"><b style="color:var(--amber)">impact</b> &middot; a rule change, before you ship it</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <a class="feat" href="run.html" style="border-top-color:var(--blue)">
+      <div class="ft" style="color:var(--blue)">RUN</div>
+      <div class="fd">Categorise, audit, verify, reconcile &mdash; any combination, one click.</div>
+      <div class="fc" style="color:var(--blue)">Run something &#8594;</div></a>
+    <a class="feat" href="rules.html" style="border-top-color:#c4a7fa">
+      <div class="ft" style="color:#c4a7fa">RULES</div>
+      <div class="fd">Build rules step by step, in plain English &mdash; the engine reads them back to you.</div>
+      <div class="fc" style="color:#c4a7fa">Build a rule &#8594;</div></a>
+    <a class="feat" href="gaps.html" style="border-top-color:var(--green)">
+      <div class="ft" style="color:var(--green)">GROWTH LOOP</div>
+      <div class="fd">Find what no rule claimed, and draft the rules that would claim it.</div>
+      <div class="fc" style="color:var(--green)">Close the gaps &#8594;</div></a>
+    <a class="feat" href="impact.html" style="border-top-color:var(--amber)">
+      <div class="ft" style="color:var(--amber)">IMPACT</div>
+      <div class="fd">Preview exactly what a rule change does, before it ships.</div>
+      <div class="fc" style="color:var(--amber)">Compare rulepacks &#8594;</div></a>
+  </div>
+
+  <div class="card" style="margin-top:18px">
     <div class="t">ENGINE</div>
     <div class="row" id="health"><div>checking&hellip;</div></div>
-  </div>
-
-  <div class="card">
-    <div class="t">RULES</div>
-    <div class="row"><div><a href="rules.html" style="color:var(--mark);text-decoration:none">
-      Build, check and save a rules file &#8594;</a></div></div>
-  </div>
-
-  <div class="card">
-    <div class="t">RUN</div>
-    <div class="row"><div><a href="run.html" style="color:var(--mark);text-decoration:none">
-      Categorise, audit, verify, reconcile &#8594;</a></div></div>
-  </div>
-
-  <div class="card">
-    <div class="t">GROWTH LOOP</div>
-    <div class="row"><div><a href="gaps.html" style="color:var(--mark);text-decoration:none">
-      Find what no rule claimed, and draft the rules &#8594;</a></div></div>
-  </div>
-
-  <div class="card">
-    <div class="t">IMPACT</div>
-    <div class="row"><div><a href="impact.html" style="color:var(--mark);text-decoration:none">
-      Preview a rule change before you ship it &#8594;</a></div></div>
   </div>
 
   <footer>
