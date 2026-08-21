@@ -74,6 +74,8 @@
   .card{border-top:2px solid var(--acc)}
   .card .t{color:var(--acc)}
   .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--acc);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
+  .helpbox{border:1px solid var(--acc, var(--mark));background:rgba(127,196,255,0.06);border-radius:6px;padding:10px 13px;font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 10px}
+  .card .t.nohelp::after{content:none}
 </style>
 </head>
 <body>
@@ -315,5 +317,6 @@ fetch("lockup.svg").then(r=>r.text()).then(t=>{
 });
 gate();
 </script>
+<script src="help.js"></script>
 </body>
 </html>

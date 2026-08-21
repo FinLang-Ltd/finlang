@@ -59,10 +59,11 @@
   .feat{border:1px solid rgba(255,255,255,.13);border-top:3px solid;border-radius:10px;
     padding:18px 20px;background:rgba(13,27,60,.78);display:block;text-decoration:none;color:#dbe4f5}
   .feat .ft{font-family:var(--mono);font-size:12px;letter-spacing:.06em;font-weight:600;display:flex;align-items:center}
-  .feat .ft::after{content:"?";display:inline-flex;align-items:center;justify-content:center;
-    width:16px;height:16px;border:1px solid currentColor;border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
   .feat .fd{font-size:14.5px;margin-top:9px;line-height:1.5}
   .feat .fc{margin-top:11px;font-size:13px}
+  .helpbox{border:1px solid var(--acc, var(--mark));background:rgba(127,196,255,0.06);border-radius:6px;padding:10px 13px;font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 10px}
+  .card .t.nohelp::after{content:none}
+  .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--mark);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
 </style>
 </head>
 <body>
@@ -142,5 +143,6 @@
       "<div class='warn'>API not reachable &mdash; is the server still starting?</div>";
   });
 </script>
+<script src="help.js"></script>
 </body>
 </html>
