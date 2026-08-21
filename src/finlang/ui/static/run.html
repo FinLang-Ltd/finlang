@@ -180,6 +180,10 @@
   <section>
     <h1>Results</h1>
     <div id="banner"></div>
+    <div id="gapslink" style="display:none;margin:-4px 0 10px;font-size:13px">
+      <a href="gaps.html" style="color:var(--mark);text-decoration:none">Find gaps in these
+      results &rarr;</a> <span style="color:var(--dim)">&mdash; draft rules for whatever no rule claimed</span>
+    </div>
     <div class="tabs" id="tabs"></div>
     <div class="pane" id="pane"><div class="on" id="empty" style="display:block;color:var(--dim)">
       Nothing yet. Pick a CSV and rules, tick what you want, and Run.
@@ -209,6 +213,11 @@ fetch("/rulepacks").then(r=>r.json()).then(b=>{
 function draftRules(){
   const t = localStorage.getItem("finlang_rules_draft") || "";
   return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
+}
+// gaps.html's "re-run with updated rules" arrives as ?rules=draft
+if (new URLSearchParams(location.search).get("rules") === "draft"){
+  $("rules_mode").value = "draft";
+  $("rules_mode").dispatchEvent(new Event("change"));
 }
 $("verify").onchange = e => $("verify_opts").classList.toggle("off", !e.target.checked);
 $("reconcile").onchange = e => {
@@ -326,6 +335,16 @@ function render(){
   tabs.push(["downloads", dlTab(p, rec)]);
   tabs.push(["run log", logTab()]);
   setTabs(tabs);
+
+  // hand the output to the Gaps screen via localStorage - browser state only
+  // (P3). Size-guarded: past ~2MB the stash is skipped and Gaps takes the
+  // downloaded categorized.csv instead.
+  try {
+    if (p.output_csv.length < 2_000_000)
+      localStorage.setItem("finlang_last_output", p.output_csv);
+    else localStorage.removeItem("finlang_last_output");
+  } catch(e){ /* quota - the file path still works */ }
+  $("gapslink").style.display = "block";
 }
 
 function chartTab(p, rec){
