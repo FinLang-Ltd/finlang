@@ -185,19 +185,25 @@ function row(host, FIELDS, isMatch){
   const val = document.createElement("input"); val.type = "text";
   const x = document.createElement("span"); x.className = "x"; x.textContent = "×";
   const hint = document.createElement("div"); hint.className = "hint"; hint.style.flexBasis = "100%";
-  function syncOps(){
-    os.innerHTML = "";
-    FIELDS[fs.value].ops.forEach(o => os.add(new Option(o, o)));
+  // Field change rebuilds the operator list; operator change must NOT -
+  // rebuilding the select you just used wipes the selection back to the
+  // first option (the "in won't select" bug, caught by the operator live).
+  function syncOp(){
     hint.innerHTML = FIELDS[fs.value].hint;
     val.placeholder = fs.value === "amount" ? (os.value === "in" ? "-100..-10" : "-45.99")
                     : fs.value === "exclude" ? "true"
                     : '"*PATTERN*"';
   }
-  fs.onchange = syncOps; os.onchange = syncOps;
+  function syncField(){
+    os.innerHTML = "";
+    FIELDS[fs.value].ops.forEach(o => os.add(new Option(o, o)));
+    syncOp();
+  }
+  fs.onchange = syncField; os.onchange = syncOp;
   [fs, os, val].forEach(el => el.addEventListener("input", build));
   x.onclick = () => { d.remove(); build(); };
   d.append(fs, os, val, x, hint);
-  host.appendChild(d); syncOps(); build();
+  host.appendChild(d); syncField(); build();
 }
 $("addcond").onclick = () => row($("conds"), MATCH_FIELDS, true);
 $("addact").onclick  = () => row($("acts"),  SET_FIELDS,  false);
