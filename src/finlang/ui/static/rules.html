@@ -176,6 +176,12 @@ const SET_FIELDS = {
   exclude:  {ops:["="],      hint:'Marks the row excluded (<b>true</b>/<b>false</b>). A marker, not a filter — later rules can override it.'},
 };
 /* date is deliberately absent: not matchable in the current grammar. */
+/* English labels on the operator dropdowns; the VALUE stays the engine's
+   symbol, so the preview and the inserted rule are always real syntax. */
+const OP_LABELS = {
+  "~": "like (~)", "==": "is exactly (==)", "in": "between (in)",
+  "=": "set to (=)", "+=": "add (+=)",
+};
 
 function row(host, FIELDS, isMatch){
   const d = document.createElement("div"); d.className = "cond";
@@ -196,7 +202,7 @@ function row(host, FIELDS, isMatch){
   }
   function syncField(){
     os.innerHTML = "";
-    FIELDS[fs.value].ops.forEach(o => os.add(new Option(o, o)));
+    FIELDS[fs.value].ops.forEach(o => os.add(new Option(OP_LABELS[o] || o, o)));
     syncOp();
   }
   fs.onchange = syncField; os.onchange = syncOp;
