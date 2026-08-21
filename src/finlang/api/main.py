@@ -33,7 +33,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import (
     Depends,
@@ -148,10 +148,27 @@ class RulepacksResponse(BaseModel):
     packs: List[RulepackInfo]
 
 
+class RulePart(BaseModel):
+    field: str
+    op: str                      # '==' | '~' | 'in' (match) · '=' | '+=' (set)
+    value: Any                   # string; [low, high] for amount ranges; true for exclude
+
+
+class StructuredRule(BaseModel):
+    name: str
+    match: List[RulePart]
+    set: List[RulePart]
+
+
 class ValidateRulesResponse(BaseModel):
     ok: bool
     rule_count: Optional[int] = None
     rule_names: List[str] = []   # best-effort: the engine truncates its preview past 10
+    # SOL-112 read-back: the rules as the ENGINE tokenised them, produced by the
+    # same parse_condition/parse_action the evaluator runs. The UI renders these
+    # into English ("the engine confirming what it understood") — templating
+    # only, never parsing. Empty when ok is False.
+    rules: List[StructuredRule] = []
     error: Optional[str] = None  # engine stderr, verbatim, when ok is False
 
 
@@ -404,16 +421,40 @@ async def validate_rules(
             "--audit-mode", "none",
         ])
 
-    if p.returncode != 0:
-        return ValidateRulesResponse(ok=False, error=(p.stderr or p.stdout).strip())
+        if p.returncode != 0:
+            return ValidateRulesResponse(ok=False, error=(p.stderr or p.stdout).strip())
 
-    m = _re.search(r"Parsed (\d+) rule\(s\): (.+)", p.stdout)
-    names: List[str] = []
-    count: Optional[int] = None
-    if m:
-        count = int(m.group(1))
-        names = [n.strip() for n in m.group(2).split(",") if not n.strip().startswith("...")]
-    return ValidateRulesResponse(ok=True, rule_count=count, rule_names=names)
+        m = _re.search(r"Parsed (\d+) rule\(s\): (.+)", p.stdout)
+        names: List[str] = []
+        count: Optional[int] = None
+        if m:
+            count = int(m.group(1))
+            names = [n.strip() for n in m.group(2).split(",") if not n.strip().startswith("...")]
+
+        # The read-back structure, from the engine's own tokenisers — the same
+        # parse_condition/parse_action the evaluator runs, so what the UI shows
+        # in English is what will actually fire. The CLI subprocess above stays
+        # the authority on validity (P4); if this in-process pass disagrees
+        # (it cannot, same code — but belt and braces), degrade to no
+        # structure rather than contradict the verdict.
+        structured: List[StructuredRule] = []
+        try:
+            from finlang.cli.run_finlang import parse_fin_rules
+            from finlang.engine.finlang_engine import parse_action, parse_condition
+
+            for r in parse_fin_rules(str(rules_fin)):
+                structured.append(StructuredRule(
+                    name=r["name"],
+                    match=[RulePart(field=f, op=o, value=v)
+                           for f, o, v in (parse_condition(c) for c in r["match"])],
+                    set=[RulePart(field=f, op=o, value=v)
+                         for f, o, v in (parse_action(a) for a in r["set"])],
+                ))
+        except Exception:
+            structured = []
+
+    return ValidateRulesResponse(ok=True, rule_count=count, rule_names=names,
+                                 rules=structured)
 
 
 @app.post(

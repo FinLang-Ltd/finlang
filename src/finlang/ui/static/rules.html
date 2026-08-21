@@ -123,6 +123,13 @@
       <textarea id="ed" spellcheck="false" placeholder="# Your .fin file. The editor is the artefact — the builder on the left appends to it.
 # Rules apply in order: first match wins per field, last matching rule sets."></textarea>
       <div id="verdict"></div>
+      <div class="card" id="readback" style="display:none;margin-top:10px">
+        <div class="t">WHAT THE ENGINE UNDERSTOOD</div>
+        <div id="rb"></div>
+        <div class="hint" style="margin-top:8px">Read back from the engine's own
+          tokeniser &mdash; the same code that fires the rules produced this, so what
+          it says here is what will happen in a run.</div>
+      </div>
       <div class="hint" style="margin-top:8px">Checked by the real engine via
         <span style="font-family:var(--mono)">/rules/validate</span> &mdash; the Workbench
         contains no parser of its own, so "valid here" and "valid in a run" are the same fact.
@@ -272,12 +279,53 @@ async function check(){
       v.className = "ok";
       v.textContent = `✓ Parsed ${b.rule_count} rule(s)` +
         (b.rule_names.length ? `: ${b.rule_names.join(", ")}` : "");
+      readback(b.rules || []);
     } else {
       v.className = "bad";
       v.textContent = b.error || JSON.stringify(b);
+      $("readback").style.display = "none";
     }
-  } catch(e){ v.className = "bad"; v.textContent = String(e); }
+  } catch(e){ v.className = "bad"; v.textContent = String(e);
+              $("readback").style.display = "none"; }
 }
+
+/* ---------- the read-back: engine structure -> English. Templating ONLY -
+   the structure comes from the engine's own parse_condition/parse_action via
+   /rules/validate, so this never interprets syntax, only phrases it. ------- */
+function englishMatch(p){
+  const q = s => `<b style="color:var(--amber)">${escT(s)}</b>`;
+  if (p.op === "in" && Array.isArray(p.value))
+    return `<i>${p.field}</i> is between ${q(p.value[0])} and ${q(p.value[1])}`;
+  if (p.op === "=="){
+    return `<i>${p.field}</i> is exactly ${q(p.value)}`;
+  }
+  // op === "~": phrase by wildcard shape
+  const v = String(p.value);
+  const starts = v.startsWith("*"), ends = v.endsWith("*");
+  const core = v.replace(/^\*/, "").replace(/\*$/, "");
+  if (starts && ends) return `<i>${p.field}</i> contains ${q(core)}`;
+  if (ends)           return `<i>${p.field}</i> starts with ${q(core)}`;
+  if (starts)         return `<i>${p.field}</i> ends with ${q(core)}`;
+  return `<i>${p.field}</i> is exactly ${q(v)} <span style="color:var(--dim)">(no wildcard &mdash; ~ without * matches exactly)</span>`;
+}
+function englishSet(p){
+  const q = s => `<b style="color:var(--green)">${escT(s)}</b>`;
+  if (p.field === "exclude") return `mark the row <b>excluded</b>`;
+  if (p.op === "+=") return `add ${q(p.value)} to <i>${p.field}</i>`;
+  return `set <i>${p.field}</i> to ${q(p.value)}`;
+}
+function readback(rules){
+  const host = $("rb");
+  if (!rules.length){ $("readback").style.display = "none"; return; }
+  host.innerHTML = rules.map(r =>
+    `<div style="margin:8px 0;font-size:14px;line-height:1.65">` +
+    `<span style="font-family:var(--mono);color:var(--purple)">${escT(r.name)}</span><br>` +
+    `When ${r.match.map(englishMatch).join(" <b>and</b> ")},<br>` +
+    `then ${r.set.map(englishSet).join(", and ")}.` +
+    `</div>`).join("");
+  $("readback").style.display = "block";
+}
+function escT(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 
 /* start with one condition + one action ready to fill */
 row($("conds"), MATCH_FIELDS, true);
