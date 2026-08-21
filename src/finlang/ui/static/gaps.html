@@ -72,10 +72,23 @@
         <div class="why"><a id="clear_handoff" style="color:var(--blue);cursor:pointer">use a file instead</a></div>
       </div>
       <div id="file_row">
-        <label>categorized.csv from a run</label>
-        <input type="file" id="cat_csv" accept=".csv">
-        <div class="why">The output of a Run &mdash; gaps are the rows no rule claimed.
-          Run something first if you don't have one.</div>
+        <label>Transactions CSV</label>
+        <input type="file" id="raw_csv" accept=".csv">
+        <label>Rules to check coverage of</label>
+        <select id="g_rules_mode">
+          <option value="file">a .fin file from disk</option>
+          <option value="pack">a bundled rulepack</option>
+          <option value="draft">my Workbench draft (Rules screen)</option>
+        </select>
+        <div id="g_rules_file_row"><input type="file" id="g_rules_file" accept=".fin"></div>
+        <div id="g_rules_pack_row" style="display:none"><select id="g_include_pack"></select></div>
+        <div class="why">It runs your rules over the data first, then finds what they
+          didn't claim &mdash; so the gaps are always relative to rules you chose here.</div>
+        <details style="margin-top:8px">
+          <summary>I already have a categorised output file</summary>
+          <label>categorized.csv (from Run &rarr; downloads)</label>
+          <input type="file" id="cat_csv" accept=".csv">
+        </details>
       </div>
       <label>Only counterparties appearing at least</label>
       <input type="number" id="min_count" value="1" min="1" style="width:90px"> <span class="why" style="display:inline">time(s)</span>
@@ -156,12 +169,61 @@ $("cat_csv").onchange = async e => {
   state.csvText = e.target.files[0] ? await e.target.files[0].text() : null;
   gate();
 };
-function gate(){ $("discover").disabled = !state.csvText; }
+$("g_rules_mode").onchange = e => {
+  $("g_rules_file_row").style.display = e.target.value==="file" ? "" : "none";
+  $("g_rules_pack_row").style.display = e.target.value==="pack" ? "" : "none";
+  gate();
+};
+["raw_csv","g_rules_file"].forEach(id => $(id).onchange = gate);
+fetch("/rulepacks").then(r=>r.json()).then(b=>{
+  const s = $("g_include_pack");
+  b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
+}).catch(()=>{});
+function draftRules(){
+  const t = localStorage.getItem("finlang_rules_draft") || "";
+  return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
+}
+function rawReady(){
+  if (!$("raw_csv").files.length) return false;
+  const m = $("g_rules_mode").value;
+  return m==="pack" || (m==="draft" ? !!draftRules() : $("g_rules_file").files.length > 0);
+}
+function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
 gate();
 
 $("discover").onclick = async () => {
   $("discover").disabled = true; $("spin").style.display = "block";
   try {
+    // No categorised output in hand? Make one right here: run the chosen rules
+    // over the chosen data via /process (audit off - only categories matter for
+    // gap-finding), then discover on what came back. One engine, two calls.
+    if (!state.csvText && rawReady()){
+      const fp = new FormData();
+      fp.append("input_csv", $("raw_csv").files[0]);
+      const m = $("g_rules_mode").value;
+      if (m==="file") fp.append("rules", $("g_rules_file").files[0]);
+      else if (m==="draft") fp.append("rules", draftRules(), "workbench_draft.fin");
+      else fp.append("include_pack", $("g_include_pack").value);
+      fp.append("audit_mode", "none");
+      fp.append("return_audit", "false");
+      const rp = await fetch("/process", {method:"POST", body:fp});
+      const bp = await rp.json();
+      if (!rp.ok){
+        const d = typeof bp.detail==="string" ? bp.detail : JSON.stringify(bp.detail, null, 2);
+        alert(d); return;
+      }
+      state.csvText = bp.output_csv;
+      const rulesDesc = m==="pack" ? `bundled pack: ${$("g_include_pack").value}`
+                      : m==="draft" ? "your Workbench draft"
+                      : $("g_rules_file").files[0].name;
+      $("handoff").style.display = "block";
+      $("file_row").style.display = "none";
+      $("handoff_n").textContent = Math.max(0, state.csvText.trim().split("\n").length - 1);
+      $("handoff").querySelector(".src").innerHTML =
+        `&#10003; categorised just now (<span>${$("handoff_n").textContent}</span> rows)` +
+        `<div style="color:var(--muted);margin-top:3px">${esc($("raw_csv").files[0].name)} ` +
+        `&middot; against <b style="color:var(--amber)">${esc(rulesDesc)}</b></div>`;
+    }
     const fd = new FormData();
     fd.append("input_csv", new Blob([state.csvText], {type:"text/csv"}), "categorized.csv");
     fd.append("min_count", $("min_count").value || "1");
