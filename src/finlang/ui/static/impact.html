@@ -123,6 +123,7 @@
   </section>
 </main>
 <div style="display:none" id="lkhost"></div>
+<script src="charts.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
@@ -208,7 +209,30 @@ function render(){
 }
 function sumTab(b){
   const s = b.summary || {};
-  let h = '<table class="rows"><tbody>';
+  let h = "";
+  if (s.rows_compared != null)
+    h += flDonut(
+      [{label: "stay the same", value: s.rows_stable || 0, color: "#3ad6a5"},
+       {label: "change behaviour", value: s.behavioural_changed || 0, color: "#f5b544"}],
+      {title: `impact · ${s.rows_compared} rows compared`,
+       centre: `${s.behavioural_changed || 0}`});
+  // category flows: old -> new counts, straight from changes_csv
+  if (b.changes_csv && b.changes_csv.trim()){
+    const L = b.changes_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+    const oi = L[0].indexOf("old_category"), ni = L[0].indexOf("new_category");
+    if (oi >= 0 && ni >= 0){
+      const flows = new Map();
+      for (const r of L.slice(1)){
+        const k = `${r[oi] || "(none)"} → ${r[ni] || "(none)"}`;
+        flows.set(k, (flows.get(k) || 0) + 1);
+      }
+      h += '<div style="font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);margin:8px 0 4px">WHAT MOVED WHERE</div>';
+      for (const [k, n] of [...flows.entries()].sort((a,b)=>b[1]-a[1]))
+        h += `<div style="font-size:13.5px;margin:3px 0">` +
+             `<span style="color:var(--amber);font-family:var(--mono)">${n}×</span> ${esc(k)}</div>`;
+    }
+  }
+  h += '<table class="rows"><tbody>';
   for (const [k, v] of Object.entries(s)){
     if (k === "amount_note") continue;
     h += `<tr><td style="color:var(--dim)">${esc(k)}</td><td>${esc(v)}</td></tr>`;

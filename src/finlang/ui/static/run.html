@@ -187,6 +187,7 @@
   </section>
 </main>
 <div id="auditbox"></div>
+<script src="charts.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
@@ -316,7 +317,7 @@ function render(){
   else if (ex===3) banner("findings","Findings — the product working, not failing", bits.join(" · "));
   else banner("failed", `Exit ${ex}`, bits.join(" · "));
 
-  const tabs = [["rows", rowsTab(p)]];
+  const tabs = [["rows", rowsTab(p)], ["chart", chartTab(p, rec)]];
   if (p.verify_report_html) tabs.push(["verify report", iframeTab(p.verify_report_html)]);
   if (rec){
     if (rec.summary) tabs.push(["reconcile", recTab(rec)]);
@@ -327,6 +328,23 @@ function render(){
   setTabs(tabs);
 }
 
+function chartTab(p, rec){
+  // session charts: drawn ONLY from what the engine returned in this run.
+  const lines = p.output_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+  const ci = lines[0].indexOf("category");
+  let h = "";
+  if (ci >= 0)
+    h += flDonut(flAggregate(lines.slice(1).map(r => r[ci])),
+                 {title: `categories · ${lines.length - 1} rows`,
+                  centre: String(lines.length - 1)});
+  if (rec && rec.summary)
+    h += flDonut(
+      [{label: "agree", value: rec.summary.matches, color: "#3ad6a5"},
+       {label: "disagree", value: rec.summary.mismatches, color: "#f5b544"}],
+      {title: "reconcile · row by row vs your model", size: 150,
+       centre: `${Math.round(rec.summary.matches / rec.summary.total_rows * 100)}%`});
+  return h || '<span style="color:var(--dim)">no category column in the output</span>';
+}
 function rowsTab(p){
   const lines = p.output_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
   const head = lines[0], rows = lines.slice(1);
