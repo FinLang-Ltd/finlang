@@ -98,6 +98,10 @@
         <div class="t">FILES</div>
         <label>Transactions CSV</label>
         <input type="file" id="input_csv" accept=".csv" required>
+        <div class="why">One CSV, any columns, any order &mdash; it needs <b>date</b>,
+          <b>amount</b> and <b>counterparty</b> to be findable (memo optional). Everything
+          else passes through untouched, plus <b>category &middot; flags &middot; status</b>
+          on the way out. Different header names? See the locale block below.</div>
         <label>Rules</label>
         <select id="rules_mode">
           <option value="file">a .fin file from disk</option>
