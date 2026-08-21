@@ -317,7 +317,7 @@ function render(){
   else if (ex===3) banner("findings","Findings — the product working, not failing", bits.join(" · "));
   else banner("failed", `Exit ${ex}`, bits.join(" · "));
 
-  const tabs = [["rows", rowsTab(p)], ["chart", chartTab(p, rec)]];
+  const tabs = [["rows", rowsTab(p)], ["key results", chartTab(p, rec)]];
   if (p.verify_report_html) tabs.push(["verify report", iframeTab(p.verify_report_html)]);
   if (rec){
     if (rec.summary) tabs.push(["reconcile", recTab(rec)]);
