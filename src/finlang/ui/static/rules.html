@@ -60,6 +60,11 @@
     font-size:13px;display:none;white-space:pre-wrap}
   #verdict.ok{display:block;background:rgba(58,214,165,.12);border:1px solid var(--green);color:var(--green)}
   #verdict.bad{display:block;background:rgba(255,122,133,.10);border:1px solid var(--pink);color:var(--pink)}
+  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
+  nav a{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--muted);
+    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
+  nav a:hover{color:#fff}
+  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
 </style>
 </head>
 <body>
@@ -74,6 +79,8 @@
   <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
   <small>WORKBENCH &middot; RULES</small>
 </header>
+<nav><a href="index.html">Home</a><a href="run.html">Run</a><a href="rules.html" class="on">Rules</a><a href="gaps.html">Growth loop</a><a href="impact.html">Impact</a></nav>
+
 <main>
   <section>
     <h1>Build a rule</h1>

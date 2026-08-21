@@ -62,6 +62,11 @@
   .dl{display:inline-block;margin:4px 10px 4px 0;color:var(--mark);font-size:13px;
     text-decoration:none;font-family:var(--mono)}
   .note{font-family:var(--mono);font-size:13px;color:var(--amber);margin-top:10px}
+  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
+  nav a{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--muted);
+    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
+  nav a:hover{color:#fff}
+  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
 </style>
 </head>
 <body>
@@ -76,6 +81,8 @@
   <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
   <small>WORKBENCH &middot; IMPACT</small>
 </header>
+<nav><a href="index.html">Home</a><a href="run.html">Run</a><a href="rules.html">Rules</a><a href="gaps.html">Growth loop</a><a href="impact.html" class="on">Impact</a></nav>
+
 <main>
   <section>
     <h1>Preview a rule change</h1>
@@ -94,7 +101,7 @@
         <label>Candidate rules &mdash; the proposed change</label>
         <select id="cand_mode">
           <option value="file">a .fin file from disk</option>
-          <option value="draft">my Workbench draft (Rules screen)</option>
+          <option value="draft">rules from the Rules editor</option>
         </select>
         <div id="cand_file_row"><input type="file" id="cand_file" accept=".fin"></div>
         <div class="tick" style="margin-top:12px"><input type="checkbox" id="impact_html" checked>

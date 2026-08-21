@@ -74,6 +74,11 @@
     background:#0a1633;border:1px solid var(--amber);border-radius:8px;padding:14px;
     font-family:var(--mono);font-size:12px;display:none;z-index:2;white-space:pre-wrap}
   #spin{display:none;color:var(--blue);font-family:var(--mono);font-size:13px;margin-top:10px}
+  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
+  nav a{font-family:var(--mono);font-size:12px;letter-spacing:.04em;color:var(--muted);
+    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
+  nav a:hover{color:#fff}
+  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
 </style>
 </head>
 <body>
@@ -88,6 +93,8 @@
   <a class="home" href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
   <small>WORKBENCH &middot; RUN</small>
 </header>
+<nav><a href="index.html">Home</a><a href="run.html" class="on">Run</a><a href="rules.html">Rules</a><a href="gaps.html">Growth loop</a><a href="impact.html">Impact</a></nav>
+
 <!-- The lockup paths are injected from lockup.js (shared with index at Phase 5;
      inline here via fetch of the svg fragment to avoid duplicating 4.5KB). -->
 <main>
@@ -106,9 +113,10 @@
         <select id="rules_mode">
           <option value="file">a .fin file from disk</option>
           <option value="pack">a bundled rulepack</option>
-          <option value="draft">my Workbench draft (Rules screen)</option>
+          <option value="draft">rules from the Rules editor</option>
         </select>
         <div id="rules_file_row"><input type="file" id="rules_file" accept=".fin"></div>
+        <div class="why" id="draft_info" style="display:none"></div>
         <div id="rules_pack_row" style="display:none">
           <!-- Values are the engine's short names (PACK_MAP, run_finlang.py);
                labels show the shipped file each resolves to. Replaced by a
@@ -201,8 +209,38 @@ const state = {audit:null, resp:null, rec:null, t0:0};
 $("rules_mode").onchange = e => {
   $("rules_file_row").style.display = e.target.value==="file" ? "" : "none";
   $("rules_pack_row").style.display = e.target.value==="pack" ? "" : "none";
+  describeDraft(e.target.value === "draft");
   gate();
 };
+// "rules from the Rules editor" answers WHAT it is via the engine, not a label:
+// the draft is checked through /rules/validate and described by name and count.
+// It lives in this browser (autosaved) and runs whether or not it was ever
+// saved to a .fin file - said explicitly, because that surprised the operator.
+async function describeDraft(on){
+  const el = $("draft_info");
+  if (!on){ el.style.display = "none"; return; }
+  el.style.display = "block";
+  const blob = draftRules();
+  if (!blob){
+    el.innerHTML = 'The Rules editor is empty. <a href="rules.html" style="color:var(--mark)">Write some rules first &rarr;</a>';
+    return;
+  }
+  el.textContent = "checking the editor's rules against the engine…";
+  const fd = new FormData();
+  fd.append("rules", blob, "draft.fin");
+  try {
+    const b = await (await fetch("/rules/validate", {method:"POST", body:fd})).json();
+    if (b.ok){
+      const names = b.rule_names.slice(0, 4).join(", ");
+      el.innerHTML = `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
+        (names ? ` (${esc(names)}${b.rule_count > 4 ? ", …" : ""})` : "") +
+        ` &mdash; autosaved in this browser; runs even if never saved to a .fin file.`;
+    } else {
+      el.innerHTML = `<span style="color:var(--pink)">The editor's rules do not parse.</span> ` +
+        `<a href="rules.html" style="color:var(--mark)">Fix them on the Rules screen &rarr;</a>`;
+    }
+  } catch(e){ el.textContent = String(e); }
+}
 // the dropdown asks the engine, so it can never lie again (GET /rulepacks
 // serves the CLI's own PACK_MAP); the hardcoded list below is the fallback
 // for the file:// case only.
