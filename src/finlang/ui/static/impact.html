@@ -274,9 +274,10 @@ function dlTab(b){
     || '<span class="why">nothing to download</span>';
 }
 function logTab(b){
-  let c = "finlang --input <your csv>";
-  c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules <baseline .fin>";
-  c += $("cand_mode").value==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules <candidate .fin>";
+  const fname = id => ($(id).files[0]||{}).name;
+  let c = "finlang --input " + (fname("input_csv")||"<your csv>");
+  c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
+  c += $("cand_mode").value==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules " + (fname("cand_file")||"<candidate .fin>");
   c += " --impact-output-dir out/ --output categorized.csv";
   if ($("impact_html").checked) c += " --impact-html";
   return `<p style="font-size:13px;color:var(--muted)">The same comparison, from a terminal:</p>` +

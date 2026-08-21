@@ -157,10 +157,10 @@
 
       <div class="card">
         <div class="t">WHAT TO RUN</div>
-        <div class="tick"><input type="checkbox" id="audit" checked>
-          <div>Audit trail
-            <select id="audit_mode" style="width:auto;margin-left:6px"><option>lite</option><option selected>full</option></select>
-            <span class="why">full records the rule, condition and changes for every decision</span>
+        <div class="tick"><div style="width:100%">Audit trail
+            <select id="audit_mode" style="width:auto;margin-left:6px"><option value="none">none</option><option value="lite">lite</option><option value="full" selected>full</option></select>
+            <span class="why">full records the rule, condition and changes for every decision;
+              none skips the trail entirely (and the rows lose their rule column)</span>
           </div></div>
         <div class="tick"><input type="checkbox" id="verify">
           <div>Verify
@@ -269,8 +269,7 @@ $("reconcile").onchange = e => {
   $("rec_opts").classList.toggle("off", !e.target.checked);
   // reconcile requires audit-mode full - not a choice, a requirement (exit 2 without).
   const on = e.target.checked;
-  $("audit").checked = on || $("audit").checked;
-  $("audit").disabled = on; $("audit_mode").disabled = on;
+  $("audit_mode").disabled = on;
   if (on) $("audit_mode").value = "full";
   $("rec_forces").textContent = on ?
     "audit is locked to full: the mismatch reasoning comes from the audit trail" : "";
@@ -303,8 +302,8 @@ $("f").onsubmit = async ev => {
     if ($("decimal").value) fd.append("decimal", $("decimal").value);
     if ($("thousands").value) fd.append("thousands", $("thousands").value);
     if ($("encoding").value) fd.append("encoding", $("encoding").value);
-    fd.append("audit_mode", $("audit").checked ? $("audit_mode").value : "none");
-    fd.append("return_audit", $("audit").checked ? "true" : "false");
+    fd.append("audit_mode", $("audit_mode").value);
+    fd.append("return_audit", $("audit_mode").value === "none" ? "false" : "true");
     if ($("verify").checked){
       fd.append($("verify_kind").value==="full" ? "verify_full" : "verify", "true");
       if ($("verify_html").checked) fd.append("verify_html","true");
@@ -478,13 +477,14 @@ function dlTab(p, rec){
 function logTab(){
   // the UI teaching the CLI: the equivalent command for every run
   const a = [];
-  let c = "finlang --input <your csv>";
+  const fname = id => ($(id).files[0]||{}).name;
+  let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
-     : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules <your .fin>";
+     : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname("rules_file")||"<your .fin>");
   if ($("dayfirst").value) c += " --dayfirst";
   if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
   if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;
-  if ($("audit").checked) c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
+  if ($("audit_mode").value !== "none") c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
   if ($("verify").checked){
     c += $("verify_kind").value==="full" ? " --verify-full" : " --verify";
     c += " --verify-output-dir out/";
@@ -493,10 +493,10 @@ function logTab(){
   c += " --output categorized.csv";
   a.push(c);
   if (state.rec){
-    let r = "finlang --input <your csv> " +
-      ($("rules_mode").value==="pack" ? `--include-pack ${$("include_pack").value}` : "--rules <your .fin>") +
+    let r = "finlang --input " + (fname("input_csv")||"<your csv>") + " " +
+      ($("rules_mode").value==="pack" ? `--include-pack ${$("include_pack").value}` : "--rules " + (fname("rules_file")||"<your .fin>")) +
       " --output categorized.csv --audit audit.json --audit-mode full" +
-      ` --reconcile <model output.csv> --reconcile-output-dir out/`;
+      ` --reconcile ${fname("ml_csv")||"<model output.csv>"} --reconcile-output-dir out/`;
     if ($("rec_html").checked) r += " --reconcile-html";
     if ($("rec_key").value) r += ` --reconcile-key ${$("rec_key").value}`;
     if ($("rec_datefmt").value) r += ` --reconcile-date-format "${$("rec_datefmt").value}"`;
