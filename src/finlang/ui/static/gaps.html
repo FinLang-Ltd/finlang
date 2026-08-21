@@ -136,6 +136,15 @@ if (stash){
   $("handoff").style.display = "block";
   $("file_row").style.display = "none";
   $("handoff_n").textContent = Math.max(0, stash.trim().split("\n").length - 1);
+  // provenance: gaps only mean anything relative to the rules that ran, so
+  // say which run this output came from.
+  try {
+    const d = JSON.parse(localStorage.getItem("finlang_last_run_desc") || "null");
+    if (d) $("handoff").querySelector(".src").innerHTML =
+      `&#10003; carried over from your last Run (<span>${$("handoff_n").textContent}</span> rows)` +
+      `<div style="color:var(--muted);margin-top:3px">${esc(d.input)} &middot; against ` +
+      `<b style="color:var(--amber)">${esc(d.rules)}</b> &middot; ${esc(d.when)}</div>`;
+  } catch(e){}
 }
 $("clear_handoff").onclick = () => {
   state.csvText = null;

@@ -340,9 +340,23 @@ function render(){
   // (P3). Size-guarded: past ~2MB the stash is skipped and Gaps takes the
   // downloaded categorized.csv instead.
   try {
-    if (p.output_csv.length < 2_000_000)
+    if (p.output_csv.length < 2_000_000){
       localStorage.setItem("finlang_last_output", p.output_csv);
-    else localStorage.removeItem("finlang_last_output");
+      // provenance for the Growth loop: WHICH rules produced this output.
+      // Gaps only mean anything relative to the rules that ran.
+      const rm = $("rules_mode").value;
+      const rulesDesc = rm === "pack" ? `bundled pack: ${$("include_pack").value}`
+                      : rm === "draft" ? "your Workbench draft"
+                      : ($("rules_file").files[0] || {}).name || "a .fin file";
+      localStorage.setItem("finlang_last_run_desc", JSON.stringify({
+        input: ($("input_csv").files[0] || {}).name || "input.csv",
+        rules: rulesDesc,
+        when: new Date().toISOString().slice(0, 16).replace("T", " "),
+      }));
+    } else {
+      localStorage.removeItem("finlang_last_output");
+      localStorage.removeItem("finlang_last_run_desc");
+    }
   } catch(e){ /* quota - the file path still works */ }
   $("gapslink").style.display = "block";
 }
