@@ -480,22 +480,23 @@ function dlTab(p, rec){
 function logTab(){
   // the UI teaching the CLI: the equivalent command for every run
   const a = [];
-  // shell-quote any file name beyond bare word chars/dots/hyphens, so the
+  // shell-quote any user value beyond bare word chars/dots/hyphens, so the
   // copyable command survives "August export.csv". SINGLE quotes: inert in
   // both POSIX shells and PowerShell — double quotes still let POSIX expand
   // $(...) and backticks, so a hostile file name could execute on paste.
-  // Embedded apostrophes use the POSIX escape (safe everywhere, cosmetic-only
-  // in PowerShell).
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "'\\''") + "'" : s;
+  // Embedded apostrophes are DOUBLED (valid PowerShell — the house shell; the
+  // POSIX '\'' escape is malformed there. In POSIX the doubled form merely
+  // drops the apostrophe from the name — degraded, never executed).
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "''") + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
      : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname("rules_file")||"<your .fin>");
   if ($("dayfirst").value) c += " --dayfirst";
-  if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
-  if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;
+  if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
+  if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
   if ($("map_file").files.length) c += " --map " + fname("map_file");
-  if ($("encoding").value) c += ` --encoding ${$("encoding").value}`;
+  if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
   if ($("audit_mode").value !== "none") c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
   if ($("verify").checked){
     c += $("verify_kind").value==="full" ? " --verify-full" : " --verify";
@@ -513,12 +514,12 @@ function logTab(){
     // so the reconcile command must show them too (encoding added SOL-112).
     if ($("map_file").files.length) r += " --map " + fname("map_file");
     if ($("dayfirst").value) r += " --dayfirst";
-    if ($("decimal").value) r += ` --decimal "${$("decimal").value}"`;
-    if ($("thousands").value) r += ` --thousands "${$("thousands").value}"`;
-    if ($("encoding").value) r += ` --encoding ${$("encoding").value}`;
+    if ($("decimal").value) r += ` --decimal ${shq($("decimal").value)}`;
+    if ($("thousands").value) r += ` --thousands ${shq($("thousands").value)}`;
+    if ($("encoding").value) r += ` --encoding ${shq($("encoding").value)}`;
     if ($("rec_html").checked) r += " --reconcile-html";
-    if ($("rec_key").value) r += ` --reconcile-key ${$("rec_key").value}`;
-    if ($("rec_datefmt").value) r += ` --reconcile-date-format "${$("rec_datefmt").value}"`;
+    if ($("rec_key").value) r += ` --reconcile-key ${shq($("rec_key").value)}`;
+    if ($("rec_datefmt").value) r += ` --reconcile-date-format ${shq($("rec_datefmt").value)}`;
     a.push(r);
   }
   const err = [state.resp && state.resp.stderr, state.rec && state.rec.stderr].filter(Boolean).join("\n");

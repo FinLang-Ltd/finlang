@@ -265,12 +265,16 @@ def _row_count(path: Path, encoding: str = "utf-8-sig") -> int:
     comma dialect (round 3), and reads with the caller's encoding rather than
     assuming utf-8-sig — a UTF-16 upload the engine processed fine was counted
     as garbage lines otherwise (round 4); "auto" resolves through the engine's
-    own detector. Reused, not copied: parallel heuristics would drift.
+    own detector, matched case-insensitively exactly as the CLI does at its
+    --encoding handling (round 5: "AUTO" fell through to a nonexistent codec
+    and returned -1 while the engine processed fine). The detector's limits are
+    the engine's limits by design — parity with what the engine read, not
+    independent detection. Reused, not copied: parallel heuristics would drift.
     Returns -1 if unreadable."""
     try:
         from finlang.cli.run_finlang import _auto_pick_encoding, _detect_delimiter
 
-        enc = _auto_pick_encoding(str(path), headless=True) if encoding == "auto" else encoding
+        enc = _auto_pick_encoding(str(path), headless=True) if encoding.lower() == "auto" else encoding
         delim = _detect_delimiter(str(path), encoding=enc) or ","
         with path.open("r", encoding=enc, errors="replace", newline="") as f:
             return max(0, sum(1 for _ in csv.reader(f, delimiter=delim)) - 1)

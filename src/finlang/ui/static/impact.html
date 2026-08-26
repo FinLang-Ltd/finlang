@@ -294,10 +294,12 @@ function dlTab(b){
     || '<span class="why">nothing to download</span>';
 }
 function logTab(b){
-  // shell-quote file names past bare word chars/dots/hyphens, so the copyable
+  // shell-quote user values past bare word chars/dots/hyphens, so the copyable
   // command survives "August export.csv". SINGLE quotes: inert in POSIX and
   // PowerShell alike — double quotes still let POSIX expand $(...) on paste.
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "'\\''") + "'" : s;
+  // Apostrophes are DOUBLED (valid PowerShell; inert-but-lossy in POSIX —
+  // the '\'' escape is malformed in PowerShell).
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "''") + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
@@ -306,9 +308,9 @@ function logTab(b){
   // must carry them too — otherwise a German/EU run won't reproduce.
   if ($("map_file").files.length) c += " --map " + fname("map_file");
   if ($("dayfirst").value) c += " --dayfirst";
-  if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
-  if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;
-  if ($("encoding").value) c += ` --encoding ${$("encoding").value}`;
+  if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
+  if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
+  if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
   c += " --impact-output-dir out/ --output categorized.csv";
   if ($("impact_html").checked) c += " --impact-html";
   return `<p style="font-size:13px;color:var(--muted)">The same comparison, from a terminal:</p>` +
