@@ -297,9 +297,10 @@ function logTab(b){
   // shell-quote user values past bare word chars/dots/hyphens, so the copyable
   // command survives "August export.csv". SINGLE quotes: inert in POSIX and
   // PowerShell alike — double quotes still let POSIX expand $(...) on paste.
-  // Apostrophes are DOUBLED (valid PowerShell; inert-but-lossy in POSIX —
-  // the '\'' escape is malformed in PowerShell).
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "''") + "'" : s;
+  // Apostrophe escapes differ by shell ('' PowerShell, '\'' POSIX), and the
+  // Workbench is local-only (P2): the browser's OS IS the shell's OS.
+  const WIN = /Windows/.test(navigator.userAgent);
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, WIN ? "''" : "'\\''") + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
@@ -313,7 +314,8 @@ function logTab(b){
   if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
   c += " --impact-output-dir out/ --output categorized.csv";
   if ($("impact_html").checked) c += " --impact-html";
-  return `<p style="font-size:13px;color:var(--muted)">The same comparison, from a terminal:</p>` +
+  // the label states the quoting contract (the OS sniff can't see CMD/Git Bash/WSL)
+  return `<p style="font-size:13px;color:var(--muted)">The same comparison, ${WIN ? "in PowerShell" : "from a terminal"}:</p>` +
     `<pre class="log">${esc(c)}</pre>` +
     (b.stderr?`<p style="font-size:13px;color:var(--muted)">Engine output:</p><pre class="log">${esc(b.stderr)}</pre>`:"");
 }

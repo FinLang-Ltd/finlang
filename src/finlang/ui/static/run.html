@@ -484,10 +484,11 @@ function logTab(){
   // copyable command survives "August export.csv". SINGLE quotes: inert in
   // both POSIX shells and PowerShell — double quotes still let POSIX expand
   // $(...) and backticks, so a hostile file name could execute on paste.
-  // Embedded apostrophes are DOUBLED (valid PowerShell — the house shell; the
-  // POSIX '\'' escape is malformed there. In POSIX the doubled form merely
-  // drops the apostrophe from the name — degraded, never executed).
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "''") + "'" : s;
+  // Embedded apostrophes differ by shell ('' in PowerShell, '\'' in POSIX —
+  // each malformed or lossy in the other), and the Workbench is local-only
+  // (P2): the browser's OS IS the shell's OS, so pick the local convention.
+  const WIN = /Windows/.test(navigator.userAgent);
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, WIN ? "''" : "'\\''") + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
@@ -523,7 +524,9 @@ function logTab(){
     a.push(r);
   }
   const err = [state.resp && state.resp.stderr, state.rec && state.rec.stderr].filter(Boolean).join("\n");
-  return `<p style="font-size:13px;color:var(--muted)">The same run, from a terminal:</p>` +
+  // name the shell the quoting targets: the OS sniff can't see CMD/Git
+  // Bash/WSL, so the label states the contract instead of claiming "terminal"
+  return `<p style="font-size:13px;color:var(--muted)">The same run, ${WIN ? "in PowerShell" : "from a terminal"}:</p>` +
     `<pre class="log">${esc(a.join("\n\n"))}</pre>` +
     (err?`<p style="font-size:13px;color:var(--muted)">Engine output:</p><pre class="log">${esc(err)}</pre>`:"");
 }
