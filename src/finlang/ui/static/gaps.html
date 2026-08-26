@@ -164,7 +164,7 @@ if (stash){
   state.csvText = stash;
   $("handoff").style.display = "block";
   $("file_row").style.display = "none";
-  $("handoff_n").textContent = Math.max(0, stash.trim().split("\n").length - 1);
+  $("handoff_n").textContent = Math.max(0, flCsvRows(stash).length - 1);
   // provenance: gaps only mean anything relative to the rules that ran, so
   // say which run this output came from.
   try {
@@ -234,7 +234,7 @@ $("discover").onclick = async () => {
                       : $("g_rules_file").files[0].name;
       $("handoff").style.display = "block";
       $("file_row").style.display = "none";
-      $("handoff_n").textContent = Math.max(0, state.csvText.trim().split("\n").length - 1);
+      $("handoff_n").textContent = Math.max(0, flCsvRows(state.csvText).length - 1);
       $("handoff").querySelector(".src").innerHTML =
         `&#10003; categorised just now (<span>${$("handoff_n").textContent}</span> rows)` +
         `<div style="color:var(--muted);margin-top:3px">${esc($("raw_csv").files[0].name)} ` +

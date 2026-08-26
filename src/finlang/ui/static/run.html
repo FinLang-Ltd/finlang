@@ -487,6 +487,8 @@ function logTab(){
   if ($("dayfirst").value) c += " --dayfirst";
   if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
   if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;
+  if ($("map_file").files.length) c += " --map " + fname("map_file");
+  if ($("encoding").value) c += ` --encoding ${$("encoding").value}`;
   if ($("audit_mode").value !== "none") c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
   if ($("verify").checked){
     c += $("verify_kind").value==="full" ? " --verify-full" : " --verify";
@@ -500,6 +502,13 @@ function logTab(){
       ($("rules_mode").value==="pack" ? `--include-pack ${$("include_pack").value}` : "--rules " + (fname("rules_file")||"<your .fin>")) +
       " --output categorized.csv --audit audit.json --audit-mode full" +
       ` --reconcile ${fname("ml_csv")||"<model output.csv>"} --reconcile-output-dir out/`;
+    // the reconcile call forwards the same locale/mapping options as /process,
+    // so the reconcile command must show them too (encoding added SOL-112).
+    if ($("map_file").files.length) r += " --map " + fname("map_file");
+    if ($("dayfirst").value) r += " --dayfirst";
+    if ($("decimal").value) r += ` --decimal "${$("decimal").value}"`;
+    if ($("thousands").value) r += ` --thousands "${$("thousands").value}"`;
+    if ($("encoding").value) r += ` --encoding ${$("encoding").value}`;
     if ($("rec_html").checked) r += " --reconcile-html";
     if ($("rec_key").value) r += ` --reconcile-key ${$("rec_key").value}`;
     if ($("rec_datefmt").value) r += ` --reconcile-date-format "${$("rec_datefmt").value}"`;

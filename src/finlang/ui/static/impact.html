@@ -298,6 +298,13 @@ function logTab(b){
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
   c += $("cand_mode").value==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules " + (fname("cand_file")||"<candidate .fin>");
+  // locale/mapping options are forwarded to /impact, so the copyable command
+  // must carry them too — otherwise a German/EU run won't reproduce.
+  if ($("map_file").files.length) c += " --map " + fname("map_file");
+  if ($("dayfirst").value) c += " --dayfirst";
+  if ($("decimal").value) c += ` --decimal "${$("decimal").value}"`;
+  if ($("thousands").value) c += ` --thousands "${$("thousands").value}"`;
+  if ($("encoding").value) c += ` --encoding ${$("encoding").value}`;
   c += " --impact-output-dir out/ --output categorized.csv";
   if ($("impact_html").checked) c += " --impact-html";
   return `<p style="font-size:13px;color:var(--muted)">The same comparison, from a terminal:</p>` +

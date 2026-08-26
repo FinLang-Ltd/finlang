@@ -25,6 +25,7 @@ Limits:
 """
 from __future__ import annotations
 
+import csv
 import json
 import os
 import secrets
@@ -256,10 +257,14 @@ async def _save_upload(upload: UploadFile, dest: Path) -> int:
 
 
 def _row_count(path: Path) -> int:
-    """Best-effort line count minus header. Returns -1 if unreadable."""
+    """Best-effort CSV *record* count minus header. Counts records via the csv
+    reader, not physical lines, so a quoted field carrying an embedded newline
+    stays one row — a naive line count overstated rows_in/rows_out (and the Run
+    banner) whenever a memo held a newline (SOL-112 review). Returns -1 if
+    unreadable."""
     try:
-        with path.open("r", encoding="utf-8-sig", errors="replace") as f:
-            return max(0, sum(1 for _ in f) - 1)
+        with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
+            return max(0, sum(1 for _ in csv.reader(f)) - 1)
     except Exception:
         return -1
 
