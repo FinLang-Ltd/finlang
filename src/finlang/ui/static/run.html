@@ -330,6 +330,7 @@ $("f").onsubmit = async ev => {
       if ($("dayfirst").value) fr.append("dayfirst","true");
       if ($("decimal").value) fr.append("decimal", $("decimal").value);
       if ($("thousands").value) fr.append("thousands", $("thousands").value);
+      if ($("encoding").value) fr.append("encoding", $("encoding").value);
       if ($("rec_html").checked) fr.append("reconcile_html","true");
       if ($("rec_key").value) fr.append("reconcile_key", $("rec_key").value);
       if ($("rec_datefmt").value) fr.append("reconcile_date_format", $("rec_datefmt").value);
@@ -409,7 +410,7 @@ function render(){
 
 function chartTab(p, rec){
   // session charts: drawn ONLY from what the engine returned in this run.
-  const lines = p.output_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+  const lines = flCsvRows(p.output_csv);
   const ci = lines[0].indexOf("category");
   let h = "";
   if (ci >= 0)
@@ -425,7 +426,7 @@ function chartTab(p, rec){
   return h || '<span style="color:var(--dim)">no category column in the output</span>';
 }
 function rowsTab(p){
-  const lines = p.output_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+  const lines = flCsvRows(p.output_csv);
   const head = lines[0], rows = lines.slice(1);
   // join the audit reason by row index - presentational only; audit.json is the artefact
   const byIdx = {};
@@ -450,7 +451,7 @@ function recTab(rec){
     `<span style="color:var(--amber)">${s.mismatches} do not</span>` +
     (s.status?` · ${esc(s.status)}`:"") + "</p>";
   if (rec.mismatches_csv){
-    const L = rec.mismatches_csv.replace(/\r/g,"").trim().split("\n").map(csvSplit);
+    const L = flCsvRows(rec.mismatches_csv);
     h += '<div class="scroll"><table class="rows"><thead><tr>' +
       L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
       L.slice(1).map(r=>"<tr>"+r.map(c=>`<td>${esc(c)}</td>`).join("")+"</tr>").join("") +
@@ -536,16 +537,25 @@ function setTabs(list){
     box.style.display = box.style.display==="block" ? "none" : "block";
   });
 }
-function csvSplit(line){
-  // display-only CSV split (quoted fields, embedded commas). The artefact users
-  // download is the engine's own output_csv, untouched by this.
-  const out = []; let cur = "", q = false;
-  for (const ch of line){
-    if (ch === '"'){ q = !q; continue; }
-    if (ch === "," && !q){ out.push(cur); cur = ""; continue; }
-    cur += ch;
+function flCsvRows(text){
+  // RFC-4180 CSV parse: double-quotes protect commas AND newlines; "" is a
+  // literal quote. Whole-text scan (not line-split) so a quoted field carrying
+  // an embedded newline stays ONE field instead of splitting into phantom rows.
+  // The artefact users download is the engine's own output_csv, untouched.
+  const rows = []; let row = [], cur = "", q = false;
+  const s = String(text).replace(/\r\n?/g, "\n");
+  for (let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if (q){
+      if (ch === '"'){ if (s[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else if (ch === '"'){ q = true; }
+    else if (ch === ","){ row.push(cur); cur = ""; }
+    else if (ch === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += ch;
   }
-  out.push(cur); return out;
+  if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
+  return rows;
 }
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 

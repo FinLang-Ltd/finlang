@@ -251,7 +251,7 @@ $("discover").onclick = async () => {
 };
 
 function renderCands(csv){
-  const L = csv.replace(new RegExp(String.fromCharCode(13), "g"), "").trim().split("\n").filter(Boolean).map(csvSplit);
+  const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
   $("s_cands").classList.add("on");
   if (L.length < 2){
     $("cand_n").textContent = "· none — every row was claimed by a rule";
@@ -279,7 +279,7 @@ $("suggest").onclick = async () => {
   // Filter the engine's own candidates CSV down to the ticked rows - selection,
   // not interpretation. Header row passes through untouched.
   const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
-  const csv = lines.map(r => r.map(c => /[",]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(",")).join("\n");
+  const csv = lines.map(r => r.map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(",")).join("\n");
   $("spin").style.display = "block";
   try {
     const fd = new FormData();
@@ -311,14 +311,25 @@ $("dl").onclick = () => {
   a.download = "draft_rules.fin"; a.click();
 };
 
-function csvSplit(line){
-  const out = []; let cur = "", q = false;
-  for (const ch of line){
-    if (ch === '"'){ q = !q; continue; }
-    if (ch === "," && !q){ out.push(cur); cur = ""; continue; }
-    cur += ch;
+function flCsvRows(text){
+  // RFC-4180 CSV parse: double-quotes protect commas AND newlines; "" is a
+  // literal quote. Whole-text scan so a quoted field with an embedded newline
+  // stays ONE field. These parsed rows are re-serialised into the /suggest
+  // payload, so a mis-split here would send corrupt data back to the engine.
+  const rows = []; let row = [], cur = "", q = false;
+  const s = String(text).replace(/\r\n?/g, "\n");
+  for (let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if (q){
+      if (ch === '"'){ if (s[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else if (ch === '"'){ q = true; }
+    else if (ch === ","){ row.push(cur); cur = ""; }
+    else if (ch === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += ch;
   }
-  out.push(cur); return out;
+  if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
+  return rows;
 }
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 fetch("lockup.svg").then(r=>r.text()).then(t=>{

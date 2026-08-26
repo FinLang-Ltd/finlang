@@ -115,6 +115,19 @@
         <div id="cand_file_row"><input type="file" id="cand_file" accept=".fin"></div>
         <div class="tick" style="margin-top:12px"><input type="checkbox" id="impact_html" checked>
           <div>HTML report</div></div>
+        <details id="locale">
+          <summary>My file isn't a UK/US-style CSV</summary>
+          <label>Day-first dates</label>
+          <select id="dayfirst"><option value="">no</option><option value="1">yes</option></select>
+          <label>Decimal separator</label>
+          <input type="text" id="decimal" placeholder="." maxlength="1">
+          <label>Thousands separator</label>
+          <input type="text" id="thousands" placeholder="(none)" maxlength="1">
+          <label>Encoding</label>
+          <input type="text" id="encoding" placeholder="utf-8-sig">
+          <label>Header mapping (.json) &mdash; needed if your columns aren't date/amount/counterparty/memo</label>
+          <input type="file" id="map_file" accept=".json">
+        </details>
       </div>
       <div class="card">
         <div class="t">WHY THIS SCREEN HAS NO OTHER TICKS</div>
@@ -182,6 +195,11 @@ $("f").onsubmit = async ev => {
     else fd.append("include_pack", $("include_pack").value);
     if ($("cand_mode").value==="file") fd.append("impact_rules", $("cand_file").files[0]);
     else fd.append("impact_rules", draftRules(), "workbench_draft.fin");
+    if ($("map_file").files.length) fd.append("map_file", $("map_file").files[0]);
+    if ($("dayfirst").value) fd.append("dayfirst","true");
+    if ($("decimal").value) fd.append("decimal", $("decimal").value);
+    if ($("thousands").value) fd.append("thousands", $("thousands").value);
+    if ($("encoding").value) fd.append("encoding", $("encoding").value);
     if ($("impact_html").checked) fd.append("impact_html","true");
     const r = await fetch("/impact", {method:"POST", body:fd});
     const b = await r.json();

@@ -137,7 +137,7 @@
         <a class="ghost" href="run.html" style="text-decoration:none;padding:8px 14px">Test in a Run &rarr;</a>
       </div>
       <textarea id="ed" spellcheck="false" placeholder="# Your .fin file. The editor is the artefact — the builder on the left appends to it.
-# Rules apply in order: first match wins per field, last matching rule sets."></textarea>
+# Rules apply in order: every matching rule runs; the last to set a field wins (+= adds)."></textarea>
       <div id="verdict"></div>
       <div class="card" id="readback" style="display:none;margin-top:10px">
         <div class="t">WHAT THE ENGINE UNDERSTOOD</div>
@@ -236,8 +236,10 @@ function build(){
   const ok = name && m.length && s.length;
   $("insert").disabled = !ok;
   if (!ok){ $("preview").textContent = "# fill in the steps above"; return; }
+  // escape every user-controlled part before it reaches innerHTML — a rule name
+  // or value containing markup must render as text, never execute on this origin.
   $("preview").innerHTML =
-    `<span class="k">rule</span> "${name}" {\n<span class="k">  match:</span>\n${m.join("\n")}\n<span class="k">  set:</span>\n${s.join("\n")}\n}`;
+    `<span class="k">rule</span> "${escT(name)}" {\n<span class="k">  match:</span>\n${escT(m.join("\n"))}\n<span class="k">  set:</span>\n${escT(s.join("\n"))}\n}`;
 }
 $("rname").addEventListener("input", build);
 
