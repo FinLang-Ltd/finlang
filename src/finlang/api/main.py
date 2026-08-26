@@ -260,11 +260,17 @@ def _row_count(path: Path) -> int:
     """Best-effort CSV *record* count minus header. Counts records via the csv
     reader, not physical lines, so a quoted field carrying an embedded newline
     stays one row — a naive line count overstated rows_in/rows_out (and the Run
-    banner) whenever a memo held a newline (SOL-112 review). Returns -1 if
-    unreadable."""
+    banner) whenever a memo held a newline (SOL-112 review). Uses the engine's
+    own delimiter heuristic (comma/semicolon/tab/pipe) rather than assuming the
+    comma dialect — a semicolon file with a quoted newline was still miscounted
+    otherwise (review round 3). Reused, not copied: two heuristics would drift.
+    Returns -1 if unreadable."""
     try:
+        from finlang.cli.run_finlang import _detect_delimiter  # lazy, like PACK_MAP
+
+        delim = _detect_delimiter(str(path)) or ","
         with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
-            return max(0, sum(1 for _ in csv.reader(f)) - 1)
+            return max(0, sum(1 for _ in csv.reader(f, delimiter=delim)) - 1)
     except Exception:
         return -1
 

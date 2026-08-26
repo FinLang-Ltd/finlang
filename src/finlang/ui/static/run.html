@@ -480,7 +480,12 @@ function dlTab(p, rec){
 function logTab(){
   // the UI teaching the CLI: the equivalent command for every run
   const a = [];
-  const fname = id => ($(id).files[0]||{}).name;
+  // shell-quote any file name beyond bare word chars/dots/hyphens, so the
+  // copyable command survives "August export.csv" (double quotes work in
+  // PowerShell and POSIX shells alike; embedded quotes are illegal on Windows
+  // file systems and left unescaped)
+  const shq = s => /[^\w.\-]/.test(s) ? '"' + s + '"' : s;
+  const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
      : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname("rules_file")||"<your .fin>");

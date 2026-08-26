@@ -294,7 +294,11 @@ function dlTab(b){
     || '<span class="why">nothing to download</span>';
 }
 function logTab(b){
-  const fname = id => ($(id).files[0]||{}).name;
+  // shell-quote file names past bare word chars/dots/hyphens, so the copyable
+  // command survives "August export.csv" (double quotes work in PowerShell and
+  // POSIX alike; embedded quotes are illegal on Windows file systems)
+  const shq = s => /[^\w.\-]/.test(s) ? '"' + s + '"' : s;
+  const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
   c += $("cand_mode").value==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules " + (fname("cand_file")||"<candidate .fin>");
