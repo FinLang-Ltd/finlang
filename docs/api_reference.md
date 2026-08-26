@@ -6,9 +6,11 @@
 A thin REST surface over the FinLang CLI. Every endpoint dispatches to the
 published CLI entry points (`finlang`, `finlang-discover`, `finlang-suggest`)
 via subprocess. The API never imports engine internals; it inherits the CLI's
-underlying behaviour and exit codes (with one endpoint-specific override —
-`/reconcile` maps exit 3 to HTTP 200, since mismatches are an expected
-review outcome). The HTTP surface is curated, not auto-forwarding: each
+underlying behaviour and exit codes (with one uniform mapping: exit 3 — a
+finding, whether a verify mismatch, a reconcile mismatch, or a behavioural
+change — maps to HTTP 200 across `/process`, `/reconcile`, and `/impact`, since
+a finding is a reported outcome, not a request error). The HTTP surface is
+curated, not auto-forwarding: each
 endpoint exposes specific Form parameters that map to CLI flags.
 
 ---
@@ -151,9 +153,9 @@ Categorise a transactions CSV. Multipart form upload.
 | 0 | 200 | Success |
 | 1 | 500 | Ops error (file not found, IO failure) |
 | 2 | 422 | Validation/parse error |
-| 3 | 422 | Verification mismatch — **structured detail, see below** |
+| 3 | 200 | Verification mismatch — a **finding, not an error**: output + verify report in the body, see below |
 
-> **Verification-failure detail is structured (v0.8.1 compatibility change).** When `verify=true` and the engine exits 3, the 422 `detail` is an **object**, not a string: `{"error": "verify_failed", "exit_code": 3, "message": ..., "verify_report": <parsed verify_report.json, or null>, "stderr": <tail>}`. Consumers that parsed `detail` as a string must branch on its type — other 422s on this endpoint keep their existing shape. The report artefact is attached because it is the thing that explains the failure (previously it was destroyed with the request's temp dir).
+> **A verify mismatch is a finding (HTTP 200), not an error.** When `verify=true`/`verify_full=true` and the engine exits 3, the API returns **200** with `stats.exit_code = 3`, the categorised `output_csv` preserved, and the verify report in the normal `verify_report` (parsed `verify_report.json`) and `verify_report_html` (when `verify_html=true`) fields. This is consistent with `/reconcile` and `/impact`, so a client running verify + reconcile in one flow can render the amber result and continue instead of dead-ending. *(Changed in the SOL-112 review, 26 Aug 2026. Before that a verify mismatch mapped to HTTP 422 with the report carried in a structured `detail` object — consumers that branched on a 422 `detail.error == "verify_failed"` should now read `stats.exit_code == 3` on a 200 instead.)*
 
 ### `POST /discover`
 
@@ -286,7 +288,7 @@ optional self-contained HTML report, and the full audit trail.
 }
 ```
 
-> **⚠️ Exit-code semantics differ from `/process`:** finding mismatches on `/reconcile` is the **expected outcome**, not an error. Engine exit code 3 maps to **HTTP 200** here (with mismatches surfaced in the body), not HTTP 422. Structural/client-data problems (exit 1) and validation errors (exit 2) both map to HTTP 422. The caller reads `stats.mismatches_found` and `summary.mismatches` to know what happened.
+> **⚠️ Exit-code semantics:** finding mismatches on `/reconcile` is the **expected outcome**, not an error — engine exit code 3 maps to **HTTP 200** (mismatches surfaced in the body), the same as `/process` (verify mismatch) and `/impact` (behavioural change). Structural/client-data problems (exit 1 — e.g. row-count mismatch, identity-guard failure, duplicate keys) and validation errors (exit 2) both map to HTTP 422 here; note exit 1 differs by endpoint (`/process` treats it as an ops error → HTTP 500). The caller reads `stats.mismatches_found` and `summary.mismatches` to know what happened.
 
 **Error mapping (specific to `/reconcile`):**
 

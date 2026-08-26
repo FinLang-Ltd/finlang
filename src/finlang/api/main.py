@@ -488,7 +488,14 @@ async def process_csv(
     verify_full: bool = Form(False, description="Run --verify-full after categorisation"),
     verify_html: bool = Form(False, description="Also return a self-contained HTML integrity report (requires verify or verify_full)"),
 ):
-    """Categorise transactions. Returns output CSV + audit + stats."""
+    """Categorise transactions. Returns output CSV + audit + stats.
+
+    Exit code 3 (verify requested and integrity mismatches found) maps to HTTP
+    200 with exit_code 3 in stats, the categorised output preserved, and the
+    verify report in the body — finding a mismatch is a reported outcome, not a
+    request error, consistent with /reconcile and /impact. Exit 1 (ops) and 2
+    (validation) follow the standard error mapping.
+    """
     # Mirror the CLI's exit-2 validation: verify_html without a verify mode
     # previously ran normally and returned verify_report_html: null — a
     # silent no-op contradicting the documented "requires" contract
@@ -561,40 +568,19 @@ async def process_csv(
         result = _run(cmd)
         elapsed = time.perf_counter() - t0
 
-        if result.returncode != 0:
-            # Exit 3 with verify requested: attach the verification report —
-            # it is the artefact that explains the failure, and it dies with
-            # the temp dir otherwise (4-Jul sweep).
-            if result.returncode == 3 and verify_dir:
-                verify_report_on_fail = None
-                report_path = verify_dir / "verify_report.json"
-                if report_path.exists():
-                    try:
-                        verify_report_on_fail = json.loads(report_path.read_text(encoding="utf-8"))
-                    except Exception:
-                        verify_report_on_fail = None
-                # The HTML twin must survive too: a FAILED verification is
-                # exactly when the readable report matters most, and it is
-                # destroyed with the temp dir otherwise (Codex, 26 Jul).
-                verify_html_on_fail = None
-                if verify_html:
-                    html_path = verify_dir / "verify_report.html"
-                    if html_path.exists():
-                        try:
-                            verify_html_on_fail = html_path.read_text(encoding="utf-8")
-                        except Exception:
-                            verify_html_on_fail = None
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "error": "verify_failed",
-                        "exit_code": 3,
-                        "message": "Output verification reported mismatches.",
-                        "verify_report_html": verify_html_on_fail,
-                        "verify_report": verify_report_on_fail,
-                        "stderr": (result.stderr or "")[-2000:],
-                    },
-                )
+        # Exit 3 with verify requested is a FINDING, not a failure: the engine
+        # categorised the file, then verification flagged a mismatch. Made
+        # consistent with /reconcile and /impact (exit 3 -> HTTP 200, the finding
+        # carried in the body) so the Workbench's one-click verify+reconcile
+        # renders the amber result and carries on, instead of dead-ending on a
+        # 422 that also skipped reconcile (SOL-112 review, 26 Aug 2026; operator
+        # decision to unify exit-3 semantics across the three endpoints). The
+        # verify report rides in the normal verify_report/verify_report_html
+        # fields below, read from verify_dir before the temp dir is torn down —
+        # so a FAILED verification still ships its report. Other non-zero exits
+        # remain real errors.
+        verify_findings = result.returncode == 3 and verify_dir is not None
+        if result.returncode != 0 and not verify_findings:
             raise _engine_http_error(result.returncode, result.stderr)
         if not out_csv.exists():
             raise HTTPException(500, "Engine completed but produced no output file.")

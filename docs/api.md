@@ -165,7 +165,7 @@ Two rules fired (Tesco, Shell). Three rows were left uncategorised — FinLang d
 
 For the full form-field schema on each endpoint, response shapes, and curl recipes, see **[api_reference.md](api_reference.md)**. Interactive Swagger UI is always live at `http://localhost:8000/docs` while `finlang-api` is running.
 
-> **⚠️ `/reconcile` and `/impact` exit code semantics:** unlike `/process`, where exit code 3 (verify mismatch) maps to HTTP 422, the alignment endpoints map **exit 3 → HTTP 200** with the review detail (mismatches / behavioural changes) surfaced in the response body. Finding differences is the expected outcome, not an error. The caller reads `stats.mismatches_found` / `stats.behavioural_changes_found` to know what happened. Structural/client-data problems (exit 1 — e.g. row-count mismatch, identity-guard failure, duplicate keys) and validation errors (exit 2) both map to HTTP 422. Exit 1 is *overloaded* (rarely a genuine I/O failure), so it's mapped by its dominant meaning; the 422 body carries a machine-readable `error` enum + `exit_code` + full `stderr` so callers can still discriminate. See [api_reference.md](api_reference.md).
+> **⚠️ Exit code 3 is a finding, not an error — HTTP 200 on all three endpoints:** `/process` (verify mismatch), `/reconcile` (mismatches), and `/impact` (behavioural changes) all map **exit 3 → HTTP 200**, with the review detail surfaced in the response body. Finding differences — or a verify mismatch — is a reported outcome, not a request error. The caller reads `stats.exit_code` (`3`) plus `stats.mismatches_found` / `stats.behavioural_changes_found` where applicable. On `/reconcile` and `/impact`, structural/client-data problems (exit 1 — e.g. row-count mismatch, identity-guard failure, duplicate keys) and validation errors (exit 2) both map to HTTP 422. Exit 1 is *overloaded* (rarely a genuine I/O failure), so it's mapped by its dominant meaning; the 422 body carries a machine-readable `error` enum + `exit_code` + full `stderr` so callers can still discriminate. See [api_reference.md](api_reference.md).
 
 > **🌐 `/reconcile?format=html` shortcut:** for human inspection of the HTML report, append `?format=html` to the POST URL and the API returns the HTML directly with `Content-Type: text/html` — no JSON unwrapping, no escape-character cleanup. Save with `curl -o report.html` or open in a browser. Requires `reconcile_html=true`. Default `format=json` returns the full `ReconcileResponse` (existing behaviour).
 
@@ -215,7 +215,7 @@ The engine returns four exit codes; the API maps them to clean HTTP statuses.
 | `0` | `200 OK` | Engine succeeded; output CSV + audit + stats returned |
 | `1` | `500 Internal Server Error` | Ops error — file not found, IO failure, unexpected crash |
 | `2` | `422 Unprocessable Entity` | Validation/parse error — malformed CSV, bad flag combination, missing required field |
-| `3` | `422 Unprocessable Entity` | Verify mismatch (when `--verify` or `--verify-full` is on). *(v0.8.1)* the 422 `detail` is a structured object carrying `verify_report` — see [api_reference.md](api_reference.md) |
+| `3` | `200 OK` | Finding, not error — verify mismatch (`/process`), reconcile mismatch (`/reconcile`), or behavioural change (`/impact`). The categorised output / report + `exit_code` `3` ride in the response body; read `stats.exit_code` and `stats.mismatches_found` / `stats.behavioural_changes_found` — see [api_reference.md](api_reference.md) |
 
 Other HTTP statuses the API can return:
 
@@ -225,7 +225,7 @@ Other HTTP statuses the API can return:
 - **`503 Service Unavailable`** — FinLang CLI not found on PATH (installation issue)
 - **`504 Gateway Timeout`** — subprocess exceeded `FINLANG_API_TIMEOUT`
 
-For CI/CD pipelines: `200` = success on `/process`, and on `/reconcile` check `stats.mismatches_found` in the body for the review signal; `422` = engine validation/parse error or verify mismatch (data didn't flow cleanly); `500/503/504` = ops failure to investigate; `400/401/413` = caller error.
+For CI/CD pipelines: `200` = the request was processed on `/process`, `/reconcile`, and `/impact` — read `stats.exit_code` (`3` = a finding: verify mismatch, reconcile mismatch, or behavioural change) and `stats.mismatches_found` / `stats.behavioural_changes_found` for the review signal; `422` = engine validation/parse error (data didn't flow cleanly); `500/503/504` = ops failure to investigate; `400/401/413` = caller error.
 
 ---
 
