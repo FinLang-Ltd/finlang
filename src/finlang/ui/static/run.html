@@ -481,10 +481,12 @@ function logTab(){
   // the UI teaching the CLI: the equivalent command for every run
   const a = [];
   // shell-quote any file name beyond bare word chars/dots/hyphens, so the
-  // copyable command survives "August export.csv" (double quotes work in
-  // PowerShell and POSIX shells alike; embedded quotes are illegal on Windows
-  // file systems and left unescaped)
-  const shq = s => /[^\w.\-]/.test(s) ? '"' + s + '"' : s;
+  // copyable command survives "August export.csv". SINGLE quotes: inert in
+  // both POSIX shells and PowerShell — double quotes still let POSIX expand
+  // $(...) and backticks, so a hostile file name could execute on paste.
+  // Embedded apostrophes use the POSIX escape (safe everywhere, cosmetic-only
+  // in PowerShell).
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, "'\\''") + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`

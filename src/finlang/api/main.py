@@ -256,20 +256,23 @@ async def _save_upload(upload: UploadFile, dest: Path) -> int:
     return written
 
 
-def _row_count(path: Path) -> int:
+def _row_count(path: Path, encoding: str = "utf-8-sig") -> int:
     """Best-effort CSV *record* count minus header. Counts records via the csv
     reader, not physical lines, so a quoted field carrying an embedded newline
     stays one row — a naive line count overstated rows_in/rows_out (and the Run
     banner) whenever a memo held a newline (SOL-112 review). Uses the engine's
     own delimiter heuristic (comma/semicolon/tab/pipe) rather than assuming the
-    comma dialect — a semicolon file with a quoted newline was still miscounted
-    otherwise (review round 3). Reused, not copied: two heuristics would drift.
+    comma dialect (round 3), and reads with the caller's encoding rather than
+    assuming utf-8-sig — a UTF-16 upload the engine processed fine was counted
+    as garbage lines otherwise (round 4); "auto" resolves through the engine's
+    own detector. Reused, not copied: parallel heuristics would drift.
     Returns -1 if unreadable."""
     try:
-        from finlang.cli.run_finlang import _detect_delimiter  # lazy, like PACK_MAP
+        from finlang.cli.run_finlang import _auto_pick_encoding, _detect_delimiter
 
-        delim = _detect_delimiter(str(path)) or ","
-        with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as f:
+        enc = _auto_pick_encoding(str(path), headless=True) if encoding == "auto" else encoding
+        delim = _detect_delimiter(str(path), encoding=enc) or ","
+        with path.open("r", encoding=enc, errors="replace", newline="") as f:
             return max(0, sum(1 for _ in csv.reader(f, delimiter=delim)) - 1)
     except Exception:
         return -1
@@ -624,8 +627,8 @@ async def process_csv(
             verify_report=verify_report,
             verify_report_html=verify_report_html,
             stats=ProcessStats(
-                rows_in=_row_count(in_csv),
-                rows_out=_row_count(out_csv),
+                rows_in=_row_count(in_csv, encoding),
+                rows_out=_row_count(out_csv, output_encoding),
                 audit_entries=len(audit_data) if isinstance(audit_data, list) else 0,
                 duration_seconds=round(elapsed, 4),
                 exit_code=result.returncode,
