@@ -11,6 +11,11 @@
 - [Rule Packs Quick Reference](#rule-packs-quick-reference)
 - [4) Environment Variables](#4-environment-variables)
 - [5) Quick Reference Table](#5-quick-reference-table)
+
+> Two further console scripts sit over these entry points and have their own
+> docs: `finlang-ui` (the Workbench — [workbench.md](workbench.md)) and
+> `finlang-api` (the HTTP wrapper — [api.md](api.md)). Neither takes flags;
+> both configure via the environment variables in §4.
 - [6) Practical Recipes](#6-practical-recipes)
 - [7) FAQ](#7-faq)
 - [⚠️ Known Issues (Active)](#️-known-issues-active)
@@ -177,6 +182,8 @@ Bundled packs provide baseline categorization. Use with `--include-pack`:
 | `FINLANG_SAFE_TEXT`  | Enable CSV-injection protections for text fields | `export FINLANG_SAFE_TEXT=1`     |
 | `FINLANG_AUDIT_MODE` | Default audit mode if `--audit-mode` omitted     | `export FINLANG_AUDIT_MODE=full` |
 | `FINLANG_AUDIT_MAX`  | Cap number of audit entries                      | `export FINLANG_AUDIT_MAX=10000` |
+| `FINLANG_UI_PORT`    | Port for the Workbench (`finlang-ui`; default 8484) | `export FINLANG_UI_PORT=8485` |
+| `FINLANG_API_HOST` / `FINLANG_API_PORT` | Bind host/port for `finlang-api` (defaults 127.0.0.1:8000) | `export FINLANG_API_PORT=8001` |
 
 ---
 
@@ -288,5 +295,6 @@ A: Usually no. The bundled map covers most UK/EU banks. See `docs/mapping_guide.
 * `docs/rulepacks.md`
 * `docs/growth_loop_best_practices.md`
 * `docs/faq.md`
-* `docs/api.md` — HTTP API wrapper over these CLI entry points (`pip install finlang[api]`)
+* `docs/api.md` — HTTP API wrapper over these CLI entry points (base install since v0.9.0)
+* `docs/workbench.md` — the Workbench local browser UI (`finlang-ui`) over the same entry points
 * `docs/api_reference.md` — full API endpoint reference

@@ -14,7 +14,10 @@ A: Probably not. The default map covers most UK/EU banks.
 A: Add `--decimal "," --thousands "."` to your command. See [i18n_examples.md](i18n_examples.md).
 
 **Q: How do I start?**  
-A: `pip install "finlang[fastio]"` then `finlang --input bank.csv --output out.csv --rules rules.fin`
+A: `pip install "finlang[fastio]"` then `finlang --input bank.csv --output out.csv --rules rules.fin` — or run `finlang-ui` and do the same from your browser ([workbench.md](workbench.md)).
+
+**Q: Is there a graphical interface?**  
+A: Yes — the Workbench (v0.9.0+). `finlang-ui` opens a page served from `127.0.0.1` on your own machine: pick a CSV and rules, tick verify/reconcile, and every row comes back with the rule that decided it. Nothing is uploaded anywhere — the page talks only to the engine on your machine, and every run shows the equivalent `finlang` command. See [workbench.md](workbench.md).
 
 **Q: Where's the full documentation?**  
 A: Start with [install.md](install.md) then [workflows.md](workflows.md).

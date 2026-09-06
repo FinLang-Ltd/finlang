@@ -83,7 +83,8 @@ rule "TRAVEL: High Value Flight" {
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
 | **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output; `--verify-html` *(v0.8.3)* can render a self-contained plain-English report. See [docs/verify.md](docs/verify.md). |
 | **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`; the ML side's date convention is inferred from the data (or stated via `--reconcile-date-format`, v0.8.3) and recorded in the report. See [docs/reconciliation.md](docs/reconciliation.md). |
-| **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — nine endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`, `/rulepacks`, `/rules/validate`. Subprocess-dispatched (no second engine surface). 39 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
+| **FastAPI Wrapper** *(v0.7.9)* | A self-hosted HTTP surface (`finlang-api`) over the same CLI engine — nine endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`, `/rulepacks`, `/rules/validate`. Subprocess-dispatched (no second engine surface); included in the base install since v0.9.0. 39 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
+| **Workbench** *(v0.9.0)* | `finlang-ui` opens a local browser interface over the same engine — pick a CSV and rules, tick verify/reconcile, and get every row back with the rule that decided it, plus a rule builder that reads rules back in plain English. Served from `127.0.0.1` only; every run shows its CLI equivalent. See [docs/workbench.md](docs/workbench.md). |
 
 ---
 
@@ -102,12 +103,17 @@ pip install "finlang[fastio]"
 ```
 *(Enables `--fastio` for accelerated CSV I/O.)*
 
-**With HTTP API wrapper:**
+**The Workbench (local browser UI):**
 ```bash
-pip install "finlang[api]"
+finlang-ui     # serves 127.0.0.1:8484 and opens your browser
+```
+*(In the base install — no extras needed. See [docs/workbench.md](docs/workbench.md).)*
+
+**HTTP API wrapper:**
+```bash
 finlang-api    # binds 127.0.0.1:8000 — interactive docs at /docs
 ```
-*(Thin FastAPI wrapper over the CLI for HTTP-based integration and demos. See [docs/api.md](docs/api.md).)*
+*(Thin FastAPI wrapper over the CLI for HTTP-based integration and demos. In the base install since v0.9.0 — `pip install "finlang[api]"` remains valid as a no-op. See [docs/api.md](docs/api.md).)*
 
 **From Source (Development):**
 ```bash
@@ -230,9 +236,10 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 - [`docs/release_notes/v0_7_8.md`](docs/release_notes/release_notes_v0_7_8.md)
 - [`docs/release_notes/v0_7_7.md`](docs/release_notes/release_notes_v0_7_7.md)
 - [`docs/release_notes/v0_7_6.md`](docs/release_notes/release_notes_v0_7_6.md)
+- [`docs/workbench.md`](docs/workbench.md) — the Workbench local browser UI (`finlang-ui`, v0.9.0)
 - [`docs/reconciliation.md`](docs/reconciliation.md) — `--reconcile` ML validation layer (v0.7.8)
 - [`docs/verify.md`](docs/verify.md) — `--verify` integrity verification
-- [`docs/api.md`](docs/api.md) — FastAPI wrapper (`pip install finlang[api]`, `finlang-api`)
+- [`docs/api.md`](docs/api.md) — FastAPI wrapper (`finlang-api`; base install since v0.9.0)
 - [`docs/api_reference.md`](docs/api_reference.md) — full API endpoint reference
 - [`docs/runtime_contract.md`](docs/runtime_contract.md)
 - [`docs/cli_reference.md`](docs/cli_reference.md)

@@ -10,7 +10,15 @@ readme = { file = "README.md", content-type = "text/markdown" }
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-dependencies = ["pandas>=2.0"]
+# fastapi/uvicorn/python-multipart moved from the [api] extra to base so the
+# Workbench (finlang-ui) works from a plain install — a plain `pip install
+# finlang` + `finlang-ui` crashed on the missing server deps otherwise.
+dependencies = [
+  "pandas>=2.0",
+  "fastapi>=0.100",
+  "uvicorn[standard]>=0.20",
+  "python-multipart>=0.0.6",
+]
 authors = [{ name = "FinLang Ltd" }]
 urls = { Homepage = "https://finlang.io", Repository = "https://github.com/FinLang-Ltd/finlang" }
 classifiers = [
@@ -36,7 +44,9 @@ finlang-ui = "finlang.ui.launcher:run"
 dev = ["pytest", "build", "twine", "check-manifest", "PyYAML"]
 bench = ["matplotlib", "numpy"]
 fastio = ["pyarrow"]
-api = ["fastapi>=0.100", "uvicorn[standard]>=0.20", "python-multipart>=0.0.6"]
+# [api] kept as a no-op for compatibility — its packages are base deps now
+# (see dependencies above). `pip install finlang[api]` remains valid.
+api = []
 
 [tool.setuptools]
 package-dir = { "" = "src" }

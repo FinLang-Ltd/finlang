@@ -21,12 +21,12 @@ Or with Fast I/O acceleration (recommended for large datasets):
 pip install "finlang[fastio]"
 ```
 
-Or with the HTTP API wrapper (FastAPI + uvicorn):
+The base install includes the Workbench (local browser UI) and the HTTP API wrapper:
 ```bash
-pip install "finlang[api]"
-finlang-api    # binds 127.0.0.1:8000 — interactive docs at /docs
+finlang-ui     # Workbench — serves 127.0.0.1:8484 and opens your browser
+finlang-api    # API wrapper — binds 127.0.0.1:8000, interactive docs at /docs
 ```
-*(Thin FastAPI wrapper over the CLI. See [api.md](api.md).)*
+*(See [workbench.md](workbench.md) and [api.md](api.md). Before v0.9.0 the server packages lived in the `[api]` extra — `pip install "finlang[api]"` remains valid as a no-op.)*
 
 Verify installation:
 ```bash
@@ -142,4 +142,5 @@ pip uninstall finlang
 - **[Workflows](workflows.md)** – Run FinLang day‑to‑day
 - **[Verify](verify.md)** – `--verify` / `--verify-full` integrity verification (SHA-256 fingerprinting + field comparison)
 - **[Reconciliation](reconciliation.md)** – `--reconcile` ML validation layer with HTML audit report
-- **[API](api.md)** – FastAPI wrapper (`pip install finlang[api]`, `finlang-api`)
+- **[Workbench](workbench.md)** – Local browser UI (`finlang-ui`)
+- **[API](api.md)** – FastAPI wrapper (`finlang-api`; base install since v0.9.0)
