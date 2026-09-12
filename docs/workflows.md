@@ -13,6 +13,8 @@
 - [Test performance](#-benchmarking) → Validate scaling
 - [Deploy to a team](#-enterprise-integration--workflows) → Enterprise setup & CI/CD
 
+> **Prefer a screen to a shell?** Every workflow on this page can start life in the [Workbench](workbench.md) (`finlang-ui`) — it shows the exact CLI command for each run, so the click-through version hands you the scriptable version.
+
 ---
 
 

@@ -16,7 +16,16 @@ import webbrowser
 
 
 def run() -> None:
-    import uvicorn
+    try:
+        import uvicorn
+    except ImportError:
+        # Base deps include the server since the Workbench shipped, so this
+        # only fires on an older/partial environment. Guidance beats a
+        # traceback either way.
+        raise SystemExit(
+            "finlang-ui needs the bundled web server, which this environment "
+            "is missing.\nFix: pip install -U finlang"
+        )
 
     port = int(os.environ.get("FINLANG_UI_PORT", "8484"))
     url = f"http://127.0.0.1:{port}/ui/"

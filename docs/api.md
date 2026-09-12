@@ -1,6 +1,6 @@
 # 🌐 FinLang HTTP API
 > **Status:** v0.1 — SOL-041 MVP
-> **Applies to:** FinLang with the `[api]` extras installed (`pip install finlang[api]`)
+> **Applies to:** FinLang v0.9.0+ (base install; before v0.9.0, the `[api]` extra — `pip install "finlang[api]"` remains valid as a no-op)
 
 The FinLang API is a thin REST surface over the published CLI. Categorise transactions, discover counterparties, and generate draft rules without leaving HTTP — same engine, same audit trail, with curated HTTP parameters mapping to the most-used CLI flags. **It is not a SaaS, not a hosted service, not a replacement for the CLI**: it makes the same deterministic engine reachable over HTTP for buyers, integrators, and demo widgets that evaluate FinLang as a deployable service rather than a Python tool.
 
@@ -263,7 +263,7 @@ Async job queues, persistent storage, multi-tenancy, OAuth/JWT, and rate meterin
 - [workflows.md](workflows.md) — Daily Run / Growth Loop patterns the API can drive
 - [reconciliation.md](reconciliation.md) — `--reconcile` engine feature (exposed via `/reconcile`)
 - [verify.md](verify.md) — `--verify` integrity primitive (wired to `/process` via the `verify` / `verify_full` form fields; `verify_html` returns the readable report inline as `verify_report_html`)
-- [install.md](install.md) — `pip install finlang[api]` and getting `finlang-api` on PATH
+- [install.md](install.md) — installation and getting `finlang-api` on PATH
 - [faq.md](faq.md) — general FinLang FAQ
 
 ---

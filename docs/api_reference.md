@@ -1,7 +1,7 @@
 # FinLang API Reference
 
 > **Status:** v0.1 — SOL-041 MVP
-> **Applies to:** FinLang with the `[api]` extras installed (`pip install finlang[api]`)
+> **Applies to:** FinLang v0.9.0+ (base install; before v0.9.0, the `[api]` extra — `pip install "finlang[api]"` remains valid as a no-op)
 
 A thin REST surface over the FinLang CLI. Every endpoint dispatches to the
 published CLI entry points (`finlang`, `finlang-discover`, `finlang-suggest`)
@@ -18,7 +18,7 @@ endpoint exposes specific Form parameters that map to CLI flags.
 ## Install & run
 
 ```bash
-pip install "finlang[api]"
+pip install finlang
 finlang-api               # binds 127.0.0.1:8000 by default
 ```
 
