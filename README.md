@@ -83,7 +83,7 @@ rule "TRAVEL: High Value Flight" {
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
 | **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output; `--verify-html` *(v0.8.3)* can render a self-contained plain-English report. See [docs/verify.md](docs/verify.md). |
 | **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`; the ML side's date convention is inferred from the data (or stated via `--reconcile-date-format`, v0.8.3) and recorded in the report. See [docs/reconciliation.md](docs/reconciliation.md). |
-| **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — seven endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`. Subprocess-dispatched (no second engine surface). 29 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
+| **FastAPI Wrapper** *(v0.7.9)* | `pip install finlang[api]` adds a self-hosted HTTP surface (`finlang-api`) over the same CLI engine — nine endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`, `/rulepacks`, `/rules/validate`. Subprocess-dispatched (no second engine surface). 39 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
 
 ---
 
@@ -285,7 +285,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 |:--|:--|:--|
 | Core Engine      | v0.8.3   | Hardening: `FINLANG_AUDIT_MAX`/`audit_max` validation; categorisation output unchanged |
 | CLI Suite        | v0.8.3   | 204 tests across 10 gates (daily); 7-gate full pre-release suite |
-| FastAPI Wrapper  | v0.8.3   | 29 standalone integration tests + CLI/API parity contract test |
+| FastAPI Wrapper  | v0.8.3   | 39 standalone integration tests + CLI/API parity contract test |
 | Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |
 | Verify           | v0.8.3   | `--verify` / `--verify-full` / `--verify-html` (SHA-256 fingerprint + field comparison + readable report), vectorised — ~570s → ~15s on the 500K full-mode benchmark |

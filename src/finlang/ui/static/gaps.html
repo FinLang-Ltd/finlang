@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Growth loop — FinLang Workbench</title>
+<style>
+  :root{
+    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
+    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --purple:#c4a7fa;
+    --dim:#6f82a6; --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
+    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  header{position:relative;z-index:1;display:flex;align-items:center;
+    justify-content:space-between;padding:20px 32px 16px}
+  .lk{width:140px;display:block}
+  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
+  main{position:relative;z-index:1;display:grid;grid-template-columns:340px 1fr;
+    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
+  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
+    border-radius:8px;padding:14px 16px;margin-bottom:12px}
+  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+    margin-bottom:10px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=file]{width:100%;font-size:12px;color:var(--muted)}
+  input[type=text],input[type=number],select{width:100%;background:#0a1633;color:#dbe4f5;
+    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
+    font-family:var(--mono);font-size:13px}
+  .why{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
+  button.primary{width:100%;margin-top:12px;padding:11px;border:0;border-radius:6px;
+    background:var(--mark);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+  button.primary:disabled{background:#1c355f;color:var(--dim);cursor:not-allowed}
+  button.ghost{padding:8px 14px;border:1px solid rgba(255,255,255,.2);border-radius:6px;
+    background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
+  #spin{display:none;color:var(--blue);font-family:var(--mono);font-size:13px;margin-top:10px}
+  table.rows{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}
+  table.rows th{text-align:left;color:var(--dim);font-weight:400;padding:4px 12px 6px 0;
+    border-bottom:1px solid rgba(255,255,255,.14)}
+  table.rows td{padding:5px 12px 5px 0;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.05)}
+  .scroll{max-height:340px;overflow:auto}
+  pre.fin{font-family:var(--mono);font-size:13px;background:#0a1633;border-radius:6px;
+    padding:12px;white-space:pre-wrap;color:#c7d4ec;max-height:320px;overflow:auto}
+  .step{opacity:.45;pointer-events:none}
+  .step.on{opacity:1;pointer-events:auto}
+  .src{font-family:var(--mono);font-size:12px;color:var(--green)}
+  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
+  nav a{font-family:var(--mono);font-size:14px;letter-spacing:.04em;color:var(--muted);
+    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
+  nav a:hover{color:#fff}
+  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
+  /* design-canvas port: per-screen accent (Run blue, Rules purple,
+     Growth loop green, Impact amber) + help chips on section titles */
+  :root{--acc:var(--green)}
+  nav a.on{border-bottom:3px solid var(--acc);padding-bottom:5px}
+  .card{border-top:2px solid var(--acc)}
+  .card .t{color:var(--acc)}
+  .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--acc);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
+  .helpbox{border:1px solid var(--acc, var(--mark));background:rgba(127,196,255,0.06);border-radius:6px;padding:10px 13px;font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 10px}
+  .card .t.nohelp::after{content:none}
+</style>
+</head>
+<body>
+<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
+    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
+  </pattern></defs>
+  <rect width="100%" height="100%" fill="#0d1b3c"/>
+  <rect width="100%" height="100%" fill="url(#ht)"/>
+</svg>
+<header>
+  <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+  <small>WORKBENCH &middot; GROWTH LOOP</small>
+</header>
+<nav><a href="index.html">Home</a><a href="run.html">Run</a><a href="rules.html">Rules</a><a href="gaps.html" class="on">Growth loop</a><a href="impact.html">Impact</a></nav>
+
+<main>
+  <section>
+    <h1>Growth loop</h1>
+    <div class="card">
+      <div class="t">1 &middot; THE CATEGORISED OUTPUT</div>
+      <div id="handoff" style="display:none">
+        <div class="src">&#10003; carried over from your last Run (<span id="handoff_n"></span> rows)</div>
+        <div class="why"><a id="clear_handoff" style="color:var(--blue);cursor:pointer">use a file instead</a></div>
+      </div>
+      <div id="file_row">
+        <label>Transactions CSV</label>
+        <input type="file" id="raw_csv" accept=".csv">
+        <label>Rules to check coverage of</label>
+        <select id="g_rules_mode">
+          <option value="file">a .fin file from disk</option>
+          <option value="pack">a bundled rulepack</option>
+          <option value="draft">rules from the Rules editor</option>
+        </select>
+        <div id="g_rules_file_row"><input type="file" id="g_rules_file" accept=".fin"></div>
+        <div id="g_rules_pack_row" style="display:none"><select id="g_include_pack"></select></div>
+        <div class="why">It runs your rules over the data first, then finds what they
+          didn't claim &mdash; so the gaps are always relative to rules you chose here.</div>
+        <details style="margin-top:8px">
+          <summary>I already have a categorised output file</summary>
+          <label>categorized.csv (from Run &rarr; downloads)</label>
+          <input type="file" id="cat_csv" accept=".csv">
+        </details>
+      </div>
+      <label>Only counterparties appearing at least</label>
+      <input type="number" id="min_count" value="1" min="1" style="width:90px"> <span class="why" style="display:inline">time(s)</span>
+      <button type="button" class="primary" id="discover" disabled>Discover gaps</button>
+      <div id="spin">working&hellip;</div>
+    </div>
+
+    <div class="card step" id="s_suggest">
+      <div class="t">3 &middot; DRAFT RULES FOR THE TICKED ONES</div>
+      <label>Category to assign</label>
+      <input type="text" id="sg_category" value="Review">
+      <label>Rule-name prefix</label>
+      <input type="text" id="sg_prefix" value="SUGGEST">
+      <label>Match style</label>
+      <select id="sg_match">
+        <option value="fuzzy" selected>fuzzy &mdash; contains-style wildcard (usually right)</option>
+        <option value="exact">exact &mdash; the full counterparty string only</option>
+      </select>
+      <button type="button" class="primary" id="suggest">Draft rules</button>
+      <div class="why">Drafts are proposals. Nothing is adopted until you append them
+        to your rules and keep them &mdash; a human accepts, edits or bins every draft.</div>
+    </div>
+  </section>
+
+  <section>
+    <h1>Results</h1>
+    <div class="card step" id="s_cands">
+      <div class="t">2 &middot; WHAT NO RULE CLAIMED <span id="cand_n" style="color:var(--amber)"></span></div>
+      <div style="margin-bottom:6px">
+        <a id="tick_all" style="color:var(--blue);cursor:pointer;font-size:12.5px">all</a> &middot;
+        <a id="tick_none" style="color:var(--blue);cursor:pointer;font-size:12.5px">none</a>
+      </div>
+      <div class="scroll" id="cands"></div>
+    </div>
+    <div class="card step" id="s_drafts">
+      <div class="t">4 &middot; THE DRAFTS</div>
+      <pre class="fin" id="drafts"></pre>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+        <button type="button" class="ghost" id="append">Append to my Workbench draft &rarr;</button>
+        <button type="button" class="ghost" id="dl">Download draft_rules.fin</button>
+        <a class="ghost" href="run.html?rules=draft" style="text-decoration:none">Re-run with updated rules &rarr;</a>
+      </div>
+      <div class="why" id="append_note"></div>
+    </div>
+  </section>
+</main>
+<div style="display:none" id="lkhost"></div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const state = {csvText: null, cands: null, drafts: ""};
+
+/* Handoff from a Run: run.html stashes small outputs in localStorage. Pure
+   browser state (P3); big outputs use the file path instead. */
+const stash = localStorage.getItem("finlang_last_output");
+if (stash){
+  state.csvText = stash;
+  $("handoff").style.display = "block";
+  $("file_row").style.display = "none";
+  $("handoff_n").textContent = Math.max(0, flCsvRows(stash).length - 1);
+  // provenance: gaps only mean anything relative to the rules that ran, so
+  // say which run this output came from.
+  try {
+    const d = JSON.parse(localStorage.getItem("finlang_last_run_desc") || "null");
+    if (d) $("handoff").querySelector(".src").innerHTML =
+      `&#10003; carried over from your last Run (<span>${$("handoff_n").textContent}</span> rows)` +
+      `<div style="color:var(--muted);margin-top:3px">${esc(d.input)} &middot; against ` +
+      `<b style="color:var(--amber)">${esc(d.rules)}</b> &middot; ${esc(d.when)}</div>`;
+  } catch(e){}
+}
+$("clear_handoff").onclick = () => {
+  state.csvText = null;
+  $("handoff").style.display = "none";
+  $("file_row").style.display = "";
+  gate();
+};
+$("cat_csv").onchange = async e => {
+  state.csvText = e.target.files[0] ? await e.target.files[0].text() : null;
+  gate();
+};
+$("g_rules_mode").onchange = e => {
+  $("g_rules_file_row").style.display = e.target.value==="file" ? "" : "none";
+  $("g_rules_pack_row").style.display = e.target.value==="pack" ? "" : "none";
+  gate();
+};
+["raw_csv","g_rules_file"].forEach(id => $(id).onchange = gate);
+fetch("/rulepacks").then(r=>r.json()).then(b=>{
+  const s = $("g_include_pack");
+  b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
+}).catch(()=>{});
+function draftRules(){
+  const t = localStorage.getItem("finlang_rules_draft") || "";
+  return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
+}
+function rawReady(){
+  if (!$("raw_csv").files.length) return false;
+  const m = $("g_rules_mode").value;
+  return m==="pack" || (m==="draft" ? !!draftRules() : $("g_rules_file").files.length > 0);
+}
+function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
+gate();
+
+$("discover").onclick = async () => {
+  $("discover").disabled = true; $("spin").style.display = "block";
+  try {
+    // No categorised output in hand? Make one right here: run the chosen rules
+    // over the chosen data via /process (audit off - only categories matter for
+    // gap-finding), then discover on what came back. One engine, two calls.
+    if (!state.csvText && rawReady()){
+      const fp = new FormData();
+      fp.append("input_csv", $("raw_csv").files[0]);
+      const m = $("g_rules_mode").value;
+      if (m==="file") fp.append("rules", $("g_rules_file").files[0]);
+      else if (m==="draft") fp.append("rules", draftRules(), "workbench_draft.fin");
+      else fp.append("include_pack", $("g_include_pack").value);
+      fp.append("audit_mode", "none");
+      fp.append("return_audit", "false");
+      const rp = await fetch("/process", {method:"POST", body:fp});
+      const bp = await rp.json();
+      if (!rp.ok){
+        const d = typeof bp.detail==="string" ? bp.detail : JSON.stringify(bp.detail, null, 2);
+        alert(d); return;
+      }
+      state.csvText = bp.output_csv;
+      const rulesDesc = m==="pack" ? `bundled pack: ${$("g_include_pack").value}`
+                      : m==="draft" ? "your Workbench draft"
+                      : $("g_rules_file").files[0].name;
+      $("handoff").style.display = "block";
+      $("file_row").style.display = "none";
+      $("handoff_n").textContent = Math.max(0, flCsvRows(state.csvText).length - 1);
+      $("handoff").querySelector(".src").innerHTML =
+        `&#10003; categorised just now (<span>${$("handoff_n").textContent}</span> rows)` +
+        `<div style="color:var(--muted);margin-top:3px">${esc($("raw_csv").files[0].name)} ` +
+        `&middot; against <b style="color:var(--amber)">${esc(rulesDesc)}</b></div>`;
+    }
+    const fd = new FormData();
+    fd.append("input_csv", new Blob([state.csvText], {type:"text/csv"}), "categorized.csv");
+    fd.append("min_count", $("min_count").value || "1");
+    const r = await fetch("/discover", {method:"POST", body:fd});
+    const b = await r.json();
+    if (!r.ok){ alert(typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail)); return; }
+    renderCands(b.candidates_csv || "");
+  } finally { $("spin").style.display = "none"; gate(); }
+};
+
+function renderCands(csv){
+  const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
+  $("s_cands").classList.add("on");
+  if (L.length < 2){
+    $("cand_n").textContent = "· none — every row was claimed by a rule";
+    $("cands").innerHTML = '<div class="why">No gaps at this threshold. That is the goal state, not an error.</div>';
+    state.cands = null; return;
+  }
+  state.cands = L;
+  $("cand_n").textContent = `· ${L.length - 1}`;
+  let h = '<table class="rows"><thead><tr><th></th>' +
+    L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>";
+  L.slice(1).forEach((r, i) => {
+    h += `<tr><td><input type="checkbox" class="ck" data-i="${i}" checked></td>` +
+         r.map(c=>`<td>${esc(c)}</td>`).join("") + "</tr>";
+  });
+  $("cands").innerHTML = h + "</tbody></table>";
+  $("s_suggest").classList.add("on");
+}
+$("tick_all").onclick = () => document.querySelectorAll(".ck").forEach(c => c.checked = true);
+$("tick_none").onclick = () => document.querySelectorAll(".ck").forEach(c => c.checked = false);
+
+$("suggest").onclick = async () => {
+  if (!state.cands) return;
+  const ticked = [...document.querySelectorAll(".ck")].filter(c => c.checked).map(c => +c.dataset.i);
+  if (!ticked.length){ alert("Nothing ticked."); return; }
+  // Filter the engine's own candidates CSV down to the ticked rows - selection,
+  // not interpretation. Header row passes through untouched.
+  const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
+  const csv = lines.map(r => r.map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(",")).join("\n");
+  $("spin").style.display = "block";
+  try {
+    const fd = new FormData();
+    fd.append("candidates_csv", new Blob([csv], {type:"text/csv"}), "candidates.csv");
+    fd.append("category", $("sg_category").value || "Review");
+    fd.append("prefix", $("sg_prefix").value || "SUGGEST");
+    fd.append("emit_match", $("sg_match").value);
+    const r = await fetch("/suggest", {method:"POST", body:fd});
+    const b = await r.json();
+    if (!r.ok){ alert(typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail)); return; }
+    state.drafts = b.rules_fin || "";
+    $("drafts").textContent = state.drafts || "(no rules drafted)";
+    $("s_drafts").classList.add("on");
+    $("append_note").textContent = "";
+  } finally { $("spin").style.display = "none"; }
+};
+
+$("append").onclick = () => {
+  if (!state.drafts.trim()) return;
+  const cur = localStorage.getItem("finlang_rules_draft") || "";
+  const stamp = "# drafted by suggest, " + new Date().toISOString().slice(0, 10) + " - review each rule\n";
+  localStorage.setItem("finlang_rules_draft",
+    (cur.trim() ? cur.trim() + "\n\n" : "") + stamp + state.drafts.trim() + "\n");
+  $("append_note").innerHTML = 'Appended. Open the <a href="rules.html" style="color:var(--mark)">Rules screen</a> to review and Check, or re-run directly.';
+};
+$("dl").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([state.drafts], {type:"text/plain"}));
+  a.download = "draft_rules.fin"; a.click();
+};
+
+function flCsvRows(text){
+  // RFC-4180 CSV parse: double-quotes protect commas AND newlines; "" is a
+  // literal quote. Whole-text scan so a quoted field with an embedded newline
+  // stays ONE field. These parsed rows are re-serialised into the /suggest
+  // payload, so a mis-split here would send corrupt data back to the engine.
+  const rows = []; let row = [], cur = "", q = false;
+  const s = String(text).replace(/\r\n?/g, "\n");
+  for (let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if (q){
+      if (ch === '"'){ if (s[i+1] === '"'){ cur += '"'; i++; } else q = false; }
+      else cur += ch;
+    } else if (ch === '"'){ q = true; }
+    else if (ch === ","){ row.push(cur); cur = ""; }
+    else if (ch === "\n"){ row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += ch;
+  }
+  if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+fetch("lockup.svg").then(r=>r.text()).then(t=>{
+  $("lkhost").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
+});
+</script>
+<script src="help.js"></script>
+</body>
+</html>

@@ -25,6 +25,7 @@ Limits:
 """
 from __future__ import annotations
 
+import csv
 import json
 import os
 import secrets
@@ -33,7 +34,7 @@ import subprocess
 import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import (
     Depends,
@@ -139,6 +140,39 @@ class ProcessResponse(BaseModel):
     stderr: str = ""
 
 
+class RulepackInfo(BaseModel):
+    name: str          # the short name --include-pack accepts
+    file: str          # the shipped .fin it resolves to
+
+
+class RulepacksResponse(BaseModel):
+    packs: List[RulepackInfo]
+
+
+class RulePart(BaseModel):
+    field: str
+    op: str                      # '==' | '~' | 'in' (match) · '=' | '+=' (set)
+    value: Any                   # string; [low, high] for amount ranges; true for exclude
+
+
+class StructuredRule(BaseModel):
+    name: str
+    match: List[RulePart]
+    set: List[RulePart]
+
+
+class ValidateRulesResponse(BaseModel):
+    ok: bool
+    rule_count: Optional[int] = None
+    rule_names: List[str] = []   # best-effort: the engine truncates its preview past 10
+    # SOL-112 read-back: the rules as the ENGINE tokenised them, produced by the
+    # same parse_condition/parse_action the evaluator runs. The UI renders these
+    # into English ("the engine confirming what it understood") — templating
+    # only, never parsing. Empty when ok is False.
+    rules: List[StructuredRule] = []
+    error: Optional[str] = None  # engine stderr, verbatim, when ok is False
+
+
 class DiscoverResponse(BaseModel):
     candidates_csv: str
     all_candidates_csv: Optional[str] = None
@@ -222,11 +256,28 @@ async def _save_upload(upload: UploadFile, dest: Path) -> int:
     return written
 
 
-def _row_count(path: Path) -> int:
-    """Best-effort line count minus header. Returns -1 if unreadable."""
+def _row_count(path: Path, encoding: str = "utf-8-sig") -> int:
+    """Best-effort CSV *record* count minus header. Counts records via the csv
+    reader, not physical lines, so a quoted field carrying an embedded newline
+    stays one row — a naive line count overstated rows_in/rows_out (and the Run
+    banner) whenever a memo held a newline (SOL-112 review). Uses the engine's
+    own delimiter heuristic (comma/semicolon/tab/pipe) rather than assuming the
+    comma dialect (round 3), and reads with the caller's encoding rather than
+    assuming utf-8-sig — a UTF-16 upload the engine processed fine was counted
+    as garbage lines otherwise (round 4); "auto" resolves through the engine's
+    own detector, matched case-insensitively exactly as the CLI does at its
+    --encoding handling (round 5: "AUTO" fell through to a nonexistent codec
+    and returned -1 while the engine processed fine). The detector's limits are
+    the engine's limits by design — parity with what the engine read, not
+    independent detection. Reused, not copied: parallel heuristics would drift.
+    Returns -1 if unreadable."""
     try:
-        with path.open("r", encoding="utf-8-sig", errors="replace") as f:
-            return max(0, sum(1 for _ in f) - 1)
+        from finlang.cli.run_finlang import _auto_pick_encoding, _detect_delimiter
+
+        enc = _auto_pick_encoding(str(path), headless=True) if encoding.lower() == "auto" else encoding
+        delim = _detect_delimiter(str(path), encoding=enc) or ","
+        with path.open("r", encoding=enc, errors="replace", newline="") as f:
+            return max(0, sum(1 for _ in csv.reader(f, delimiter=delim)) - 1)
     except Exception:
         return -1
 
@@ -324,6 +375,106 @@ def health() -> HealthResponse:
     )
 
 
+@app.get("/rulepacks", response_model=RulepacksResponse)
+def rulepacks() -> RulepacksResponse:
+    """The bundled rulepacks, by the short name --include-pack accepts.
+
+    Served from the CLI's own PACK_MAP rather than a copy, so this listing
+    cannot drift from what the engine resolves. (SOL-112: the Workbench's
+    pack dropdown shipped with eight invented names on day one — this
+    endpoint exists so that class of error is structurally impossible.)
+    """
+    from finlang.cli.run_finlang import PACK_MAP  # lazy: the API otherwise never imports the CLI
+
+    # PACK_MAP carries aliases (subs/subscriptions -> one file). One entry per
+    # file, keeping the most descriptive short name — this feeds a dropdown.
+    by_file: dict = {}
+    for k, v in PACK_MAP.items():
+        if v not in by_file or len(k) > len(by_file[v]):
+            by_file[v] = k
+    return RulepacksResponse(
+        packs=[RulepackInfo(name=n, file=f) for f, n in sorted(by_file.items())]
+    )
+
+
+@app.post(
+    "/rules/validate",
+    response_model=ValidateRulesResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def validate_rules(
+    rules: Optional[UploadFile] = File(None, description="A .fin rules file"),
+    rules_text: Optional[str] = Form(None, description="Rules source as text (alternative to the file)"),
+) -> ValidateRulesResponse:
+    """Parse-check rules against the real engine. One engine, no reimplementation.
+
+    Runs the CLI against a bundled one-row CSV with audit off: rule parsing is
+    step 1 and exits 2 with FATAL before any data work, so a bad pack fails
+    here for exactly the reason it would fail a real run, in the engine's own
+    words. Deliberately NOT --headless — the "Parsed N rule(s): ..." preview
+    this scrapes only prints in the normal mode.
+    """
+    import re as _re
+
+    if (rules is None) == (rules_text is None):
+        raise HTTPException(400, "Provide exactly one of: rules (file) or rules_text.")
+
+    with tempfile.TemporaryDirectory(prefix="finlang_api_val_") as tmp:
+        d = Path(tmp)
+        rules_fin = d / "rules.fin"
+        if rules is not None:
+            await _save_upload(rules, rules_fin)
+        else:
+            rules_fin.write_text(rules_text, encoding="utf-8")
+
+        probe = d / "probe.csv"
+        probe.write_text("date,amount,counterparty,memo\n"
+                         "2026-01-01,-1.00,VALIDATE PROBE,probe\n", encoding="utf-8")
+
+        p = _run([
+            FINLANG_CLI,
+            "--input", str(probe),
+            "--rules", str(rules_fin),
+            "--output", str(d / "out.csv"),
+            "--audit-mode", "none",
+        ])
+
+        if p.returncode != 0:
+            return ValidateRulesResponse(ok=False, error=(p.stderr or p.stdout).strip())
+
+        m = _re.search(r"Parsed (\d+) rule\(s\): (.+)", p.stdout)
+        names: List[str] = []
+        count: Optional[int] = None
+        if m:
+            count = int(m.group(1))
+            names = [n.strip() for n in m.group(2).split(",") if not n.strip().startswith("...")]
+
+        # The read-back structure, from the engine's own tokenisers — the same
+        # parse_condition/parse_action the evaluator runs, so what the UI shows
+        # in English is what will actually fire. The CLI subprocess above stays
+        # the authority on validity (P4); if this in-process pass disagrees
+        # (it cannot, same code — but belt and braces), degrade to no
+        # structure rather than contradict the verdict.
+        structured: List[StructuredRule] = []
+        try:
+            from finlang.cli.run_finlang import parse_fin_rules
+            from finlang.engine.finlang_engine import parse_action, parse_condition
+
+            for r in parse_fin_rules(str(rules_fin)):
+                structured.append(StructuredRule(
+                    name=r["name"],
+                    match=[RulePart(field=f, op=o, value=v)
+                           for f, o, v in (parse_condition(c) for c in r["match"])],
+                    set=[RulePart(field=f, op=o, value=v)
+                         for f, o, v in (parse_action(a) for a in r["set"])],
+                ))
+        except Exception:
+            structured = []
+
+    return ValidateRulesResponse(ok=True, rule_count=count, rule_names=names,
+                                 rules=structured)
+
+
 @app.post(
     "/process",
     response_model=ProcessResponse,
@@ -355,7 +506,14 @@ async def process_csv(
     verify_full: bool = Form(False, description="Run --verify-full after categorisation"),
     verify_html: bool = Form(False, description="Also return a self-contained HTML integrity report (requires verify or verify_full)"),
 ):
-    """Categorise transactions. Returns output CSV + audit + stats."""
+    """Categorise transactions. Returns output CSV + audit + stats.
+
+    Exit code 3 (verify requested and integrity mismatches found) maps to HTTP
+    200 with exit_code 3 in stats, the categorised output preserved, and the
+    verify report in the body — finding a mismatch is a reported outcome, not a
+    request error, consistent with /reconcile and /impact. Exit 1 (ops) and 2
+    (validation) follow the standard error mapping.
+    """
     # Mirror the CLI's exit-2 validation: verify_html without a verify mode
     # previously ran normally and returned verify_report_html: null — a
     # silent no-op contradicting the documented "requires" contract
@@ -428,40 +586,19 @@ async def process_csv(
         result = _run(cmd)
         elapsed = time.perf_counter() - t0
 
-        if result.returncode != 0:
-            # Exit 3 with verify requested: attach the verification report —
-            # it is the artefact that explains the failure, and it dies with
-            # the temp dir otherwise (4-Jul sweep).
-            if result.returncode == 3 and verify_dir:
-                verify_report_on_fail = None
-                report_path = verify_dir / "verify_report.json"
-                if report_path.exists():
-                    try:
-                        verify_report_on_fail = json.loads(report_path.read_text(encoding="utf-8"))
-                    except Exception:
-                        verify_report_on_fail = None
-                # The HTML twin must survive too: a FAILED verification is
-                # exactly when the readable report matters most, and it is
-                # destroyed with the temp dir otherwise (Codex, 26 Jul).
-                verify_html_on_fail = None
-                if verify_html:
-                    html_path = verify_dir / "verify_report.html"
-                    if html_path.exists():
-                        try:
-                            verify_html_on_fail = html_path.read_text(encoding="utf-8")
-                        except Exception:
-                            verify_html_on_fail = None
-                raise HTTPException(
-                    status_code=422,
-                    detail={
-                        "error": "verify_failed",
-                        "exit_code": 3,
-                        "message": "Output verification reported mismatches.",
-                        "verify_report_html": verify_html_on_fail,
-                        "verify_report": verify_report_on_fail,
-                        "stderr": (result.stderr or "")[-2000:],
-                    },
-                )
+        # Exit 3 with verify requested is a FINDING, not a failure: the engine
+        # categorised the file, then verification flagged a mismatch. Made
+        # consistent with /reconcile and /impact (exit 3 -> HTTP 200, the finding
+        # carried in the body) so the Workbench's one-click verify+reconcile
+        # renders the amber result and carries on, instead of dead-ending on a
+        # 422 that also skipped reconcile (SOL-112 review, 26 Aug 2026; operator
+        # decision to unify exit-3 semantics across the three endpoints). The
+        # verify report rides in the normal verify_report/verify_report_html
+        # fields below, read from verify_dir before the temp dir is torn down —
+        # so a FAILED verification still ships its report. Other non-zero exits
+        # remain real errors.
+        verify_findings = result.returncode == 3 and verify_dir is not None
+        if result.returncode != 0 and not verify_findings:
             raise _engine_http_error(result.returncode, result.stderr)
         if not out_csv.exists():
             raise HTTPException(500, "Engine completed but produced no output file.")
@@ -494,8 +631,8 @@ async def process_csv(
             verify_report=verify_report,
             verify_report_html=verify_report_html,
             stats=ProcessStats(
-                rows_in=_row_count(in_csv),
-                rows_out=_row_count(out_csv),
+                rows_in=_row_count(in_csv, encoding),
+                rows_out=_row_count(out_csv, output_encoding),
                 audit_entries=len(audit_data) if isinstance(audit_data, list) else 0,
                 duration_seconds=round(elapsed, 4),
                 exit_code=result.returncode,
