@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.8.3
+> **Last verified:** v0.9.0
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -11,15 +11,15 @@
 - [Rule Packs Quick Reference](#rule-packs-quick-reference)
 - [4) Environment Variables](#4-environment-variables)
 - [5) Quick Reference Table](#5-quick-reference-table)
+- [6) Practical Recipes](#6-practical-recipes)
+- [7) FAQ](#7-faq)
+- [⚠️ Known Issues (Active)](#️-known-issues-active)
+- [Related Documentation](#related-documentation)
 
 > Two further console scripts sit over these entry points and have their own
 > docs: `finlang-ui` (the Workbench — [workbench.md](workbench.md)) and
 > `finlang-api` (the HTTP wrapper — [api.md](api.md)). Neither takes flags;
 > both configure via the environment variables in §4.
-- [6) Practical Recipes](#6-practical-recipes)
-- [7) FAQ](#7-faq)
-- [⚠️ Known Issues (Active)](#️-known-issues-active)
-- [Related Documentation](#related-documentation)
 
 ---
 

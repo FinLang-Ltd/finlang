@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] - 2026-09-XX
+
+### Added
+- **The FinLang Workbench (SOL-112)** — `finlang-ui` opens a local browser interface over the same engine as the CLI, Python call and HTTP API. Five screens: **Run** (categorise, audit, verify and reconcile in any combination; every row shown with the rule that decided it; key-results charts from the run's own output; verify and reconcile HTML reports inline; a run log showing the equivalent `finlang` command for every run), **Rules** (editor plus a step-by-step builder; the engine's own parse read back in plain English), **Growth loop** (discover → suggest on a run's output), **Impact** (preview what a rule change moves before shipping it), and **Home**. The server is bound to `127.0.0.1` with no override; the page makes no external requests — no CDN, no telemetry, every asset ships in the wheel. The Workbench contains no rule logic of its own: validation and categorisation both go through the engine. See `docs/workbench.md`.
+- **API: `GET /rulepacks`** — the bundled rulepacks by short name, served from the CLI's own `PACK_MAP` so the listing cannot drift from what the engine resolves.
+- **API: `POST /rules/validate`** — parse-checks a rules file (upload or text) against the real engine; a parse failure is returned as a result (`ok: false` with the engine's `FATAL` message), not an HTTP error.
+
+### Changed
+- **`pip install finlang` now includes the Workbench and API server dependencies.** `fastapi`, `uvicorn[standard]` and `python-multipart` moved from the optional `[api]` extra to base dependencies, so a plain install can run `finlang-ui` (and `finlang-api`) directly. `pip install "finlang[api]"` remains valid as a no-op. On an environment missing the server packages, `finlang-ui` now prints a one-line fix instead of a traceback.
+- **API behaviour change — a verify mismatch on `/process` returns HTTP 200, not 422.** When `verify`/`verify_full` is set and the engine exits 3, the response is now **200** with `stats.exit_code = 3`, the categorised `output_csv`, and the report in the normal `verify_report` / `verify_report_html` fields. Previously this was a 422 with the report carried in a structured `detail` object. This makes the exit-3 mapping uniform with `/reconcile` and `/impact`, where a finding was already a 200: a finding is a reported outcome, not a request error. **Clients that branched on a 422 `detail.error == "verify_failed"` should read `stats.exit_code == 3` on a 200 instead.**
+- **Standalone test suites: API 29 → 39; new Workbench suites** — 17 UI-contract tests (every response field the screens read) and 10 Playwright end-to-end tests driving a real browser against a live server and CLI. Both remain outside the daily gate by design. Daily gate unchanged at 204 tests / 10 gates; the engine is unchanged in this release.
+
+### Fixed
+- **API `rows_in` / `rows_out` counts are now CSV-record-accurate.** The count was a raw line count read as UTF-8: a quoted field containing a newline was counted as extra rows, and files in other delimiters or encodings could be miscounted. Counting now reuses the engine's own delimiter detection and encoding handling (including `encoding="auto"`), so the reported counts match what the engine read. Categorised output was never affected — only the reported statistics.
+
 ## [0.8.3] - 2026-07-26
 
 ### Added

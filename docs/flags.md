@@ -1,10 +1,10 @@
 # 🚩 FinLang Flags & Canonical Formats
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.8.3
+> **Last verified:** v0.9.0
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.
-All definitions verified against the v0.8.3 codebase (July 2026).
+All definitions verified against the v0.9.0 codebase (September 2026).
 
 ---
 
@@ -187,11 +187,11 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 
 ## 🧪 Audit Reference
 Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.
-All flags validated in FinLang v0.8.3.
+All flags validated in FinLang v0.9.0.
 
 ---
 
-## ⚠️ Known Issues (v0.8.3)
+## ⚠️ Known Issues (v0.9.0)
 
 - None
 
