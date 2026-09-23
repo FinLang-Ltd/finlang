@@ -26,11 +26,12 @@ Limits:
 from __future__ import annotations
 
 import csv
+import importlib.util
 import json
 import os
 import secrets
-import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -76,10 +77,14 @@ if _UI_STATIC.is_dir():
 
     app.mount("/ui", StaticFiles(directory=str(_UI_STATIC), html=True), name="ui")
 
-# CLI entry points — resolved at import time. shutil.which is cross-platform.
-FINLANG_CLI = shutil.which("finlang") or "finlang"
-FINLANG_DISCOVER_CLI = shutil.which("finlang-discover") or "finlang-discover"
-FINLANG_SUGGEST_CLI = shutil.which("finlang-suggest") or "finlang-suggest"
+# CLI entry points — run as modules under THIS interpreter, never looked up on
+# PATH. A PATH lookup finds no engine when the server is launched by full path
+# (a shortcut or double-click), and can find a different finlang install first.
+# Subprocess isolation is unchanged: these are the console scripts' own modules.
+_CLI_MODULES = ("finlang.cli.run_finlang", "finlang.tools.discover", "finlang.tools.suggest")
+FINLANG_CLI = [sys.executable, "-m", _CLI_MODULES[0]]
+FINLANG_DISCOVER_CLI = [sys.executable, "-m", _CLI_MODULES[1]]
+FINLANG_SUGGEST_CLI = [sys.executable, "-m", _CLI_MODULES[2]]
 
 DEFAULT_TIMEOUT = int(os.environ.get("FINLANG_API_TIMEOUT", "300"))
 MAX_UPLOAD_BYTES = int(
@@ -222,12 +227,16 @@ class ImpactResponse(BaseModel):
 def _run(cmd: List[str], timeout: int = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess:
     """Run a CLI subprocess; surface failures as clean HTTP errors."""
     try:
+        # cwd pinned: `python -m` puts the working directory first on sys.path,
+        # so a finlang source tree in the server's cwd would otherwise shadow
+        # the installed engine. Every path handed to the CLI is absolute.
         return subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
             check=False,
+            cwd=tempfile.gettempdir(),
         )
     except subprocess.TimeoutExpired as e:
         raise HTTPException(
@@ -237,7 +246,7 @@ def _run(cmd: List[str], timeout: int = DEFAULT_TIMEOUT) -> subprocess.Completed
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"FinLang CLI not found on PATH: {cmd[0]}",
+            detail=f"FinLang engine could not be started: {cmd[0]}",
         ) from e
 
 
@@ -371,7 +380,7 @@ def health() -> HealthResponse:
     return HealthResponse(
         version=__version__,
         timestamp=time.time(),
-        cli_resolved=shutil.which("finlang") is not None,
+        cli_resolved=all(importlib.util.find_spec(m) is not None for m in _CLI_MODULES),
     )
 
 
@@ -432,7 +441,7 @@ async def validate_rules(
                          "2026-01-01,-1.00,VALIDATE PROBE,probe\n", encoding="utf-8")
 
         p = _run([
-            FINLANG_CLI,
+            *FINLANG_CLI,
             "--input", str(probe),
             "--rules", str(rules_fin),
             "--output", str(d / "out.csv"),
@@ -547,7 +556,7 @@ async def process_csv(
             await _save_upload(map_file, map_json)
 
         cmd: List[str] = [
-            FINLANG_CLI,
+            *FINLANG_CLI,
             "--input", str(in_csv),
             "--output", str(out_csv),
             "--audit-mode", audit_mode,
@@ -671,7 +680,7 @@ async def discover(
         await _save_upload(input_csv, in_csv)
 
         cmd: List[str] = [
-            FINLANG_DISCOVER_CLI,
+            *FINLANG_DISCOVER_CLI,
             "--input", str(in_csv),
             "--candidates", str(candidates_csv),
             "--all", str(all_csv),
@@ -743,7 +752,7 @@ async def suggest(
             await _save_upload(existing_rules, rules_fin)
 
         cmd: List[str] = [
-            FINLANG_SUGGEST_CLI,
+            *FINLANG_SUGGEST_CLI,
             "--input", str(in_csv),
             "--output", str(out_fin),
             "--emit-match", emit_match,
@@ -847,7 +856,7 @@ async def reconcile(
             await _save_upload(map_file, map_json)
 
         cmd: List[str] = [
-            FINLANG_CLI,
+            *FINLANG_CLI,
             "--input", str(in_csv),
             "--output", str(out_csv),
             "--audit", str(audit_json),
@@ -1028,7 +1037,7 @@ async def impact(
 
         # Impact mode is an analysis run — no --output, no --audit.
         cmd: List[str] = [
-            FINLANG_CLI,
+            *FINLANG_CLI,
             "--input", str(in_csv),
             "--impact-rules", str(candidate_fin),
             "--impact-output-dir", str(impact_dir),
