@@ -28,10 +28,11 @@ It is especially useful as a challenge layer alongside ML categorisers: the `--r
 
 Same input + same rules = reproducible output, with rule-attributed audit trails.
 
-The v0.7.9 FastAPI wrapper makes the same engine reachable over a self-hosted HTTP surface for service/integration workflows.
+The v0.7.9 FastAPI wrapper makes the same engine reachable over a self-hosted HTTP surface for service/integration workflows; the v0.9.0 Workbench puts it in a local browser.
 
-Three surfaces. One engine:
+Four surfaces. One engine:
 
+- Workbench — a local browser interface via `finlang-ui` (served from `127.0.0.1` only)
 - CLI for batch processing
 - Python workflows via subprocess-isolated CLI execution
 - Self-hosted HTTP wrapper via `finlang-api`
@@ -66,7 +67,7 @@ rule "TRAVEL: High Value Flight" {
 
 ---
 
-## ⚙️ Key Features (v0.8.3)
+## ⚙️ Key Features (v0.9.0)
 
 | Feature | Description |
 |:--|:--|
@@ -232,6 +233,7 @@ FinLang's Growth Loop accelerates rule creation through data-driven discovery.
 
 ## 📘 Documentation
 
+- [`docs/release_notes/v0_9_0.md`](docs/release_notes/release_notes_v0_9_0.md) — the Workbench (`finlang-ui`), one-install dependencies, `/process` verify status change
 - [`docs/release_notes/v0_7_9.md`](docs/release_notes/release_notes_v0_7_9.md) — FastAPI wrapper (`finlang-api`), three surfaces / one engine
 - [`docs/release_notes/v0_7_8.md`](docs/release_notes/release_notes_v0_7_8.md)
 - [`docs/release_notes/v0_7_7.md`](docs/release_notes/release_notes_v0_7_7.md)
@@ -292,7 +294,8 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 |:--|:--|:--|
 | Core Engine      | v0.8.3   | Hardening: `FINLANG_AUDIT_MAX`/`audit_max` validation; categorisation output unchanged |
 | CLI Suite        | v0.8.3   | 204 tests across 10 gates (daily); 7-gate full pre-release suite |
-| FastAPI Wrapper  | v0.8.3   | 39 standalone integration tests + CLI/API parity contract test |
+| FastAPI Wrapper  | v0.9.0   | 39 standalone integration tests + CLI/API parity contract test; `/rulepacks` + `/rules/validate`; verify mismatch on `/process` → HTTP 200 |
+| Workbench        | v0.9.0   | 17 UI-contract tests + 10 Playwright end-to-end tests (real browser, live server, real CLI) |
 | Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |
 | Verify           | v0.8.3   | `--verify` / `--verify-full` / `--verify-html` (SHA-256 fingerprint + field comparison + readable report), vectorised — ~570s → ~15s on the 500K full-mode benchmark |
