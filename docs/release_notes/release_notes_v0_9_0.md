@@ -51,13 +51,17 @@ When `/process` runs with `verify` or `verify_full` and the engine finds a misma
 
 Why: a finding is a reported outcome, not a request error — `/reconcile` and `/impact` already worked this way. The old mapping also meant a client running verify and reconcile together hit a dead end at the 422 and never reached the reconciliation. **If your integration branched on a 422 with `detail.error == "verify_failed"`, read `stats.exit_code == 3` on a 200 instead.**
 
+### Fixed: the server always runs its own engine
+
+The API (and so the Workbench) found `finlang` by searching PATH. Started from a shortcut or by full path with no environment on PATH, the page loaded but every run failed; with another FinLang install earlier on PATH, a request could have run that install instead. Each command now runs as a module of the server's own Python interpreter, and each run starts from a fresh, private, empty working directory — so the server can only run the FinLang it was installed with, however it was started. `/health` reports `cli_resolved` on the same basis.
+
 ### Fixed: API row counts
 
 `rows_in` / `rows_out` in API responses were counted as raw lines read as UTF-8, so a quoted field containing a line break inflated the count, and semicolon-delimited or non-UTF-8 files could be miscounted. Counts now use the engine's own delimiter detection and encoding handling, including `encoding="auto"`. The categorised data was never affected — only the reported statistics.
 
 ### How it was checked
 
-The Workbench went through six rounds of adversarial review before release, with each finding resolved and pinned by a regression test. New standalone suites: 17 UI-contract tests pinning every response field the screens read, and 10 end-to-end tests driving a real browser against a live server and the real CLI, with nothing mocked. Standalone API suite: 29 → 39. Daily gate unchanged at 204 tests across 10 gates.
+The Workbench went through six rounds of adversarial review before release, with each finding resolved and pinned by a regression test. New standalone suites: 17 UI-contract tests pinning every response field the screens read, and 10 end-to-end tests driving a real browser against a live server and the real CLI, with nothing mocked. Standalone API suite: 29 → 42. Daily gate unchanged at 204 tests across 10 gates.
 
 ---
 

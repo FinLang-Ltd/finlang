@@ -78,7 +78,7 @@ The FinLang API is a thin REST surface over the published CLI. Categorise transa
    └─────────────────────┘
 ```
 
-The **subprocess boundary** is load-bearing. The API never imports `finlang.engine.*`. Every request runs the published CLI as a fresh child process — same binary your end users run from a terminal. Failures are isolated; engine state can't leak between requests.
+The **subprocess boundary** is load-bearing. The API never imports `finlang.engine.*`. Every request runs the published CLI as a fresh child process — the same CLI code your end users run from a terminal, launched as a module of the server's own Python interpreter (never looked up on PATH, so the server can only run the FinLang it was installed with). Failures are isolated; engine state can't leak between requests.
 
 ---
 
@@ -222,7 +222,7 @@ Other HTTP statuses the API can return:
 - **`400 Bad Request`** — input validation failed at the API layer (e.g. neither `rules` nor `include_pack` provided to `/process`)
 - **`401 Unauthorized`** — auth required (env var set) and request missing or has wrong `X-API-Key`
 - **`413 Request Entity Too Large`** — upload exceeds `FINLANG_API_MAX_UPLOAD`
-- **`503 Service Unavailable`** — FinLang CLI not found on PATH (installation issue)
+- **`503 Service Unavailable`** — the FinLang engine could not be started (the server's own Python interpreter was unavailable — an installation fault). Since v0.9.0 the server runs the engine as a module of its own interpreter, never via PATH
 - **`504 Gateway Timeout`** — subprocess exceeded `FINLANG_API_TIMEOUT`
 
 For CI/CD pipelines: `200` = the request was processed on `/process`, `/reconcile`, and `/impact` — read `stats.exit_code` (`3` = a finding: verify mismatch, reconcile mismatch, or behavioural change) and `stats.mismatches_found` / `stats.behavioural_changes_found` for the review signal; `422` = engine validation/parse error (data didn't flow cleanly); `500/503/504` = ops failure to investigate; `400/401/413` = caller error.
