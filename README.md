@@ -84,7 +84,7 @@ rule "TRAVEL: High Value Flight" {
 | **Flag Integrity** | Append-only (`flags +=`) with deterministic deduplication. |
 | **Integrity Verification** | Built-in `--verify` and `--verify-full` — SHA-256 fingerprinting of immutable fields with optional artifact output; `--verify-html` *(v0.8.3)* can render a self-contained plain-English report. See [docs/verify.md](docs/verify.md). |
 | **ML Reconciliation** *(v0.7.8)* | `--reconcile` produces a row-by-row mismatch report against an external (typically ML) categorisation, with rule attribution and audit reason. Optional self-contained HTML report via `--reconcile-html`; the ML side's date convention is inferred from the data (or stated via `--reconcile-date-format`, v0.8.3) and recorded in the report. See [docs/reconciliation.md](docs/reconciliation.md). |
-| **FastAPI Wrapper** *(v0.7.9)* | A self-hosted HTTP surface (`finlang-api`) over the same CLI engine — nine endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`, `/rulepacks`, `/rules/validate`. Subprocess-dispatched (no second engine surface); included in the base install since v0.9.0. 41 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
+| **FastAPI Wrapper** *(v0.7.9)* | A self-hosted HTTP surface (`finlang-api`) over the same CLI engine — nine endpoints incl. `/process`, `/reconcile`, `/impact`, `/discover`, `/suggest`, `/rulepacks`, `/rules/validate`. Subprocess-dispatched (no second engine surface); included in the base install since v0.9.0. 42 standalone integration tests + CLI/API parity contract test. See [docs/api.md](docs/api.md). |
 | **Workbench** *(v0.9.0)* | `finlang-ui` opens a local browser interface over the same engine — pick a CSV and rules, tick verify/reconcile, and get every row back with the rule that decided it, plus a rule builder that reads rules back in plain English. Served from `127.0.0.1` only; every run shows its CLI equivalent. See [docs/workbench.md](docs/workbench.md). |
 
 ---
@@ -294,7 +294,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 |:--|:--|:--|
 | Core Engine      | v0.8.3   | Hardening: `FINLANG_AUDIT_MAX`/`audit_max` validation; categorisation output unchanged |
 | CLI Suite        | v0.8.3   | 204 tests across 10 gates (daily); 7-gate full pre-release suite |
-| FastAPI Wrapper  | v0.9.0   | 41 standalone integration tests + CLI/API parity contract test; `/rulepacks` + `/rules/validate`; verify mismatch on `/process` → HTTP 200 |
+| FastAPI Wrapper  | v0.9.0   | 42 standalone integration tests + CLI/API parity contract test; `/rulepacks` + `/rules/validate`; verify mismatch on `/process` → HTTP 200 |
 | Workbench        | v0.9.0   | 17 UI-contract tests + 10 Playwright end-to-end tests (real browser, live server, real CLI) |
 | Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |

@@ -227,17 +227,19 @@ class ImpactResponse(BaseModel):
 def _run(cmd: List[str], timeout: int = DEFAULT_TIMEOUT) -> subprocess.CompletedProcess:
     """Run a CLI subprocess; surface failures as clean HTTP errors."""
     try:
-        # cwd pinned: `python -m` puts the working directory first on sys.path,
-        # so a finlang source tree in the server's cwd would otherwise shadow
-        # the installed engine. Every path handed to the CLI is absolute.
-        return subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-            cwd=tempfile.gettempdir(),
-        )
+        # `python -m` puts the working directory first on sys.path, so the child
+        # runs from a fresh, private, empty directory: a finlang package in the
+        # server's cwd or in the shared temp root cannot shadow the installed
+        # engine. Every path handed to the CLI is absolute.
+        with tempfile.TemporaryDirectory(prefix="finlang-cwd-") as cwd:
+            return subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+                cwd=cwd,
+            )
     except subprocess.TimeoutExpired as e:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
