@@ -1,5 +1,5 @@
 # FinLang v0.9.0 — The Workbench
-*Released: September 2026*
+*Released: 26 September 2026*
 
 ---
 

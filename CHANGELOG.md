@@ -6,7 +6,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [0.9.0] - 2026-09-XX
+## [0.9.0] - 2026-09-26
 
 ### Added
 - **The FinLang Workbench (SOL-112)** — `finlang-ui` opens a local browser interface over the same engine as the CLI, Python call and HTTP API. Five screens: **Run** (categorise, audit, verify and reconcile in any combination; every row shown with the rule that decided it; key-results charts from the run's own output; verify and reconcile HTML reports inline; a run log showing the equivalent `finlang` command for every run), **Rules** (editor plus a step-by-step builder; the engine's own parse read back in plain English), **Growth loop** (discover → suggest on a run's output), **Impact** (preview what a rule change moves before shipping it), and **Home**. The server is bound to `127.0.0.1` with no override; the page makes no external requests — no CDN, no telemetry, every asset ships in the wheel. The Workbench contains no rule logic of its own: validation and categorisation both go through the engine. See `docs/workbench.md`.
