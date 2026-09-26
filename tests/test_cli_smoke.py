@@ -21,6 +21,10 @@
 
 
 import json, subprocess, sys, tempfile, os, csv, pathlib
+import importlib, warnings
+
+import pandas as pd
+import pytest
 
 BIN = "finlang"  # Assumes installed entry point
 
@@ -198,3 +202,99 @@ def test_audit_max_env_var_is_validated(tmp_path):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True, env=env)
     assert r.returncode == 0, (
         f"valid FINLANG_AUDIT_MAX must not fail: exit {r.returncode}\n{r.stderr}")
+
+
+# ---------------------------------------------------------------------------
+# pandas 3 string migration (26 Sep 2026, v0.9.1). Both CSV formula-injection
+# guards (_csv_safe_text in run_finlang.py and discover.py) picked their text
+# columns with select_dtypes(include="object"). On pandas 3 that emits a
+# Pandas4Warning on every run -- which the Workbench prints in its run log,
+# user's install path included -- and pandas has deprecated the very behaviour
+# that lets "object" still match pandas 3's 'str' columns, so the guard would
+# go quiet on a later pandas. Fix: pandas' documented cross-version form,
+# include=["object", "string"].
+# CI runs this file on pandas 2 (Python 3.10) and pandas 3 (3.11+), so these
+# pin both properties on both majors: no warning, and dangerous cells escaped.
+# ---------------------------------------------------------------------------
+
+# "reference" is not a canonical field: the engine normalises the canonical
+# columns itself (they reach the write step as object), but an extra column
+# passes through untouched, so on pandas 3 it arrives at the guard as 'str'
+# dtype. Without it this run never touches the pandas 3 path at all.
+_DANGER_ROWS = (
+    "date,amount,counterparty,memo,reference\n"
+    "2026-01-05,-12.50,=HYPERLINK(1) TAXI,@SUM(A1),-REF-001\n"
+    "2026-01-06,-8.20,NORMAL VENDOR LTD,+cmd,INV-2\n"
+)
+
+
+# These run the engine exactly as the API/Workbench does: `python -m <module>`.
+# That matters: Pandas4Warning is a DeprecationWarning, which Python only
+# prints by default when raised from __main__ -- so the `finlang` console
+# script stays silent while `-m` (the Workbench's path since 23 Sep 2026)
+# shows it. Testing through the console script would miss the real symptom.
+
+def test_clean_run_is_warning_free_and_guards_formulas(tmp_path):
+    """A clean categorise run leaves stderr empty (the Workbench shows stderr
+    to the user as "Engine output") and still escapes formula-leading cells,
+    including in a pass-through column."""
+    data, rules = _write_min_fixtures(tmp_path)
+    data.write_text(_DANGER_ROWS, encoding="utf-8")
+    out = tmp_path / "out.csv"
+    r = subprocess.run(
+        [sys.executable, "-m", "finlang.cli.run_finlang", "--input", str(data),
+         "--output", str(out), "--rules", str(rules), "--audit-mode", "none", "--headless"],
+        capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert r.stderr.strip() == "", f"a clean run must leave stderr empty:\n{r.stderr}"
+    rows = list(csv.DictReader(out.read_text(encoding="utf-8").splitlines()))
+    assert rows[0]["counterparty"] == "'=HYPERLINK(1) TAXI"
+    assert rows[0]["memo"] == "'@SUM(A1)"
+    assert rows[1]["memo"] == "'+cmd"
+    assert rows[0]["reference"] == "'-REF-001"
+    assert rows[1]["reference"] == "INV-2"
+
+
+def test_discover_run_is_warning_free(tmp_path):
+    """Discover (the Workbench's Growth loop) runs the same guard over its
+    candidate files; a clean run leaves stderr empty too. Its input is
+    categorised output, so rows carry an (empty) category column."""
+    data = tmp_path / "in.csv"
+    data.write_text(
+        "date,amount,counterparty,memo,reference,category\n"
+        "2026-01-05,-12.50,=HYPERLINK(1) TAXI,@SUM(A1),-REF-001,\n"
+        + "2026-01-07,-9.10,NORMAL VENDOR LTD,again,INV-3,\n" * 5,
+        encoding="utf-8")
+    cand, allc = tmp_path / "cand.csv", tmp_path / "all.csv"
+    r = subprocess.run(
+        [sys.executable, "-m", "finlang.tools.discover", "--input", str(data),
+         "--candidates", str(cand), "--all-candidates", str(allc),
+         "--min-count", "1", "--headless"],
+        capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert r.stderr.strip() == "", f"a clean discover must leave stderr empty:\n{r.stderr}"
+    rows = list(csv.DictReader(allc.read_text(encoding="utf-8").splitlines()))
+    names = {row["example_counterparty_name"] for row in rows}
+    assert "'=HYPERLINK(1) TAXI" in names, names   # raw example name, escaped
+
+
+@pytest.mark.parametrize("module", ["finlang.cli.run_finlang", "finlang.tools.discover"])
+def test_csv_guard_escapes_every_text_dtype_warning_free(module):
+    """Both guards, every text dtype pandas 2 or 3 can hand them: the column
+    pandas infers for plain strings (object on 2, 'str' on 3), an explicit
+    object column, and the nullable "string" dtype. No warning, all escaped,
+    numbers untouched."""
+    guard = importlib.import_module(module)._csv_safe_text
+    df = pd.DataFrame({
+        "inferred": ["=1+1", "ok"],
+        "object": pd.Series(["@SUM(A1)", "ok"], dtype=object),
+        "string": pd.Series(["+cmd", pd.NA], dtype="string"),
+        "amount": [-12.5, 3.0],
+    })
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        out = guard(df)
+    assert out["inferred"].tolist() == ["'=1+1", "ok"]
+    assert out["object"].tolist() == ["'@SUM(A1)", "ok"]
+    assert out["string"].iloc[0] == "'+cmd"
+    assert out["amount"].tolist() == [-12.5, 3.0]

@@ -174,7 +174,10 @@ def _clean_counterparty(s: pd.Series) -> pd.Series:
 def _csv_safe_text(df: pd.DataFrame) -> pd.DataFrame:
     """Optimized and NA-Safe: Escapes cells that could be interpreted as formulas."""
     DANGER = ("=", "+", "-", "@", "\t")
-    obj = df.select_dtypes(include="object")
+    # v0.9.1: "object" alone warns on pandas 3 (its default text dtype is 'str')
+    # and misses nullable "string" columns on pandas 2 -- pandas' documented
+    # cross-version form selects every text column on both majors.
+    obj = df.select_dtypes(include=["object", "string"])
     if obj.empty:
         return df
 
