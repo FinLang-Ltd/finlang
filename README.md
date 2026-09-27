@@ -300,7 +300,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |
 | Verify           | v0.8.3   | `--verify` / `--verify-full` / `--verify-html` (SHA-256 fingerprint + field comparison + readable report), vectorised — ~570s → ~15s on the 500K full-mode benchmark |
 | Reconcile        | v0.8.3   | `--reconcile` / `--reconcile-html` / `--reconcile-date-format` (row-by-row mismatch + audit reason; ML date convention inferred and recorded) |
-| Cleanroom        | v0.9.0   | 5-gate disposable-venv PyPI validation (incl. API surface) |
-| CI               | v0.9.0   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
+| Cleanroom        | v0.9.1   | 5-gate disposable-venv PyPI validation (incl. API surface) |
+| CI               | v0.9.1   | GitHub Actions matrix: Python 3.10 / 3.11 / 3.12 / 3.13 / 3.14 |
 | Docs             | v0.9.1   | Coverage across CLI, rule language, API, reconcile, verify, i18n, growth loop |
 | Python Support   | 3.10—3.14 | Tested across all five versions via CI matrix |
