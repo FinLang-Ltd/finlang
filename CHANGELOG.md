@@ -6,6 +6,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.1] - 2026-09-27
+
+### Fixed
+- **The Workbench's "Engine output" no longer shows a pandas warning with your install path.** On pandas 3, which a fresh `pip install finlang` resolves, every run raised a `Pandas4Warning` from the CSV formula-injection guard. Since 0.9.0 the server runs the engine as `python -m`, and Python prints deprecation warnings from the program it runs directly, so the Workbench run log showed that warning on every run, with the full path to your Python installation (which usually includes your username). Nothing was sent anywhere, but it looked like a fault and could leak the path in a shared screenshot. The `finlang` command itself stayed silent. Both guards (`run_finlang` and `finlang-discover`, which the Growth loop uses) now select text columns with pandas' documented cross-version form, `include=["object", "string"]`.
+- **The CSV formula-injection guard now covers every pandas text column type, on pandas 2 and 3.** On pandas 2, columns of pandas' nullable `string` type were never selected, so formula-leading cells in them (`=`, `+`, `-`, `@`, tab) were not escaped. pandas has also deprecated the behaviour that let the old selector match pandas 3's text columns, so the guard would have gone quiet on a future pandas. **This is a deliberate output change:** formula-leading cells in nullable-string columns are now written with a leading `'`, like every other text column. Standard CSV input produces no such columns, and the golden-master fixtures are unchanged.
+
+### Changed
+- **Tests:** four cross-version tests in `tests/test_cli_smoke.py` pin both guards (no warning; dangerous cells escaped in inferred, `object` and nullable-`string` columns, including a pass-through column and discover's example names). CI runs them on pandas 2 (Python 3.10) and pandas 3 (3.11+). The standalone API suite goes 42 → 43 with a test that a clean run returns an empty "Engine output". Daily gate unchanged at 204 tests / 10 gates.
+
 ## [0.9.0] - 2026-09-26
 
 ### Added
