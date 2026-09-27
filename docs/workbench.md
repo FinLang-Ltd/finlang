@@ -1,7 +1,7 @@
 # 🖥 The FinLang Workbench
 > **Applies to:** FinLang v0.9.0+ (`finlang-ui`)
 > **Status:** Production
-> **Last verified:** v0.9.0
+> **Last verified:** v0.9.1
 
 The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, tick the checks you want, and run — every row comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
 
