@@ -3,7 +3,7 @@
 > **Status:** Production
 > **Last verified:** v0.9.1
 
-The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, tick the checks you want, and run — every row comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
+The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, switch on the checks you want, and run — every row comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
 
 It is a fourth surface over the **same engine** as the CLI, the Python call, and the HTTP API — not a second implementation. Every run shows the equivalent `finlang` command line, so anything you click today you can script tomorrow.
 
@@ -13,8 +13,9 @@ It is a fourth surface over the **same engine** as the CLI, the Python call, and
 
 **I want to…**
 - [Get it running](#-setup) → one command
-- [Do a first run](#-the-run-screen) → files, checks, results
-- [Build and check rules](#-the-rules-screen) → plain-English read-back
+- [Do a first run](#-categorise-a-file) → files, checks, results
+- [Build and check rules](#-rules) → plain-English read-back
+- [Find gaps or test a change](#-the-other-screens) → growth loop and impact
 - [Understand the local-only design](#-local-by-design) → what leaves your machine (nothing)
 - [Fix a problem](#-troubleshooting) → port, browser, PATH
 
@@ -37,30 +38,29 @@ Your default browser opens at `http://127.0.0.1:8484/ui/`. If a tab doesn't appe
 
 ---
 
-## ▶ The Run screen
+## ▶ Categorise a file
 
-A run needs two files, chosen with ordinary file pickers:
+*(Called the Run screen before the October 2026 redesign.)* One page, three numbered steps:
 
-1. **Transactions CSV** — any columns, any order; it needs date, amount and counterparty to be findable (memo optional). Non-UK/US files are covered by the locale block on the same card: day-first dates, decimal/thousands separators, encoding, and a header-mapping JSON for differently named columns.
-2. **Rules** — a `.fin` file from disk, a bundled rulepack, or the draft from the Rules screen.
-
-**What to run:** the audit trail (`full` by default — it is what puts the deciding rule on every row), **Verify** (fast fingerprint or full field-by-field, with an HTML report), and **Reconcile** against a model-output CSV (row-by-row comparison, every disagreement explained, with orphan-reporting key alignment under *Advanced*).
+1. **Your file** — drop a CSV on the page or choose it. Any columns, any order; it needs date, amount and counterparty to be findable (memo optional). Non-UK/US files are covered by *My file isn't a UK/US-style CSV* on the same step: day-first dates, decimal/thousands separators, encoding, and a header-mapping JSON for differently named columns.
+2. **Rules** — a `.fin` file from your computer, a bundled starter pack, or your draft from the Rules screen.
+3. **Checks** — the audit trail (`full` by default — it is what puts the deciding rule on every row), **Verify** (fast fingerprint or full field-by-field, with an HTML report), and **Compare with another system** — reconcile against a model-output CSV (row-by-row comparison, every disagreement explained, with orphan-reporting key alignment under *Advanced alignment*). Each check is a switch; its options open when it is on.
 
 **Results** land in tabs:
 
 | Tab | What it holds |
 |---|---|
-| rows | Every categorised row — category, flags, status, and the rule that set them |
+| rows | Every categorised row with the rule that decided it. Click a row to open **Why this category**: every rule that matched, in the order it ran, what each one changed, and which earlier result a later rule replaced — with a *Copy explanation* button. Filters narrow to rows the other system disagrees with, flagged rows, or rows more than one rule matched; *Every column* shows the full output |
 | key results | Category totals from the run you just did, drawn as charts |
-| verify report / reconcile report | The same HTML reports the CLI can produce, inline |
+| verify report / reconcile / reconcile report | The same HTML reports the CLI can produce, inline, plus the reconcile summary |
 | downloads | The output CSV, audit JSON, and report files |
 | run log | **The exact `finlang` command line for this run** — copy it into a script or CI job and you can get the same answer without the Workbench |
 
-A verify or reconcile *finding* is reported in the banner as the product working, not as an error — the run still completes and the reports say exactly what was found.
+A verify or reconcile *finding* is reported in the banner as the product working, not as an error — the run still completes and the reports say exactly what was found. When you compared with another system, the rows table gains an **Other system** column showing their category wherever it differs.
 
 ---
 
-## ✏ The Rules screen
+## ✏ Rules
 
 Build a rule step by step on the left — name, match conditions, actions — and **Insert & check** appends it to the editor and runs the whole file through the engine. Or paste/type straight into the editor and hit **Check syntax**.
 
@@ -72,8 +72,8 @@ Drafts autosave in your browser. Rules run in file order and the last matching r
 
 ## 🔁 The other screens
 
-- **Growth loop** — takes a run's output and finds what no rule claimed, then drafts candidate rules for the gaps. Nothing enters your ruleset without you accepting it.
-- **Impact** — point it at your current rules and a candidate version to see what a change would actually move — which rows re-categorise and how much value shifts — before you ship it. It writes no output; it is a rehearsal.
+- **Find gaps** (the growth loop) — takes a run's output, or any file plus rules, and finds what no rule claimed, then drafts candidate rules for the ones you tick. Nothing enters your ruleset without you accepting it.
+- **Test a change** (impact) — point it at your current rules and a proposed version to see what a change would actually move — which rows re-categorise and how much value shifts — before you ship it. It writes no output; it is a rehearsal.
 
 ---
 

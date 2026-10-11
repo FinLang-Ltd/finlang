@@ -4,157 +4,88 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rules — FinLang Workbench</title>
-<style>
-  :root{
-    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
-    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --purple:#c4a7fa;
-    --dim:#6f82a6; --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
-    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
-  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-  header{position:relative;z-index:1;display:flex;align-items:center;
-    justify-content:space-between;padding:20px 32px 16px}
-  .lk{width:140px;display:block}
-  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
-  main{position:relative;z-index:1;display:grid;grid-template-columns:420px 1fr;
-    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
-  @media (max-width:980px){main{grid-template-columns:1fr}}
-  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
-  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
-    border-radius:8px;padding:14px 16px;margin-bottom:12px}
-  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
-    margin-bottom:10px}
-  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-  input[type=text],select{background:#0a1633;color:#dbe4f5;
-    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
-    font-family:var(--mono);font-size:13px}
-  input[type=text]{width:100%}
-  .hint{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
-  .hint b{color:var(--amber);font-weight:600}
-  .cond{display:flex;gap:6px;align-items:center;margin:6px 0;flex-wrap:wrap}
-  .cond select{flex:0 0 auto}
-  .cond input{flex:1;min-width:120px}
-  .cond .x{cursor:pointer;color:var(--pink);font-family:var(--mono);padding:0 4px}
-  .andchip{display:inline-block;font-family:var(--mono);font-size:10px;color:var(--navy);
-    background:var(--blue);border-radius:3px;padding:1px 6px;margin:2px 0 2px 2px}
-  .addbtn{background:transparent;border:1px dashed rgba(255,255,255,.25);color:var(--blue);
-    border-radius:5px;padding:5px 10px;font-size:12.5px;cursor:pointer;margin-top:6px}
-  .orlink{font-size:12px;color:var(--dim);margin-top:8px}
-  .orlink a{color:var(--blue);cursor:pointer;text-decoration:none}
-  pre#preview{font-family:var(--mono);font-size:13px;background:#0a1633;border-radius:6px;
-    padding:12px;white-space:pre-wrap;color:#c7d4ec;min-height:96px}
-  pre#preview .k{color:var(--purple)}
-  button.primary{padding:9px 16px;border:0;border-radius:6px;background:var(--mark);
-    color:#fff;font-size:14px;font-weight:600;cursor:pointer}
-  button.ghost{padding:8px 14px;border:1px solid rgba(255,255,255,.2);border-radius:6px;
-    background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
-  /* editor pane */
-  .edhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
-  .edhead input#fname{width:200px}
-  textarea#ed{width:100%;height:460px;background:#0a1633;color:#dbe4f5;
-    border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:12px;
-    font-family:var(--mono);font-size:13px;line-height:1.6;resize:vertical}
-  #verdict{border-radius:6px;padding:10px 14px;margin-top:10px;font-family:var(--mono);
-    font-size:13px;display:none;white-space:pre-wrap}
-  #verdict.ok{display:block;background:rgba(58,214,165,.12);border:1px solid var(--green);color:var(--green)}
-  #verdict.bad{display:block;background:rgba(255,122,133,.10);border:1px solid var(--pink);color:var(--pink)}
-  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
-  nav a{font-family:var(--mono);font-size:14px;letter-spacing:.04em;color:var(--muted);
-    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
-  nav a:hover{color:#fff}
-  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
-  /* design-canvas port: per-screen accent (Run blue, Rules purple,
-     Growth loop green, Impact amber) + help chips on section titles */
-  :root{--acc:var(--purple)}
-  nav a.on{border-bottom:3px solid var(--acc);padding-bottom:5px}
-  .card{border-top:2px solid var(--acc)}
-  .card .t{color:var(--acc)}
-  .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--acc);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
-  .helpbox{border:1px solid var(--acc, var(--mark));background:rgba(127,196,255,0.06);border-radius:6px;padding:10px 13px;font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 10px}
-  .card .t.nohelp::after{content:none}
-</style>
+<link rel="stylesheet" href="wb.css">
 </head>
 <body>
-<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
-    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
-  </pattern></defs>
-  <rect width="100%" height="100%" fill="#0d1b3c"/>
-  <rect width="100%" height="100%" fill="url(#ht)"/>
-</svg>
-<header>
-  <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
-  <small>WORKBENCH &middot; RULES</small>
+<header class="top">
+  <div class="wrap">
+    <a class="home" href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+    <nav class="tabsnav" aria-label="Workbench"><a href="run.html">Categorise</a><a href="rules.html" class="on" aria-current="page">Rules</a><a href="gaps.html">Find gaps</a><a href="impact.html">Test a change</a></nav>
+    <div class="status" id="wbstatus"><span class="dot" aria-hidden="true"></span><span>Engine</span></div>
+  </div>
 </header>
-<nav><a href="index.html">Home</a><a href="run.html">Run</a><a href="rules.html" class="on">Rules</a><a href="gaps.html">Growth loop</a><a href="impact.html">Impact</a></nav>
 
-<main>
-  <section>
-    <h1>Build a rule</h1>
-    <div class="card">
-      <div class="t">1 &middot; NAME</div>
-      <input type="text" id="rname" placeholder='e.g. Compliance: Offshore Jurisdictions'>
-      <div class="hint">The convention is <b>Area: Subject</b> &mdash; the name appears in the
-        audit trail against every row this rule decides, so make it say something.</div>
+<main class="page">
+  <div class="wrap">
+    <div class="head" style="margin-bottom:24px">
+      <h1>Rules</h1>
+      <p class="lede">Build a rule step by step on the left; it lands in your rules file on the right. Every check is made by the engine itself, which reads the rules back to you in plain English.</p>
     </div>
+    <div class="two">
+      <section aria-label="Build a rule">
+        <div class="card">
+          <div class="t" data-n="1">Name</div>
+          <input type="text" id="rname" placeholder='e.g. Compliance: Offshore Jurisdictions' aria-label="Rule name">
+          <div class="hint">The convention is <b>Area: Subject</b>. The name appears in the
+            audit trail against every row this rule decides, so make it say something.</div>
+        </div>
 
-    <div class="card">
-      <div class="t">2 &middot; MATCH &mdash; when does it fire?</div>
-      <div id="conds"></div>
-      <button type="button" class="addbtn" id="addcond">+ add a condition</button>
-      <div class="hint" id="andnote" style="display:none">All conditions must be true
-        together (<b>AND</b>) for the rule to fire.</div>
-      <div class="orlink">Want <b>OR</b>? That's a second rule &mdash;
-        <a id="dup">duplicate this one for another pattern</a> after inserting.</div>
-    </div>
+        <div class="card">
+          <div class="t" data-n="2">Match: when does it fire?</div>
+          <div id="conds"></div>
+          <button type="button" class="addbtn" id="addcond">+ Add a condition</button>
+          <div class="hint" id="andnote" style="display:none">All conditions must be true
+            together (<b>AND</b>) for the rule to fire.</div>
+          <div class="orlink">Want <b>OR</b>? That's a second rule:
+            <a id="dup">duplicate this one for another pattern</a> after inserting.</div>
+        </div>
 
-    <div class="card">
-      <div class="t">3 &middot; SET &mdash; what does it do?</div>
-      <div id="acts"></div>
-      <button type="button" class="addbtn" id="addact">+ add an action</button>
-    </div>
+        <div class="card">
+          <div class="t" data-n="3">Set: what does it do?</div>
+          <div id="acts"></div>
+          <button type="button" class="addbtn" id="addact">+ Add an action</button>
+        </div>
 
-    <div class="card">
-      <div class="t">4 &middot; THE RULE</div>
-      <pre id="preview"># fill in the steps above</pre>
-      <button type="button" class="primary" id="insert" disabled>Insert &amp; check &darr;</button>
-      <span class="hint" style="margin-left:8px">appends to the file and runs the whole
-        file through the engine</span>
-    </div>
-  </section>
+        <div class="card">
+          <div class="t" data-n="4">The rule</div>
+          <pre id="preview"># fill in the steps above</pre>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px">
+            <button type="button" class="primary" id="insert" disabled>Insert &amp; check</button>
+            <span class="hint" style="margin:0">Adds it to the file and runs the whole file through the engine.</span>
+          </div>
+        </div>
+      </section>
 
-  <section>
-    <h1>Your rules file</h1>
-    <div class="card">
-      <div class="edhead">
-        <input type="text" id="fname" value="rules.fin">
-        <button type="button" class="ghost" id="load">Load&hellip;</button>
-        <input type="file" id="loadf" accept=".fin" style="display:none">
-        <button type="button" class="ghost" id="save">Save .fin</button>
-        <button type="button" class="ghost" id="check">Check syntax</button>
-        <a class="ghost" href="run.html" style="text-decoration:none;padding:8px 14px">Test in a Run &rarr;</a>
-      </div>
-      <textarea id="ed" spellcheck="false" placeholder="# Your .fin file. The editor is the artefact — the builder on the left appends to it.
+      <section aria-label="Your rules file">
+        <div class="card">
+          <div class="t nohelp">Your rules file</div>
+          <div class="edhead" style="margin-top:10px">
+            <input type="text" id="fname" value="rules.fin" aria-label="File name">
+            <button type="button" class="ghost" id="load">Load&hellip;</button>
+            <input type="file" id="loadf" accept=".fin" style="display:none">
+            <button type="button" class="ghost" id="save">Save .fin</button>
+            <button type="button" class="ghost" id="check">Check syntax</button>
+            <a class="ghost" href="run.html?rules=draft">Try it on a file</a>
+          </div>
+          <textarea id="ed" spellcheck="false" aria-label="Rules file" placeholder="# Your .fin file. The builder on the left appends to it.
 # Rules apply in order: every matching rule runs; the last to set a field wins (+= adds)."></textarea>
-      <div id="verdict"></div>
-      <div class="card" id="readback" style="display:none;margin-top:10px">
-        <div class="t">WHAT THE ENGINE UNDERSTOOD</div>
-        <div id="rb"></div>
-        <div class="hint" style="margin-top:8px">Read back from the engine's own
-          tokeniser &mdash; the same code that fires the rules produced this, so what
-          it says here is what will happen in a run.</div>
-      </div>
-      <div class="hint" style="margin-top:8px">Checked by the real engine via
-        <span style="font-family:var(--mono)">/rules/validate</span> &mdash; the Workbench
-        contains no parser of its own, so "valid here" and "valid in a run" are the same fact.
-        Drafts autosave in this browser. Rules run in file order and the <b>last matching
-        rule sets the category</b> &mdash; put specific rules after general ones.</div>
+          <div id="verdict"></div>
+          <div class="card" id="readback" style="display:none;margin-top:12px">
+            <div class="t">What the engine understood</div>
+            <div id="rb"></div>
+            <div class="hint" style="margin-top:8px">Read back from the engine's own
+              tokeniser: the same code that fires the rules produced this, so what
+              it says here is what a run does.</div>
+          </div>
+          <div class="hint" style="margin-top:12px">Checked by the real engine via
+            <code>/rules/validate</code>; the Workbench has no parser of its own, so "valid here" and
+            "valid in a run" are the same fact. Drafts autosave in this browser. Rules run in file order and the
+            <b>last matching rule sets the category</b>, so put specific rules after general ones.</div>
+        </div>
+      </section>
     </div>
-  </section>
+  </div>
 </main>
-<div style="display:none" id="lkhost"></div>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
@@ -192,6 +123,7 @@ function row(host, FIELDS, isMatch){
   const os = document.createElement("select");
   const val = document.createElement("input"); val.type = "text";
   const x = document.createElement("span"); x.className = "x"; x.textContent = "×";
+  x.setAttribute("role", "button"); x.setAttribute("aria-label", "Remove"); x.tabIndex = 0;
   const hint = document.createElement("div"); hint.className = "hint"; hint.style.flexBasis = "100%";
   // Field change rebuilds the operator list; operator change must NOT -
   // rebuilding the select you just used wipes the selection back to the
@@ -210,6 +142,7 @@ function row(host, FIELDS, isMatch){
   fs.onchange = syncField; os.onchange = syncOp;
   [fs, os, val].forEach(el => el.addEventListener("input", build));
   x.onclick = () => { d.remove(); build(); };
+  x.onkeydown = e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); x.click(); } };
   d.append(fs, os, val, x, hint);
   host.appendChild(d); syncField(); build();
 }
@@ -258,7 +191,7 @@ $("insert").onclick = () => {
   check();                       // every inserted rule is parsed by the engine immediately
 };
 $("dup").onclick = () => { /* keep match/set, clear nothing: user edits the pattern */
-  window.scrollTo({top:0, behavior:"smooth"});
+  window.scrollTo({top:0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
 };
 $("load").onclick = () => $("loadf").click();
 $("loadf").onchange = async e => {
@@ -283,7 +216,7 @@ $("save").onclick = async () => {
       const w = await fileHandle.createWritable();
       await w.write($("ed").value); await w.close();
       const v = $("verdict"); v.className = "ok"; v.style.display = "block";
-      v.textContent = `saved to ${fileHandle.name}`;
+      v.textContent = `Saved to ${fileHandle.name}`;
       return;
     } catch(e){
       if (e.name === "AbortError") return;   // user cancelled the picker
@@ -300,7 +233,7 @@ $("check").onclick = check;
 async function check(){
   const v = $("verdict");
   if (!$("ed").value.trim()){ v.className=""; return; }
-  v.className = ""; v.style.display = "block"; v.textContent = "checking…";
+  v.className = ""; v.style.display = "block"; v.textContent = "Checking…";
   const fd = new FormData(); fd.append("rules_text", $("ed").value);
   try {
     const r = await fetch("/rules/validate", {method:"POST", body:fd});
@@ -336,7 +269,7 @@ function englishMatch(p){
   if (starts && ends) return `<i>${p.field}</i> contains ${q(core)}`;
   if (ends)           return `<i>${p.field}</i> starts with ${q(core)}`;
   if (starts)         return `<i>${p.field}</i> ends with ${q(core)}`;
-  return `<i>${p.field}</i> is exactly ${q(v)} <span style="color:var(--dim)">(no wildcard &mdash; ~ without * matches exactly)</span>`;
+  return `<i>${p.field}</i> is exactly ${q(v)} <span style="color:var(--muted)">(no wildcard: ~ without * matches exactly)</span>`;
 }
 function englishSet(p){
   const q = s => `<b style="color:var(--green)">${escT(s)}</b>`;
@@ -348,8 +281,8 @@ function readback(rules){
   const host = $("rb");
   if (!rules.length){ $("readback").style.display = "none"; return; }
   host.innerHTML = rules.map(r =>
-    `<div style="margin:8px 0;font-size:14px;line-height:1.65">` +
-    `<span style="font-family:var(--mono);color:var(--purple)">${escT(r.name)}</span><br>` +
+    `<div style="margin:10px 0;font-size:14.5px;line-height:1.65">` +
+    `<span style="font-family:var(--mono);font-weight:600;color:var(--purple)">${escT(r.name)}</span><br>` +
     `When ${r.match.map(englishMatch).join(" <b>and</b> ")},<br>` +
     `then ${r.set.map(englishSet).join(", and ")}.` +
     `</div>`).join("");
@@ -360,12 +293,8 @@ function escT(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").rep
 /* start with one condition + one action ready to fill */
 row($("conds"), MATCH_FIELDS, true);
 row($("acts"), SET_FIELDS, false);
-
-/* shared lockup */
-fetch("lockup.svg").then(r=>r.text()).then(t=>{
-  $("lkhost").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
-});
 </script>
+<script src="wb.js"></script>
 <script src="help.js"></script>
 </body>
 </html>
