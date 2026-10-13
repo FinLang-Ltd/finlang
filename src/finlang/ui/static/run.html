@@ -121,9 +121,9 @@
                 <details id="rec_align"><summary>How rows are paired: <span id="rec_align_now">row by row (the default)</span></summary>
                   <div class="hint">Their file needs a <code>category</code> column. Columns can be in any order: they are found by name.</div>
                   <div class="radios" role="radiogroup" aria-label="How rows are paired">
-                    <label class="radio"><input type="radio" name="rec_align" value="rows" checked><span><b>Row by row</b>Row 1 against row 1. Both files need the same rows in the same order.</span></label>
-                    <label class="radio"><input type="radio" name="rec_align" value="identity"><span><b>Row by row, checking each pair is the same transaction</b>Stops the comparison if the columns below differ on any row, rather than comparing different transactions.</span></label>
-                    <label class="radio"><input type="radio" name="rec_align" value="key"><span><b>Match on key columns</b>Pairs rows by the values in the columns below. Any row order, row counts can differ, and rows only one file has are listed separately.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="rows" checked><span><b>Row by row</b><br>Row 1 against row 1. Both files need the same rows in the same order.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="identity"><span><b>Row by row, checking each pair is the same transaction</b><br>Stops the comparison if the columns below differ on any row, rather than comparing different transactions.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="key"><span><b>Match on key columns</b><br>Pairs rows by the values in the columns below. Any row order, row counts can differ, and rows only one file has are listed separately.</span></label>
                   </div>
                   <div id="rec_cols" class="off">
                     <label for="rec_key">Columns</label>

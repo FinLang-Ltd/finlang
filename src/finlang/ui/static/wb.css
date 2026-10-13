@@ -376,7 +376,9 @@ label.radio:hover { border-color: var(--ink-2); }
 label.radio:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
 label.radio input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--ink); }
 label.radio span { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
-label.radio b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+/* the <br> after each title keeps it on its own line even if this sheet
+   fails to load; the title stays inline so the break is the only separator */
+label.radio b { font-size: 14px; color: var(--ink); font-weight: 600; }
 #rec_cols.off { display: none; }
 #rec_align summary span { color: var(--ink); font-weight: 600; }
 
