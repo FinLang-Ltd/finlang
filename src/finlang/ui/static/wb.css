@@ -367,3 +367,27 @@ table.ledger th { white-space: normal; vertical-align: bottom; }
 table.ledger th:last-child, table.ledger td:last-child { width: 108px; }
 .ledger-wrap { grid-template-columns: minmax(0, 1fr) 310px; }
 @media (max-width: 1120px) { .ledger-wrap { grid-template-columns: minmax(0, 1fr); } }
+
+/* Compare: how rows are paired (Oct 2026). Radio cards - the engine allows
+   exactly one pairing mode, so the control shows them as one choice. */
+.radios { display: grid; gap: 8px; margin: 10px 0 2px; }
+label.radio { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 10px; align-items: start; margin: 0; padding: 10px 12px; background: var(--paper); border: 1px solid var(--line-2); border-radius: 6px; font-weight: 400; cursor: pointer; }
+label.radio:hover { border-color: var(--ink-2); }
+label.radio:has(input:checked) { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+label.radio input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--ink); }
+label.radio span { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+label.radio b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
+#rec_cols.off { display: none; }
+#rec_align summary span { color: var(--ink); font-weight: 600; }
+
+/* Phone: the options under a check use the card's full width. The switch sits
+   over the top-right corner of the content instead of owning a column, which
+   at 390px left the sub-options a ~210px strip with clipped placeholders. */
+@media (max-width: 760px) {
+  .check { grid-template-columns: 4px minmax(0, 1fr) auto; gap: 0 12px; }
+  .check > .bar { grid-column: 1; grid-row: 1; }
+  .check > div { grid-column: 2 / 4; grid-row: 1; min-width: 0; }
+  .check > :last-child:not(div) { grid-column: 3; grid-row: 1; position: relative; z-index: 1; }
+  .check .ct { display: block; padding-right: 52px; }
+  .sub-opts { padding: 12px; }
+}

@@ -118,11 +118,21 @@
                 <label for="ml_csv">The other system's output (CSV)</label>
                 <input type="file" id="ml_csv" accept=".csv">
                 <div class="inline-opts" style="margin-top:10px"><label><input type="checkbox" id="rec_html" checked> HTML report</label></div>
-                <details><summary>Advanced alignment</summary>
-                  <label for="rec_key">Key columns (match rows by content, and report rows only one side has)</label>
-                  <input type="text" id="rec_key" placeholder="e.g. date,amount,counterparty">
-                  <label for="rec_datefmt">The other system's date format</label>
-                  <input type="text" id="rec_datefmt" placeholder="e.g. %d/%m/%Y (blank: worked out from the file)">
+                <details id="rec_align"><summary>How rows are paired: <span id="rec_align_now">row by row (the default)</span></summary>
+                  <div class="hint">Their file needs a <code>category</code> column. Columns can be in any order: they are found by name.</div>
+                  <div class="radios" role="radiogroup" aria-label="How rows are paired">
+                    <label class="radio"><input type="radio" name="rec_align" value="rows" checked><span><b>Row by row</b>Row 1 against row 1. Both files need the same rows in the same order.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="identity"><span><b>Row by row, checking each pair is the same transaction</b>Stops the comparison if the columns below differ on any row, rather than comparing different transactions.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="key"><span><b>Match on key columns</b>Pairs rows by the values in the columns below. Any row order, row counts can differ, and rows only one file has are listed separately.</span></label>
+                  </div>
+                  <div id="rec_cols" class="off">
+                    <label for="rec_key">Columns</label>
+                    <input type="text" id="rec_key" placeholder="date,amount,counterparty">
+                    <div class="hint">Both files need these columns under these names (any case). Amounts compare as numbers, dates as dates, text ignoring case.</div>
+                    <label for="rec_datefmt">The other system's date format</label>
+                    <input type="text" id="rec_datefmt" placeholder="e.g. %d/%m/%Y">
+                    <div class="hint">Leave blank and FinLang works it out from their dates. If every date reads either way (05/01), it assumes month-first and says so in the run log.</div>
+                  </div>
                 </details>
               </div>
             </div>
@@ -220,11 +230,28 @@ $("reconcile").onchange = e => {
     "Locked to full while comparing: the reason for each disagreement comes from the audit trail." : "";
   gate();
 };
+/* How rows are paired. The engine offers three, and refuses mixtures: the
+   identity check and key matching are mutually exclusive, and a date format
+   is rejected (exit 2) unless one of them is on - so the columns and
+   date-format fields exist only while a mode that reads them is chosen. */
+const ALIGN_NOW = {rows: "row by row (the default)",
+                   identity: "row by row, checking each pair",
+                   key: "by key columns"};
+function alignMode(){ return document.querySelector("input[name=rec_align]:checked").value; }
+document.querySelectorAll("input[name=rec_align]").forEach(r => r.onchange = () => {
+  const m = alignMode();
+  $("rec_align_now").textContent = ALIGN_NOW[m];
+  $("rec_cols").classList.toggle("off", m === "rows");
+  if (m !== "rows" && !$("rec_key").value.trim()) $("rec_key").value = "date,amount,counterparty";
+  gate();
+});
+$("rec_key").oninput = gate;
 ["input_csv","rules_file","ml_csv"].forEach(id => $(id).onchange = gate);
 function gate(){
   const m = $("rules_mode").value;
   const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() : $("rules_file").files.length);
-  const recOk = !$("reconcile").checked || $("ml_csv").files.length;
+  const recOk = !$("reconcile").checked ||
+    ($("ml_csv").files.length && (alignMode()==="rows" || $("rec_key").value.trim()));
   $("go").disabled = !($("input_csv").files.length && rulesOk && recOk);
 }
 
@@ -286,11 +313,14 @@ $("f").onsubmit = async ev => {
       if ($("thousands").value) fr.append("thousands", $("thousands").value);
       if ($("encoding").value) fr.append("encoding", $("encoding").value);
       if ($("rec_html").checked) fr.append("reconcile_html","true");
-      if ($("rec_key").value) fr.append("reconcile_key", $("rec_key").value);
-      if ($("rec_datefmt").value) fr.append("reconcile_date_format", $("rec_datefmt").value);
+      const am = alignMode();
+      if (am !== "rows"){
+        fr.append(am==="key" ? "reconcile_key" : "reconcile_identity_fields", $("rec_key").value.trim());
+        if ($("rec_datefmt").value.trim()) fr.append("reconcile_date_format", $("rec_datefmt").value.trim());
+      }
       const r2 = await fetch("/reconcile", {method:"POST", body:fr});
       const b2 = await r2.json();
-      if (!r2.ok) return fail(b2);
+      if (!r2.ok) return fail(b2, "Comparison stopped");
       state.rec = b2;
     }
     render();
@@ -302,9 +332,15 @@ $("f").onsubmit = async ev => {
   }
 };
 
-function fail(body){
-  const d = typeof body.detail==="string" ? body.detail : JSON.stringify(body.detail, null, 2);
-  banner("failed", "Run failed", d);
+function fail(body, head){
+  const det = body.detail;
+  const d = typeof det==="string" ? det
+          : det && det.stderr ? det.stderr : JSON.stringify(det, null, 2);
+  // the banner says why in the engine's own words: its last FATAL line, else
+  // the API's short message. The full engine output stays in the tab below.
+  const fatal = (d.match(/^FATAL: .*$/gm) || []).pop();
+  banner("failed", head || "Run failed",
+         fatal ? fatal.slice(7) : (det && det.message) || d);
   // dropped rows / missing columns are locale problems - open the block for them
   if (/Dropped|Missing required columns|delimiter/i.test(d)) $("locale").open = true;
   setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
@@ -647,8 +683,11 @@ function logTab(){
     if ($("thousands").value) r += ` --thousands ${shq($("thousands").value)}`;
     if ($("encoding").value) r += ` --encoding ${shq($("encoding").value)}`;
     if ($("rec_html").checked) r += " --reconcile-html";
-    if ($("rec_key").value) r += ` --reconcile-key ${shq($("rec_key").value)}`;
-    if ($("rec_datefmt").value) r += ` --reconcile-date-format ${shq($("rec_datefmt").value)}`;
+    const am = alignMode();
+    if (am !== "rows"){
+      r += ` ${am==="key" ? "--reconcile-key" : "--reconcile-identity-fields"} ${shq($("rec_key").value.trim())}`;
+      if ($("rec_datefmt").value.trim()) r += ` --reconcile-date-format ${shq($("rec_datefmt").value.trim())}`;
+    }
     a.push(r);
   }
   const err = [state.resp && state.resp.stderr, state.rec && state.rec.stderr].filter(Boolean).join("\n");
