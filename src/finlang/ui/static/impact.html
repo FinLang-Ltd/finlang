@@ -147,13 +147,13 @@ $("f").onsubmit = async ev => {
               : (b.detail && b.detail.stderr) || JSON.stringify(b.detail, null, 2);
       banner("failed","Comparison failed", flReason(b));
       setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
-      showResults();
+      showResults(); $("banner").focus();
       return;
     }
     state.resp = b; render();
   } catch(e){
     banner("failed","Comparison failed", String(e));
-    showResults();
+    showResults(); $("banner").focus();
   } finally {
     clearInterval(tick); $("spin").style.display="none"; gate();
   }
@@ -187,6 +187,7 @@ function render(){
   tabs.push(["run log", logTab(b)]);
   setTabs(tabs);
   showResults();
+  $("banner").focus();
 }
 function sumTab(b){
   const s = b.summary || {};

@@ -275,8 +275,9 @@ function englishMatch(p){
 function englishSet(p){
   const q = s => `<b style="color:var(--green)">${escT(s)}</b>`;
   if (p.field === "exclude")
-    return String(p.value).trim().toLowerCase() === "false" ? `clear the row's <b>excluded</b> mark`
-                                                            : `mark the row <b>excluded</b>`;
+    // the engine marks the row only for "true"; any other value clears it
+    return String(p.value).trim().toLowerCase() === "true" ? `mark the row <b>excluded</b>`
+                                                           : `clear the row's <b>excluded</b> mark`;
   if (p.op === "+=") return `add ${q(p.value)} to <i>${p.field}</i>`;
   return `set <i>${p.field}</i> to ${q(p.value)}`;
 }

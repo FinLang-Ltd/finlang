@@ -1,8 +1,8 @@
 /* FinLang Workbench — shared page chrome (Oct 2026 redesign).
  *
- * Two jobs, both cosmetic: put the lockup into the header, and show the engine
- * status beside the tabs. Every page still works if this file fails to load;
- * nothing here touches a run.
+ * Puts the lockup into the header, shows the engine status beside the tabs,
+ * and holds flReason - the one place every screen turns an engine refusal into
+ * words. The lockup and status fail soft; the failure messages need this file.
  */
 "use strict";
 /* The engine's reason for a refusal, in its own words: the last FATAL line of
@@ -13,10 +13,14 @@ function flReason(body){
   const det = body && body.detail;
   const d = typeof det === "string" ? det
           : det && det.stderr ? det.stderr : JSON.stringify(det, null, 2);
+  // FastAPI's own validation errors: a list of {loc, msg}
+  if (Array.isArray(det))
+    return det.map(x => (Array.isArray(x.loc) ? x.loc.filter(p => p !== "body").join(".") + ": " : "") +
+                        (x.msg || JSON.stringify(x))).join("; ");
   const lines = String(d).split("\n").map(l => l.trim()).filter(Boolean);
   const fatal = lines.filter(l => /^FATAL: /.test(l)).pop();
   if (fatal) return fatal.slice(7);
-  const err = lines.filter(l => !/Warning:/.test(l) &&
+  const err = lines.filter(l => !/warning:/i.test(l) &&
     /error|unknown|missing|cannot|invalid|not found|no such/i.test(l)).pop();
   return err || (det && det.message) || String(d);
 }

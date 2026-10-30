@@ -74,12 +74,14 @@
   });
 </script>
 <script>
-/* finlang-ui pins 127.0.0.1; finlang-api can bind elsewhere. Say what is true here. */
+/* finlang-ui pins 127.0.0.1; finlang-api can bind elsewhere, and the page
+   cannot see which. Say what the address bar shows, and what finlang-ui
+   guarantees - nothing more. */
 (function () {
   const host = location.hostname, el = document.getElementById("servedfrom");
   if (!el) return;
   el.textContent = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host)
-    ? `Served from this machine only (${host === "localhost" ? "localhost" : host}${host === "localhost" ? ", 127.0.0.1" : ""}).`
+    ? `Served from this machine (${host}). Started with finlang-ui, it can only be reached from this machine.`
     : `Served from ${host}: other machines on your network may be able to reach this page.`;
 })();
 </script>

@@ -191,7 +191,10 @@ $("discover").onclick = async () => {
     }
     const fd = new FormData();
     fd.append("input_csv", new Blob([state.csvText], {type:"text/csv"}), "categorized.csv");
-    fd.append("min_count", $("min_count").value || "1");
+    // the API takes a whole number; "2.5" or "" must not reach it as-is
+    const n = Math.max(1, Math.floor(Number($("min_count").value)) || 1);
+    $("min_count").value = n;
+    fd.append("min_count", String(n));
     const r = await fetch("/discover", {method:"POST", body:fd});
     const b = await r.json();
     if (!r.ok){ showErr(flReason(b)); return; }
@@ -230,7 +233,8 @@ $("tick_none").onclick = () => document.querySelectorAll(".ck").forEach(c => c.c
 $("suggest").onclick = async () => {
   if (!state.cands) return;
   const ticked = [...document.querySelectorAll(".ck")].filter(c => c.checked).map(c => +c.dataset.i);
-  if (!ticked.length){ $("drafts").textContent = ""; $("s_drafts").classList.add("on");
+  if (!ticked.length){ state.drafts = ""; $("append").disabled = true;
+    $("drafts").textContent = ""; $("s_drafts").classList.add("on");
     $("append_note").textContent = "Nothing ticked: tick at least one counterparty above."; return; }
   // Filter the engine's own candidates CSV down to the ticked rows - selection,
   // not interpretation. Header row passes through untouched.
@@ -247,6 +251,7 @@ $("suggest").onclick = async () => {
     const b = await r.json();
     if (!r.ok){ $("s_drafts").classList.add("on"); $("append_note").textContent = flReason(b); return; }
     state.drafts = b.rules_fin || "";
+    $("append").disabled = !state.drafts.trim();
     $("drafts").textContent = state.drafts || "(no rules drafted)";
     $("s_drafts").classList.add("on");
     $("append_note").textContent = "";

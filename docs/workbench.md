@@ -81,7 +81,7 @@ Drafts autosave in your browser. Rules run in file order and the last matching r
 
 - The page talks to a server bound to `127.0.0.1` — **pinned, with no override**. Your files are read by the engine on your machine and the results come back to your browser; nothing leaves.
 - No CDN, no telemetry, no external fonts or scripts — everything the Workbench pages use ships inside the wheel. (The HTTP API's interactive docs at `/docs`, linked from the home page, are FastAPI's own and load Swagger UI from a CDN.)
-- Your browser keeps two things between visits, in this site's local storage: your rules draft, and your last categorised output (up to about 2 MB) so Find gaps can pick it up. A new run replaces the output. Clearing the site's data in your browser removes both.
+- Your browser keeps, in this site's local storage between visits: your rules draft and its file name, and your last categorised output (up to about 2 MB) with the names of the file and rules it came from and when, so Find gaps can pick it up. A new run replaces the output. Clearing the site's data in your browser removes all of it.
 - If you genuinely want the HTTP surface on a network, that is a separate, explicit decision: use [`finlang-api`](api.md), which exists for exactly that and makes the exposure yours to own.
 
 ---

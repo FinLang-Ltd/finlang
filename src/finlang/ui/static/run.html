@@ -310,6 +310,7 @@ $("f").onsubmit = async ev => {
        Workbench mirrors the CLI reality of one flag-set per concern. The run
        log shows both invocations. */
     state.rec = null;
+    state.recTried = $("reconcile").checked;
     if ($("reconcile").checked){
       const fr = new FormData();
       fr.append("input_csv", $("input_csv").files[0]);
@@ -397,21 +398,29 @@ function render(stopped){
   const small = `${p.stats.rows_out} rows categorised in ${isFinite(dur) ? dur.toFixed(2) : p.stats.duration_seconds}s.`;
   // the engine assumed the other system's date convention: say so where the
   // results are read, in the engine's own words, not only in the run log
+  const dateNote = stderr => {
+    const w = String(stderr || "").split("\n");
+    const k = w.findIndex(l => /^WARNING: every date/.test(l));
+    if (k < 0) return "";
+    const para = [w[k]].concat(w.slice(k + 1).filter((l, j, a) =>
+                   /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))));
+    return esc(para.map(l => l.trim()).join(" ")) +
+      " <b>Set the other system's date format under How rows are paired</b> and run again.";
+  };
   let note = "";
   const conv = rec && rec.summary && rec.summary.ml_date_convention;
-  if (conv && conv.mode === "assumed"){
-    const w = (rec.stderr || "").split("\n");
-    const k = w.findIndex(l => /^WARNING: every date/.test(l));
-    const para = k < 0 ? [] : [w[k]].concat(w.slice(k + 1).filter((l, j, a) =>
-                   /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))));
-    note = esc(para.map(l => l.trim()).join(" ") || "The other system's dates read either way; FinLang assumed month-first.") +
-      " <b>Set the other system's date format under How rows are paired</b> and run again.";
-  }
+  if (conv && conv.mode === "assumed")
+    note = dateNote(rec.stderr) || "The other system's dates read either way, so FinLang assumed month-first. " +
+      "<b>Set the other system's date format under How rows are paired</b> and run again.";
   if (stopped){
-    banner("failed", "Categorised. The comparison stopped", flReason(stopped), tags,
-      /identity check failed|row count mismatch/i.test(flReason(stopped))
+    const why = flReason(stopped);
+    const sErr = stopped.detail && stopped.detail.stderr;
+    // dates that read either way can fail the identity check on rows that ARE
+    // in the same order - then the date format, not key matching, is the fix
+    banner("failed", "Categorised. The comparison stopped", why, tags,
+      dateNote(sErr) || (/identity check failed|row count mismatch/i.test(why)
         ? "To compare files whose rows are in a different order, choose <b>Match on key columns</b> under How rows are paired."
-        : "");
+        : ""));
   }
   else if (ex===0) banner("clean", "Clean", small, tags, note);
   else if (ex===3) banner("findings", "Findings — the product working, not failing", small, tags, note);
@@ -553,7 +562,7 @@ function genericTable(){
   let h = '<div class="scroll"><table class="rows generic"><thead><tr>' +
     head.map(c=>`<th>${esc(c)}</th>`).join("") + (state.audit ? "<th>rule</th>" : "") + "</tr></thead><tbody>";
   rows.forEach((r,i) => {
-    h += `<tr data-i="${i}">` + r.map(c=>`<td>${esc(c)}</td>`).join("");
+    h += `<tr data-i="${i}"${state.ledger ? ' tabindex="0"' : ""}>` + r.map(c=>`<td>${esc(c)}</td>`).join("");
     if (state.audit){
       const e = byIdx[i] ? catRule(byIdx[i]) : null;
       h += e ? `<td class="rule" data-i="${i}">${esc(e.rule)}</td>` : "<td></td>";
@@ -576,10 +585,12 @@ function showWhy(i){
   const lastSetter = L.catRule(ents);
   // `category += "x"` builds on what an earlier rule set; only `=` replaces it.
   // The full trail records the operator; the light one only old/new values.
-  const appends = e => e.set ? e.set.some(s => /^\s*category\s*\+=/.test(s))
-    : !!(e.changes && e.changes.category && e.changes.category.old &&
-         String(e.changes.category.new ?? "").startsWith(e.changes.category.old));
-  const replacedAt = k => catSetters.some(e => ents.indexOf(e) > k && !appends(e));
+  // Only the full trail records the operator (its `set` strings); the light
+  // trail keeps old/new values, which cannot tell "= longer value" from "+=".
+  // Where it is unknown, say so rather than pick the reassuring reading.
+  const appends = e => !!(e.set && e.set.some(s => /^\s*category\s*\+=/.test(s)));
+  const opUnknown = catSetters.length > 1 && catSetters.slice(1).some(e => !e.set);
+  const replacedAt = k => !opUnknown && catSetters.some(e => ents.indexOf(e) > k && !appends(e));
   const lite = state.auditMode === "lite";
   let why;
   if (!state.audit) why = "The audit trail was off for this run, so the rule behind each row wasn't recorded. Turn it on under Checks and run again.";
@@ -604,14 +615,16 @@ function showWhy(i){
       eff = "Matched, but changed nothing.";
     }
     if (over) eff += " Replaced by a later rule.";
-    else if (L.setsCat(e) && k > 0 && appends(e) && catSetters.indexOf(e) > 0) eff += " Added to the category an earlier rule set.";
+    else if (!opUnknown && L.setsCat(e) && appends(e) && catSetters.indexOf(e) > 0) eff += " Added to the category an earlier rule set.";
     return `<li class="${over ? "over" : ""}"><span class="n">${k + 1}</span><div>` +
       `<div class="rn">${esc(e.rule)}</div>${conds ? `<div>${conds}</div>` : ""}` +
       (eff ? `<div class="eff">${eff}</div>` : "") + "</div></li>";
   }).join("");
 
   const notes = [];
-  if (catSetters.length > 1 && catSetters.slice(1).every(appends))
+  if (opUnknown)
+    notes.push(`<div class="note">More than one rule set the category. The light audit trail doesn't record whether a later rule replaced it or added to it: run with the full audit trail to see which.</div>`);
+  else if (catSetters.length > 1 && catSetters.slice(1).every(appends))
     notes.push(`<div class="note">Later rules added to the category an earlier rule set; nothing was replaced.</div>`);
   else if (catSetters.length > 1) notes.push(`<div class="note">More than one rule set the category. The earlier ${catSetters.length > 2 ? "patterns also match" : "pattern also matches"} this row; check that's intended.</div>`);
   if (L.mism.has(i + 1)) notes.push(`<div class="note rec">The other system said <b>${esc(L.mism.get(i + 1) || "something different")}</b>.</div>`);
@@ -627,8 +640,11 @@ function showWhy(i){
     (extra.length ? `<dl>${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "") +
     `<footer><button type="button" class="ghost" id="copywhy">Copy explanation</button></footer>`;
   if (matchMedia("(max-width: 1120px)").matches){
-    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    box.scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+    const t = box.getBoundingClientRect().top;
+    if (t < 0 || t > innerHeight - 120){
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      box.scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+    }
   }
   state.whyText = [`Row ${i + 1}: ${r[ci.cp]}${amt ? ", " + amt.replace("−", "-") : ""}`, `Category: ${cat || "none"}`, why]
     .concat(ents.map((e, k) => `${k + 1}. ${e.rule}${(e.match || []).length ? " — " + e.match.join(" and ") : ""}`)).join("\n");
@@ -756,7 +772,7 @@ function logTab(){
   }
   c += " --output categorized.csv";
   a.push(c);
-  if (state.rec){
+  if (state.recTried){
     let r = "finlang --input " + (fname("input_csv")||"<your csv>") + rulesArg +
       " --output categorized.csv --audit audit.json --audit-mode full" +
       ` --reconcile ${fname("ml_csv")||"<model output.csv>"} --reconcile-output-dir out/`;

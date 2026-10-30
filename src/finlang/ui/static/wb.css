@@ -404,3 +404,4 @@ button.lnk { background: none; border: 0; padding: 0; font: inherit; color: var(
 .err { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--pink-fill); background: var(--paper); font-size: 14px; color: var(--ink-2); white-space: pre-wrap; }
 /* long unbroken names (card descriptors, references) wrap instead of widening the page */
 #auditbox .who, #auditbox .rn, #auditbox code, #auditbox dd, #auditbox .vc, #verdict, #rb { overflow-wrap: anywhere; }
+table.rows.generic tbody tr:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
