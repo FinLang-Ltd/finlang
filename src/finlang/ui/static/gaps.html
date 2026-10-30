@@ -111,6 +111,7 @@ if (stash){
   // the fresh-file path writes the row count there (it threw when the id was lost).
   try {
     const d = JSON.parse(localStorage.getItem("finlang_last_run_desc") || "null");
+    if (d) state.rulesDesc = d.rules;
     if (d) $("handoff").querySelector(".src").innerHTML =
       `&#10003; carried over from your last categorise run (<span id="handoff_n">${$("handoff_n").textContent}</span> rows)` +
       `<div style="color:var(--ink-2);font-weight:400;margin-top:3px">${esc(d.input)}, against ` +
@@ -142,7 +143,7 @@ $("g_rules_mode").onchange = e => {
 fetch("/rulepacks").then(r=>r.json()).then(b=>{
   const s = $("g_include_pack");
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
-}).catch(()=>{});
+}).catch(() => { $("g_include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
 function draftRules(){
   const t = localStorage.getItem("finlang_rules_draft") || "";
   return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
@@ -152,7 +153,7 @@ function rawReady(){
   const m = $("g_rules_mode").value;
   return m==="pack" || (m==="draft" ? !!draftRules() : $("g_rules_file").files.length > 0);
 }
-function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
+function gate(){ $("discover").disabled = !!state.busy || !(state.csvText || rawReady()); }   // one request at a time
 gate();
 
 function showErr(msg){ const e = $("g_err"); e.textContent = msg; e.hidden = !msg; }
@@ -167,9 +168,18 @@ function clearDrafts(note){
   $("append_note").textContent = note || "";
 }
 $("discover").onclick = async () => {
+  if (state.busy) return;
+  state.busy = true;
   $("discover").disabled = true; $("suggest").disabled = true;   // one request at a time
+  // what this run uses is fixed now: provenance must not follow a later pick
+  const runRules = $("g_rules_mode").value, runRaw = ($("raw_csv").files[0] || {}).name || "input.csv";
+  const runDesc = runRules==="pack" ? `bundled pack: ${$("g_include_pack").value}`
+                : runRules==="draft" ? "your Workbench draft"
+                : ($("g_rules_file").files[0] || {}).name || "a .fin file";
   $("spin").style.display = "block"; showErr("");
   clearDrafts(); $("s_drafts").classList.remove("on");
+  state.cands = null; $("cands").innerHTML = ""; $("cand_n").textContent = "";
+  $("s_cands").classList.remove("on"); $("s_suggest").classList.remove("on");
   try {
     // No categorised output in hand? Make one right here: run the chosen rules
     // over the chosen data via /process (audit off - only categories matter for
@@ -184,21 +194,24 @@ $("discover").onclick = async () => {
       fp.append("audit_mode", "none");
       fp.append("return_audit", "false");
       const rp = await fetch("/process", {method:"POST", body:fp});
-      const bp = await rp.json();
+      const bp = await flJson(rp);
       if (!rp.ok){
-        showErr(flReason(bp) + "\nFiles that need a header mapping or locale settings: categorise them on the Categorise screen first, then come back - the output carries over.");
+        const why = flReason(bp);
+        // advice follows the cause: only a reading problem points at Categorise's locale settings
+        showErr(why + (/Dropped|Missing required columns|delimiter|codec/i.test(why)
+          ? "\nFiles that need a header mapping or locale settings: categorise them on the Categorise screen first, then come back - the output carries over."
+          : ""));
         return;
       }
       state.csvText = bp.output_csv;
-      const rulesDesc = m==="pack" ? `bundled pack: ${$("g_include_pack").value}`
-                      : m==="draft" ? "your Workbench draft"
-                      : $("g_rules_file").files[0].name;
+      const rulesDesc = runDesc;
+      state.rulesDesc = rulesDesc;
       $("handoff").style.display = "block";
       $("file_row").style.display = "none";
       $("handoff_n").textContent = Math.max(0, flCsvRows(state.csvText).length - 1);
       $("handoff").querySelector(".src").innerHTML =
         `&#10003; categorised just now (<span id="handoff_n">${$("handoff_n").textContent}</span> rows)` +
-        `<div style="color:var(--ink-2);font-weight:400;margin-top:3px">${esc($("raw_csv").files[0].name)}, ` +
+        `<div style="color:var(--ink-2);font-weight:400;margin-top:3px">${esc(runRaw)}, ` +
         `against <b style="color:var(--amber)">${esc(rulesDesc)}</b></div>`;
     }
     const fd = new FormData();
@@ -208,12 +221,12 @@ $("discover").onclick = async () => {
     $("min_count").value = n;
     fd.append("min_count", String(n));
     const r = await fetch("/discover", {method:"POST", body:fd});
-    const b = await r.json();
+    const b = await flJson(r);
     if (!r.ok){ showErr(flReason(b)); return; }
     renderCands(b.candidates_csv || "");
   } catch(e){
-    showErr(unreachable(e));
-  } finally { $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
+    flStatus(); showErr(flUnreachable(e));
+  } finally { state.busy = false; $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
 
 function renderCands(csv){
@@ -228,14 +241,15 @@ function renderCands(csv){
       $("cand_n").textContent = `none appearing ${n} or more times`;
       $("cands").innerHTML = `<div class="why">No unclaimed counterparty appears ${n} or more times. Lower the number to see rarer ones.</div>`;
     }
-    state.cands = null; return;
+    state.cands = null; $("s_suggest").classList.remove("on"); return;
   }
   state.cands = L;
   $("cand_n").textContent = `${L.length - 1}`;
   let h = '<table class="rows generic"><thead><tr><th></th>' +
     L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>";
   L.slice(1).forEach((r, i) => {
-    h += `<tr><td><input type="checkbox" class="ck" data-i="${i}" checked aria-label="Draft a rule for this one"></td>` +
+    const who = r[L[0].indexOf("example_name")] || r[1] || r[0] || `candidate ${i + 1}`;
+    h += `<tr><td><input type="checkbox" class="ck" data-i="${i}" checked aria-label="Draft a rule for ${esc(who)}"></td>` +
          r.map(c=>`<td>${esc(c)}</td>`).join("") + "</tr>";
   });
   $("cands").innerHTML = h + "</tbody></table>";
@@ -254,6 +268,8 @@ $("suggest").onclick = async () => {
   const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
   const csv = lines.map(r => r.map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(",")).join("\n");
   $("spin").style.display = "block";
+  if (state.busy) return;
+  state.busy = true;
   $("suggest").disabled = true; $("discover").disabled = true;   // one request at a time
   try {
     const fd = new FormData();
@@ -262,7 +278,7 @@ $("suggest").onclick = async () => {
     fd.append("prefix", $("sg_prefix").value || "SUGGEST");
     fd.append("emit_match", $("sg_match").value);
     const r = await fetch("/suggest", {method:"POST", body:fd});
-    const b = await r.json();
+    const b = await flJson(r);
     if (!r.ok){ clearDrafts(flReason(b)); $("s_drafts").classList.add("on"); return; }
     state.drafts = b.rules_fin || "";
     $("append").disabled = $("dl").disabled = !state.drafts.trim();
@@ -270,15 +286,10 @@ $("suggest").onclick = async () => {
     $("s_drafts").classList.add("on");
     $("append_note").textContent = "";
   } catch(e){
-    clearDrafts(unreachable(e)); $("s_drafts").classList.add("on");
-  } finally { $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
+    flStatus(); clearDrafts(flUnreachable(e)); $("s_drafts").classList.add("on");
+  } finally { state.busy = false; $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
-/* a request that never got an answer the page can read: unreachable server,
-   or a reply that isn't the API's JSON */
-function unreachable(e){
-  return `The Workbench server didn't give a usable answer (${String(e && e.message || e)}). ` +
-         "Check that finlang-ui is still running, then try again.";
-}
+
 
 $("append").onclick = () => {
   if (!state.drafts.trim()) return;
@@ -286,7 +297,14 @@ $("append").onclick = () => {
   const stamp = "# drafted by suggest, " + new Date().toISOString().slice(0, 10) + " - review each rule\n";
   localStorage.setItem("finlang_rules_draft",
     (cur.trim() ? cur.trim() + "\n\n" : "") + stamp + state.drafts.trim() + "\n");
-  $("append_note").innerHTML = 'Appended. Open the <a href="rules.html" class="lnk">Rules screen</a> to review and check them, or run again straight away.';
+  $("append").disabled = true;    // once per set of drafts: a second click doubled them
+  const src = state.rulesDesc || "";
+  const notDraft = src && src !== "your Workbench draft";
+  $("append_note").innerHTML = 'Appended. Open the <a href="rules.html" class="lnk">Rules screen</a> to review and check them' +
+    (notDraft
+      ? `. <b>Your gaps were measured against ${esc(src)}, which isn't in your Rules draft.</b> ` +
+        "Load it on the Rules screen first, or the next run uses only these drafts and the rows those rules categorised lose their category."
+      : ", or run again straight away.");
 };
 $("dl").onclick = () => {
   const a = document.createElement("a");

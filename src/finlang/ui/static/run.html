@@ -20,7 +20,7 @@
     <form id="f" class="flow">
       <div class="head">
         <h1>Categorise a file</h1>
-        <p class="lede">Pick a bank or card export and the rules to apply. Every row comes back with the rule that decided it.</p>
+        <p class="lede">Pick a bank or card export and the rules to apply. Every match comes back with the rule that decided it.</p>
       </div>
 
       <div class="card">
@@ -148,9 +148,9 @@
       <div id="spin" style="padding-left:52px">Running&hellip; <span id="elapsed"></span></div>
     </form>
 
-    <section class="results" id="results" aria-live="polite">
+    <section class="results" id="results">
       <h2 class="section">Results</h2>
-      <div id="banner" tabindex="-1"></div>
+      <div id="banner" tabindex="-1" aria-live="polite"></div>
       <div id="gapslink" class="why" style="display:none;margin:-4px 0 14px">
         <a href="gaps.html" class="lnk">Find gaps in these results</a>: draft rules for anything no rule claimed.
       </div>
@@ -191,7 +191,7 @@ async function describeDraft(on){
   const fd = new FormData();
   fd.append("rules", blob, "draft.fin");
   try {
-    const b = await (await fetch("/rules/validate", {method:"POST", body:fd})).json();
+    const b = await flJson(await fetch("/rules/validate", {method:"POST", body:fd}));
     if (b.ok){
       const names = b.rule_names.slice(0, 4).join(", ");
       el.innerHTML = `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
@@ -201,7 +201,7 @@ async function describeDraft(on){
       el.innerHTML = `<span style="color:var(--pink)">The draft's rules do not parse.</span> ` +
         `<a href="rules.html" class="lnk">Fix them on the Rules screen</a>.`;
     }
-  } catch(e){ el.textContent = String(e); }
+  } catch(e){ el.textContent = flUnreachable(e); }
 }
 // the dropdown asks the engine, so it can never lie again (GET /rulepacks
 // serves the CLI's own PACK_MAP); the hardcoded list below is the fallback
@@ -209,7 +209,7 @@ async function describeDraft(on){
 fetch("/rulepacks").then(r=>r.json()).then(b=>{
   const s = $("include_pack"); s.innerHTML = "";
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
-}).catch(()=>{});
+}).catch(() => { $("include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
 function draftRules(){
   const t = localStorage.getItem("finlang_rules_draft") || "";
   return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
@@ -257,6 +257,7 @@ function syncForm(){
 addEventListener("pageshow", syncForm);
 ["input_csv","rules_file","ml_csv"].forEach(id => $(id).onchange = gate);
 function gate(){
+  if (state.busy){ $("go").disabled = true; return; }   // one run at a time
   const m = $("rules_mode").value;
   const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() : $("rules_file").files.length);
   const recOk = !$("reconcile").checked ||
@@ -276,70 +277,89 @@ drop.addEventListener("drop", e => {
 });
 
 /* ---------- run ---------- */
+/* What a run uses is fixed when it starts. Both requests, the provenance handed
+   to Find gaps and the run log read this snapshot, never the live controls:
+   picking different rules mid-run sent the NEW rules to the comparison, so
+   results from two rule sets were compared as one (Codex, 31 Oct). */
+function snapshot(){
+  const rm = $("rules_mode").value;
+  return {
+    input: $("input_csv").files[0], rulesMode: rm, rulesFile: $("rules_file").files[0] || null,
+    pack: $("include_pack").value, draft: rm === "draft" ? draftRules() : null,
+    map: $("map_file").files[0] || null, dayfirst: $("dayfirst").value, decimal: $("decimal").value,
+    thousands: $("thousands").value, encoding: $("encoding").value, audit: $("audit_mode").value,
+    verify: $("verify").checked, verifyKind: $("verify_kind").value, verifyHtml: $("verify_html").checked,
+    reconcile: $("reconcile").checked, ml: $("ml_csv").files[0] || null, recHtml: $("rec_html").checked,
+    align: alignMode(), recKey: $("rec_key").value.trim(), recDate: $("rec_datefmt").value.trim(),
+  };
+}
+function addRules(fd, R){
+  if (R.rulesMode === "file") fd.append("rules", R.rulesFile);
+  else if (R.rulesMode === "draft") fd.append("rules", R.draft, "workbench_draft.fin");
+  else fd.append("include_pack", R.pack);
+}
+function addLocale(fd, R){
+  if (R.map) fd.append("map_file", R.map);
+  if (R.dayfirst) fd.append("dayfirst", "true");
+  if (R.decimal) fd.append("decimal", R.decimal);
+  if (R.thousands) fd.append("thousands", R.thousands);
+  if (R.encoding) fd.append("encoding", R.encoding);
+}
 $("f").onsubmit = async ev => {
   ev.preventDefault();
+  if (state.busy) return;
+  const R = state.run = snapshot();
+  state.busy = true;
   $("go").disabled = true; $("spin").style.display = "block";
-  state.t0 = Date.now();
+  state.t0 = Date.now(); state.recTried = false;   // a failed run must not show the last run's comparison
   const tick = setInterval(()=>{$("elapsed").textContent =
     Math.round((Date.now()-state.t0)/1000)+"s";}, 500);
   try {
     const fd = new FormData();
-    fd.append("input_csv", $("input_csv").files[0]);
-    const rm = $("rules_mode").value;
-    if (rm==="file") fd.append("rules", $("rules_file").files[0]);
-    else if (rm==="draft") fd.append("rules", draftRules(), "workbench_draft.fin");
-    else fd.append("include_pack", $("include_pack").value);
-    if ($("map_file").files.length) fd.append("map_file", $("map_file").files[0]);
-    if ($("dayfirst").value) fd.append("dayfirst","true");
-    if ($("decimal").value) fd.append("decimal", $("decimal").value);
-    if ($("thousands").value) fd.append("thousands", $("thousands").value);
-    if ($("encoding").value) fd.append("encoding", $("encoding").value);
-    fd.append("audit_mode", $("audit_mode").value);
-    fd.append("return_audit", $("audit_mode").value === "none" ? "false" : "true");
-    if ($("verify").checked){
-      fd.append($("verify_kind").value==="full" ? "verify_full" : "verify", "true");
-      if ($("verify_html").checked) fd.append("verify_html","true");
+    fd.append("input_csv", R.input);
+    addRules(fd, R); addLocale(fd, R);
+    fd.append("audit_mode", R.audit);
+    fd.append("return_audit", R.audit === "none" ? "false" : "true");
+    if (R.verify){
+      fd.append(R.verifyKind==="full" ? "verify_full" : "verify", "true");
+      if (R.verifyHtml) fd.append("verify_html","true");
     }
     const r = await fetch("/process", {method:"POST", body:fd});
-    const body = await r.json();
+    const body = await flJson(r);
     if (!r.ok) return fail(body);
     state.resp = body; state.audit = body.audit || null;
-    state.auditMode = $("audit_mode").value;
+    state.auditMode = R.audit;
 
     /* reconcile = a second call: /reconcile has no verify passthrough, so the
        Workbench mirrors the CLI reality of one flag-set per concern. The run
        log shows both invocations. */
     state.rec = null;
-    state.recTried = $("reconcile").checked;
-    if ($("reconcile").checked){
+    state.recTried = R.reconcile;
+    if (R.reconcile){
       const fr = new FormData();
-      fr.append("input_csv", $("input_csv").files[0]);
-      fr.append("ml_output_csv", $("ml_csv").files[0]);
-      if (rm==="file") fr.append("rules", $("rules_file").files[0]);
-      else if (rm==="draft") fr.append("rules", draftRules(), "workbench_draft.fin");
-      else fr.append("include_pack", $("include_pack").value);
-      if ($("map_file").files.length) fr.append("map_file", $("map_file").files[0]);
-      if ($("dayfirst").value) fr.append("dayfirst","true");
-      if ($("decimal").value) fr.append("decimal", $("decimal").value);
-      if ($("thousands").value) fr.append("thousands", $("thousands").value);
-      if ($("encoding").value) fr.append("encoding", $("encoding").value);
-      if ($("rec_html").checked) fr.append("reconcile_html","true");
-      const am = alignMode();
-      if (am !== "rows"){
-        fr.append(am==="key" ? "reconcile_key" : "reconcile_identity_fields", $("rec_key").value.trim());
-        if ($("rec_datefmt").value.trim()) fr.append("reconcile_date_format", $("rec_datefmt").value.trim());
+      fr.append("input_csv", R.input);
+      fr.append("ml_output_csv", R.ml);
+      addRules(fr, R); addLocale(fr, R);
+      if (R.recHtml) fr.append("reconcile_html","true");
+      if (R.align !== "rows"){
+        fr.append(R.align==="key" ? "reconcile_key" : "reconcile_identity_fields", R.recKey);
+        if (R.recDate) fr.append("reconcile_date_format", R.recDate);
       }
-      const r2 = await fetch("/reconcile", {method:"POST", body:fr});
-      const b2 = await r2.json();
+      // the categorisation succeeded: a comparison that can't be reached is a
+      // stopped comparison, not a failed run
+      let r2, b2;
+      try { r2 = await fetch("/reconcile", {method:"POST", body:fr}); b2 = await flJson(r2); }
+      catch (e){ flStatus(); render({detail: flUnreachable(e)}); return; }
       state.rec = r2.ok ? b2 : null;
       if (!r2.ok){ render(b2); return; }   // categorised fine; the comparison stopped
     }
     render();
   } catch(e){
-    fail({detail: String(e)});
+    flStatus();
+    fail({detail: flUnreachable(e)});
   } finally {
     clearInterval(tick);
-    $("spin").style.display="none"; gate();
+    $("spin").style.display="none"; state.busy = false; gate();
   }
 };
 
@@ -351,8 +371,11 @@ function fail(body, head){
   // the API's short message. The full engine output stays in the tab below.
   banner("failed", head || "Run failed", flReason(body));
   // dropped rows / missing columns are locale problems - open the block for them
-  if (/Dropped|Missing required columns|delimiter/i.test(d)) $("locale").open = true;
-  setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
+  if (/Dropped|Missing required columns|delimiter|codec can't decode/i.test(d)) $("locale").open = true;
+  if (/codec can't decode/i.test(d))
+    $("banner").insertAdjacentHTML("beforeend", '<div class="note">The file isn\'t in the expected text encoding. ' +
+      "Set <b>Encoding</b> under <b>My file isn't a UK/US-style CSV</b> (for example cp1252 for older Windows exports) and run again.</div>");
+  setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`], ["run log", logTab()]]);
   showResults();
   $("banner").focus();
 }
@@ -386,8 +409,13 @@ function render(stopped){
     const theirs = Number(rec.summary.orphans_ml_count) || 0;
     if (theirs) tags.push(tag("differs", `${theirs} only in their file`));
   }
+  if (L && L.ok){
+    const none = L.rows.filter(r => !(r[L.ci.cat] || "").trim()).length;
+    if (none) tags.push(tag("review", `${none} with no category`));
+  }
   if (L && L.nFlagged) tags.push(tag("review", `${L.nFlagged} flagged by a rule`));
-  if (L && L.nMulti) tags.push(tag("info", `${L.nMulti} matched more than one rule`));
+  if (L && L.nMulti) tags.push(tag("info", state.auditMode === "lite"
+      ? `${L.nMulti} changed by more than one rule` : `${L.nMulti} matched more than one rule`));
   if (p.verify_report){
     const vs = String(p.verify_report.status || "").toUpperCase();
     tags.push(vs === "PASS" ? tag("agree", "Verify: nothing underneath changed")
@@ -395,7 +423,9 @@ function render(stopped){
             : tag("info", "Verify ran: see the verify report"));
   }
   const dur = Number(p.stats.duration_seconds);
-  const small = `${p.stats.rows_out} rows categorised in ${isFinite(dur) ? dur.toFixed(2) : p.stats.duration_seconds}s.`;
+  const nCat = L && L.ok ? L.rows.filter(r => (r[L.ci.cat] || "").trim()).length : null;
+  const small = `${p.stats.rows_out} rows processed in ${isFinite(dur) ? dur.toFixed(2) : p.stats.duration_seconds}s` +
+    (nCat === null ? "." : `; ${nCat} categorised.`);
   // the engine assumed the other system's date convention: say so where the
   // results are read, in the engine's own words, not only in the run log
   const dateNote = (stderr, stopped) => {
@@ -413,6 +443,10 @@ function render(stopped){
   if (conv && conv.mode === "assumed")
     note = dateNote(rec.stderr) || "The other system's dates read either way, so FinLang assumed month-first. " +
       "<b>Set the other system's date format under How rows are paired</b> and run again.";
+  if (L && L.capped)
+    note = (note ? note + "<br>" : "") + `The audit trail stopped at its limit of ${L.capped} entries, so the rule ` +
+      "behind each category isn't shown: rules that ran after the limit weren't recorded for any row. " +
+      "To record more, start finlang-ui with <code>FINLANG_AUDIT_MAX</code> set higher (for example 100000).";
   if (stopped){
     const why = flReason(stopped);
     const sErr = stopped.detail && stopped.detail.stderr;
@@ -430,7 +464,8 @@ function render(stopped){
       advice = "Each row's key columns must be unique in both files. Add another column under How rows are paired so no two rows share a key.";
     banner("failed", "Categorised. The comparison stopped", why, tags, advice);
   }
-  else if (ex===0) banner("clean", "Clean", small, tags, note);
+  // "Clean" claims a check passed; with no check run, say what happened
+  else if (ex===0) banner("clean", (rec || p.verify_report) ? "Clean" : "Categorised", small, tags, note);
   else if (ex===3) banner("findings", "Findings — the product working, not failing", small, tags, note);
   else banner("failed", `Exit ${ex}`, small, tags, note);
 
@@ -457,12 +492,12 @@ function render(stopped){
       localStorage.setItem("finlang_last_output", p.output_csv);
       // provenance for the Growth loop: WHICH rules produced this output.
       // Gaps only mean anything relative to the rules that ran.
-      const rm = $("rules_mode").value;
-      const rulesDesc = rm === "pack" ? `bundled pack: ${$("include_pack").value}`
-                      : rm === "draft" ? "your Workbench draft"
-                      : ($("rules_file").files[0] || {}).name || "a .fin file";
+      const R = state.run || {};
+      const rulesDesc = R.rulesMode === "pack" ? `bundled pack: ${R.pack}`
+                      : R.rulesMode === "draft" ? "your Workbench draft"
+                      : (R.rulesFile || {}).name || "a .fin file";
       localStorage.setItem("finlang_last_run_desc", JSON.stringify({
-        input: ($("input_csv").files[0] || {}).name || "input.csv",
+        input: (R.input || {}).name || "input.csv",
         rules: rulesDesc,
         when: new Date().toISOString().slice(0, 16).replace("T", " "),
       }));
@@ -488,9 +523,15 @@ function buildLedger(p, rec){
               cat: col("category"), flags: col("flags"), status: col("status")};
   const byIdx = new Map();
   (state.audit || []).forEach(e => {
+    if (e.index === undefined) return;                 // the engine's cap marker, not a row
     if (!byIdx.has(e.index)) byIdx.set(e.index, []);
     byIdx.get(e.index).push(e);
   });
+  // Past its entry limit the engine stops recording for EVERY row and appends
+  // {"message": "Audit log capped at N entries."}. Rules that ran after the
+  // limit are missing everywhere, so no row's "deciding rule" can be vouched for.
+  const capMsg = (state.audit || []).find(e => e && e.index === undefined && /capped/i.test(String(e.message || "")));
+  const capped = capMsg ? ((String(capMsg.message).match(/\d+/) || ["its"])[0]) : null;
   const mism = new Map(), orph = new Set();
   if (rec && rec.mismatches_csv){
     const M = flCsvRows(rec.mismatches_csv), mh = M[0] || [];
@@ -502,8 +543,12 @@ function buildLedger(p, rec){
     const rn = oh.indexOf("row_number");
     O.slice(1).forEach(r => { if (rn >= 0 && r[rn]) orph.add(+r[rn]); });
   }
-  const setsCat = e => e.changes ? ("category" in e.changes)
-                    : (e.set || []).some(s => /^\s*category\b/.test(s));
+  // The full trail lists each rule's actions (`set`) - including an assignment
+  // that left the value as it was, which `changes` records as nothing. Only the
+  // light trail, which has no actions, falls back to recorded changes.
+  const isCatAction = s => /^\s*category\s*\+?=/i.test(s);
+  const setsCat = e => Array.isArray(e.set) ? e.set.some(isCatAction)
+                     : !!(e.changes && "category" in e.changes);
   // "the rule that decided it" is the LAST rule that set the category - not
   // the last rule that matched (flag-only rules often run last). The ledger,
   // Every column and the drawer all read it from here.
@@ -511,9 +556,9 @@ function buildLedger(p, rec){
   let nFlagged = 0, nMulti = 0;
   rows.forEach((r, i) => {
     if (ci.flags >= 0 && (r[ci.flags] || "").trim()) nFlagged++;
-    if ((byIdx.get(i) || []).length > 1) nMulti++;
+    if (!capped && (byIdx.get(i) || []).length > 1) nMulti++;   // unknowable once capped
   });
-  return {head, rows, ci, byIdx, mism, orph, rec: !!rec, setsCat, catRule, nFlagged, nMulti,
+  return {head, rows, ci, byIdx, mism, orph, rec: !!rec, setsCat, catRule, nFlagged, nMulti, capped,
           ok: ci.cp >= 0 && ci.cat >= 0};
 }
 
@@ -552,7 +597,9 @@ function ledgerTable(){
       `<td class="amt">${ci.amount >= 0 ? fmtAmt(r[ci.amount]) : ""}</td>` +
       `<td class="rule" data-i="${i}"><div>${cat ? `<span class="cat">${esc(cat)}</span>` : '<span class="cat none">No category</span>'}` +
         flags.map(x => ` <span class="tag review flag">${esc(x)}</span>`).join("") + "</div>" +
-        (decider ? `<span class="why-rule">${esc(decider.rule)}${ents.length > 1 ? `<span class="more">+${ents.length - 1}</span>` : ""}</span>` : "") +
+        (L.capped ? '<span class="why-rule incomplete">rule not recorded (audit limit)</span>'
+         : decider ? `<span class="why-rule"${state.auditMode === "lite" ? ' title="The last rule that changed the category: the light audit trail records changes only"' : ""}>` +
+                     `${esc(decider.rule)}${ents.length > 1 ? `<span class="more">+${ents.length - 1}</span>` : ""}</span>` : "") +
       "</td>" +
       (L.rec ? `<td>${diff ? `<span class="model diff">${esc(L.mism.get(i + 1) || "differs")}</span>`
                  : orphan ? '<span class="model">No match in their file</span>'
@@ -565,14 +612,14 @@ function genericTable(){
   const p = state.resp, lines = flCsvRows(p.output_csv);
   const head = lines[0] || [], rows = lines.slice(1);
   const byIdx = {};
-  (state.audit||[]).forEach(e => { (byIdx[e.index] = byIdx[e.index] || []).push(e); });
+  (state.audit||[]).forEach(e => { if (e.index !== undefined) (byIdx[e.index] = byIdx[e.index] || []).push(e); });
   const catRule = state.ledger ? state.ledger.catRule : (ents => ents[ents.length - 1]);
   let h = '<div class="scroll"><table class="rows generic"><thead><tr>' +
     head.map(c=>`<th>${esc(c)}</th>`).join("") + (state.audit ? "<th>rule</th>" : "") + "</tr></thead><tbody>";
   rows.forEach((r,i) => {
     h += `<tr data-i="${i}"${state.ledger ? ' tabindex="0"' : ""}>` + r.map(c=>`<td>${esc(c)}</td>`).join("");
     if (state.audit){
-      const e = byIdx[i] ? catRule(byIdx[i]) : null;
+      const e = byIdx[i] && !(state.ledger && state.ledger.capped) ? catRule(byIdx[i]) : null;
       h += e ? `<td class="rule" data-i="${i}">${esc(e.rule)}</td>` : "<td></td>";
     }
     h += "</tr>";
@@ -608,9 +655,10 @@ function showWhy(i){
   const appends = e => opOf(e) === "append";
   const opUnknown = catSetters.slice(1).some(e => opOf(e) === "unknown");
   const replacedAt = k => !opUnknown && catSetters.some(e => ents.indexOf(e) > k && !appends(e));
-  const lite = state.auditMode === "lite";
+  const lite = state.auditMode === "lite", capped = !!L.capped;
   let why;
   if (!state.audit) why = "The audit trail was off for this run, so the rule behind each row wasn't recorded. Turn it on under Checks and run again.";
+  else if (capped) why = `The audit trail reached its limit (${L.capped} entries) before every rule was recorded, so this list can be missing rules that ran later - including the one that decided this category. Start finlang-ui with FINLANG_AUDIT_MAX set higher to record them all.`;
   else if (!ents.length) why = cat
       ? "This row has a category, but the audit trail has no entry for it. The trail may have reached its size limit on a large file."
       : "No rule matched this row, so it has no category. Find gaps can draft a rule for it.";
@@ -620,7 +668,7 @@ function showWhy(i){
   else why = `${ents.length} rules matched this row. Rules run in file order, and the last one to set a field wins.`;
 
   const items = ents.map((e, k) => {
-    const over = L.setsCat(e) && replacedAt(k);
+    const over = !capped && L.setsCat(e) && replacedAt(k);
     const conds = (e.match || []).map(c => `<code>${esc(c)}</code>`).join("<br>");
     let eff = "";
     if (e.changes && Object.keys(e.changes).length){
@@ -632,14 +680,15 @@ function showWhy(i){
       eff = "Matched, but changed nothing.";
     }
     if (over) eff += " Replaced by a later rule.";
-    else if (!opUnknown && L.setsCat(e) && appends(e) && catSetters.indexOf(e) > 0) eff += " Added to the category an earlier rule set.";
+    else if (!capped && !opUnknown && L.setsCat(e) && appends(e) && catSetters.indexOf(e) > 0) eff += " Added to the category an earlier rule set.";
     return `<li class="${over ? "over" : ""}"><span class="n">${k + 1}</span><div>` +
       `<div class="rn">${esc(e.rule)}</div>${conds ? `<div>${conds}</div>` : ""}` +
       (eff ? `<div class="eff">${eff}</div>` : "") + "</div></li>";
   }).join("");
 
   const notes = [];
-  if (opUnknown)
+  if (capped) {}                                    // nothing about setters can be vouched for
+  else if (opUnknown)
     notes.push(`<div class="note">More than one rule set the category. The light audit trail doesn't record whether a later rule replaced it or added to it: run with the full audit trail to see which.</div>`);
   else if (catSetters.length > 1 && catSetters.slice(1).every(appends))
     notes.push(`<div class="note">Later rules added to the category an earlier rule set; nothing was replaced.</div>`);
@@ -718,7 +767,7 @@ function csvTable(csv){
 function recTab(rec){
   const s = rec.summary;
   const fl = +s.orphans_finlang_count || 0, ml = +s.orphans_ml_count || 0;
-  let h = `<p style="margin:0 0 12px">${esc(pairedHow(s))}: ${s.total_rows} rows compared. ` +
+  let h = `<p style="margin:0 0 12px">${esc(pairedHow(s))}: ${s.total_rows} ${s.total_rows === 1 ? "row" : "rows"} compared. ` +
     `<span class="tag agree">${s.matches} agree</span> <span class="tag differs">${s.mismatches} do not</span>` +
     (fl ? ` <span class="tag differs">${fl} with no match in their file</span>` : "") +
     (ml ? ` <span class="tag differs">${ml} only in their file</span>` : "") +
@@ -774,39 +823,40 @@ function logTab(){
   // so they are doubled too; to POSIX shells they are ordinary characters.
   const shq = s => /[^\w.\-]/.test(s) ? "'" + (WIN ? s.replace(/['\u2018-\u201B]/g, "$&$&")
                                                    : s.replace(/'/g, "'\\''")) + "'" : s;
-  const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
-  const rulesArg = $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
-     : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname("rules_file")||"<your .fin>");
-  let c = "finlang --input " + (fname("input_csv")||"<your csv>") + rulesArg;
-  if ($("dayfirst").value) c += " --dayfirst";
-  if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
-  if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
-  if ($("map_file").files.length) c += " --map " + fname("map_file");
-  if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
-  if ($("audit_mode").value !== "none") c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
-  if ($("verify").checked){
-    c += $("verify_kind").value==="full" ? " --verify-full" : " --verify";
+  // the command for the run as it was sent - the snapshot, not the live controls
+  const R = state.run || snapshot();
+  const fname = f => f ? shq(f.name) : undefined;
+  const rulesArg = R.rulesMode==="pack" ? ` --include-pack ${R.pack}`
+     : R.rulesMode==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname(R.rulesFile)||"<your .fin>");
+  let c = "finlang --input " + (fname(R.input)||"<your csv>") + rulesArg;
+  if (R.dayfirst) c += " --dayfirst";
+  if (R.decimal) c += ` --decimal ${shq(R.decimal)}`;
+  if (R.thousands) c += ` --thousands ${shq(R.thousands)}`;
+  if (R.map) c += " --map " + fname(R.map);
+  if (R.encoding) c += ` --encoding ${shq(R.encoding)}`;
+  if (R.audit !== "none") c += ` --audit audit.json --audit-mode ${R.audit}`;
+  if (R.verify){
+    c += R.verifyKind==="full" ? " --verify-full" : " --verify";
     c += " --verify-output-dir out/";
-    if ($("verify_html").checked) c += " --verify-html";
+    if (R.verifyHtml) c += " --verify-html";
   }
   c += " --output categorized.csv";
   a.push(c);
   if (state.recTried){
-    let r = "finlang --input " + (fname("input_csv")||"<your csv>") + rulesArg +
+    let r = "finlang --input " + (fname(R.input)||"<your csv>") + rulesArg +
       " --output categorized.csv --audit audit.json --audit-mode full" +
-      ` --reconcile ${fname("ml_csv")||"<model output.csv>"} --reconcile-output-dir out/`;
+      ` --reconcile ${fname(R.ml)||"<model output.csv>"} --reconcile-output-dir out/`;
     // the reconcile call forwards the same locale/mapping options as /process,
     // so the reconcile command must show them too (encoding added SOL-112).
-    if ($("map_file").files.length) r += " --map " + fname("map_file");
-    if ($("dayfirst").value) r += " --dayfirst";
-    if ($("decimal").value) r += ` --decimal ${shq($("decimal").value)}`;
-    if ($("thousands").value) r += ` --thousands ${shq($("thousands").value)}`;
-    if ($("encoding").value) r += ` --encoding ${shq($("encoding").value)}`;
-    if ($("rec_html").checked) r += " --reconcile-html";
-    const am = alignMode();
-    if (am !== "rows"){
-      r += ` ${am==="key" ? "--reconcile-key" : "--reconcile-identity-fields"} ${shq($("rec_key").value.trim())}`;
-      if ($("rec_datefmt").value.trim()) r += ` --reconcile-date-format ${shq($("rec_datefmt").value.trim())}`;
+    if (R.map) r += " --map " + fname(R.map);
+    if (R.dayfirst) r += " --dayfirst";
+    if (R.decimal) r += ` --decimal ${shq(R.decimal)}`;
+    if (R.thousands) r += ` --thousands ${shq(R.thousands)}`;
+    if (R.encoding) r += ` --encoding ${shq(R.encoding)}`;
+    if (R.recHtml) r += " --reconcile-html";
+    if (R.align !== "rows"){
+      r += ` ${R.align==="key" ? "--reconcile-key" : "--reconcile-identity-fields"} ${shq(R.recKey)}`;
+      if (R.recDate) r += ` --reconcile-date-format ${shq(R.recDate)}`;
     }
     a.push(r);
   }

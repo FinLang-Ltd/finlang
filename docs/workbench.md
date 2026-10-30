@@ -3,7 +3,7 @@
 > **Status:** Production
 > **Last verified:** v0.9.1
 
-The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, switch on the checks you want, and run — every row comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
+The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, switch on the checks you want, and run — every match comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
 
 It is a fourth surface over the **same engine** as the CLI, the Python call, and the HTTP API — not a second implementation. Every run shows the equivalent `finlang` command line, so anything you click today you can script tomorrow.
 
@@ -42,7 +42,7 @@ Your default browser opens at `http://127.0.0.1:8484/ui/`. If a tab doesn't appe
 
 *(Called the Run screen before the October 2026 redesign.)* One page, three numbered steps:
 
-1. **Your file** — drop a CSV on the page or choose it. Any columns, any order; it needs date, amount and counterparty to be findable (memo optional). Non-UK/US files are covered by *My file isn't a UK/US-style CSV* on the same step: day-first dates, decimal/thousands separators, encoding, and a header-mapping JSON for differently named columns.
+1. **Your file** — drop a CSV on the drop zone or choose it. Any columns, any order; it needs date, amount and counterparty to be findable (memo optional). Non-UK/US files are covered by *My file isn't a UK/US-style CSV* on the same step: day-first dates, decimal/thousands separators, encoding, and a header-mapping JSON for differently named columns.
 2. **Rules** — a `.fin` file from your computer, a bundled starter pack, or your draft from the Rules screen.
 3. **Checks** — the audit trail (`full` by default — it is what puts the deciding rule on every row), **Verify** (fast fingerprint or full field-by-field, with an HTML report), and **Compare with another system** — reconcile against a model-output CSV, every disagreement explained. *How rows are paired* sets the alignment: **row by row** (the default: row 1 against row 1, so both files need the same rows in the same order; columns can be in any order), **row by row, checking each pair is the same transaction** (`--reconcile-identity-fields`: stops if the named columns differ on any row), or **match on key columns** (`--reconcile-key`: any row order, row counts can differ, rows only one file has are listed separately). Their file needs a `category` column, plus any columns you check or match on, under the same names. See [reconciliation.md](reconciliation.md). Each check is a switch; its options open when it is on.
 
@@ -66,7 +66,7 @@ Build a rule step by step on the left — name, match conditions, actions — an
 
 The payoff is the read-back: **“What the engine understood”** renders every rule in plain English — *when counterparty contains SHELL, then set category to Energy & Commodities…* — produced by the engine's own tokeniser via `/rules/validate`. The Workbench contains no parser of its own, so “valid here” and “valid in a run” are the same fact.
 
-Drafts autosave in your browser. Rules run in file order and the last matching rule sets the category — put specific rules after general ones.
+Drafts autosave in your browser. Rules run in file order, and when several rules set the category the last of them decides it (a rule that only adds flags doesn't) — put specific rules after general ones. With the audit trail off, or past its entry limit on a large file (`FINLANG_AUDIT_MAX`, 5,000 by default), the Workbench can't show which rule decided a category, and says so.
 
 ---
 

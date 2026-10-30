@@ -10,7 +10,7 @@
 (function () {
   const HELP = {
     "index.html": {
-      "ENGINE": "The engine behind every screen. The version comes from /health. “Found” means the server located the FinLang engine in the same Python installation it runs in; every run here calls it, so the Workbench and the command line can't disagree.",
+      "ENGINE": "The engine behind every screen. The version comes from /health. “Found” means the server located the FinLang engine in the same Python installation it runs in; every run here calls it, so the Workbench and the command line run the same code.",
     },
     "run.html": {
       "YOUR FILE": "One CSV with a date, an amount and a counterparty column, in any order. If your columns are named differently, or dates and amounts are written the European way, open “My file isn't a UK/US-style CSV”. Next you choose the rules: a .fin file, a bundled starter pack, or the draft sitting in your Rules editor.",

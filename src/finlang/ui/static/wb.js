@@ -24,6 +24,42 @@ function flReason(body){
     /error|unknown|missing|cannot|invalid|not found|no such/i.test(l)).pop();
   return err || (det && det.message) || String(d);
 }
+/* A request that never got an answer the page can read: unreachable server,
+   or a reply that isn't the API's JSON. One wording for every screen. */
+function flUnreachable(e){
+  return `The Workbench server didn't give a usable answer (${String(e && e.message || e)}). ` +
+         "Check that finlang-ui is still running, then try again.";
+}
+/* r.json() whose failure IS a failure: a reply that isn't the API's JSON (an
+   HTML error page, a proxy page - even one sent with HTTP 200) throws, so every
+   caller's catch says the server didn't answer, and nothing renders it as a
+   result. Returning an error-shaped body instead let an HTTP 200 page read as
+   success ("every row was claimed by a rule"). */
+async function flJson(r){
+  try { return await r.json(); }
+  catch (e){ throw new Error(`HTTP ${r.status}, not a FinLang reply`); }
+}
+/* the engine status in the header: checked on load, and again whenever a
+   request fails to reach the server - so the header never says "running"
+   beside a run that could not reach it */
+function flStatus(){
+  const st = document.getElementById("wbstatus");
+  if (!st) return;
+  st.classList.remove("ok", "warn");
+  fetch("/health").then(r => r.json()).then(h => {
+    st.classList.add(h.cli_resolved ? "ok" : "warn");
+    st.title = h.cli_resolved
+      ? "The engine this page calls was found and answered. Everything runs on this machine."
+      : "The server answered, but could not find the FinLang engine to call.";
+    st.lastElementChild.textContent = h.cli_resolved
+      ? `Engine ${h.version}, running on this machine`
+      : `Engine ${h.version}: not found`;
+  }).catch(() => {
+    st.classList.add("warn");
+    st.title = "The page could not reach the Workbench server.";
+    st.lastElementChild.textContent = "Engine not reachable";
+  });
+}
 (function () {
   // The lockup fragment ships with a white wordmark for the dark graphics frame.
   // On the light surface the wordmark follows the text colour (navy); the mark's
@@ -36,18 +72,5 @@ function flReason(body){
     document.body.appendChild(host);
   }).catch(() => {});
 
-  const st = document.getElementById("wbstatus");
-  if (!st) return;
-  fetch("/health").then(r => r.json()).then(h => {
-    st.classList.add(h.cli_resolved ? "ok" : "warn");
-    st.title = h.cli_resolved
-      ? "The engine this page calls was found and answered. Everything runs on this machine."
-      : "The server answered, but could not find the FinLang engine to call.";
-    st.lastElementChild.textContent = h.cli_resolved
-      ? `Engine ${h.version}, running on this machine`
-      : `Engine ${h.version}: not found`;
-  }).catch(() => {
-    st.classList.add("warn");
-    st.lastElementChild.textContent = "Engine not reachable";
-  });
+  flStatus();
 })();

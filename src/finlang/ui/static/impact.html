@@ -81,9 +81,9 @@
       <div id="spin" style="padding-left:52px">Comparing&hellip; <span id="elapsed"></span></div>
     </form>
 
-    <section class="results" id="results" aria-live="polite">
+    <section class="results" id="results">
       <h2 class="section">Results</h2>
-      <div id="banner" tabindex="-1"></div>
+      <div id="banner" tabindex="-1" aria-live="polite"></div>
       <div class="tabs" id="tabs"></div>
       <div class="pane" id="pane"><div class="on" style="display:block;color:var(--muted)">
         Nothing yet. Choose a file and both sets of rules above, then press Compare.
@@ -110,38 +110,53 @@ $("cand_mode").onchange = e => {
 fetch("/rulepacks").then(r=>r.json()).then(b=>{
   const s = $("include_pack");
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
-}).catch(()=>{});
+}).catch(() => { $("include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
 function draftRules(){
   const t = localStorage.getItem("finlang_rules_draft") || "";
   return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
 }
 function gate(){
+  if (state.busy){ $("go").disabled = true; return; }   // one comparison at a time
   const baseOk = $("base_mode").value==="pack" || $("base_file").files.length;
   const candOk = $("cand_mode").value==="draft" ? !!draftRules() : $("cand_file").files.length;
   $("go").disabled = !($("input_csv").files.length && baseOk && candOk);
 }
 
+/* What a comparison uses is fixed when it starts: the request and the run log
+   read this snapshot, never the live controls (Codex, 31 Oct). */
+function snapshot(){
+  return {
+    input: $("input_csv").files[0], baseMode: $("base_mode").value, baseFile: $("base_file").files[0] || null,
+    pack: $("include_pack").value, candMode: $("cand_mode").value, candFile: $("cand_file").files[0] || null,
+    draft: $("cand_mode").value === "draft" ? draftRules() : null,
+    map: $("map_file").files[0] || null, dayfirst: $("dayfirst").value, decimal: $("decimal").value,
+    thousands: $("thousands").value, encoding: $("encoding").value, html: $("impact_html").checked,
+  };
+}
 $("f").onsubmit = async ev => {
   ev.preventDefault();
+  if (state.busy) return;
+  const R = state.run = snapshot();
+  state.busy = true;
   $("go").disabled = true; $("spin").style.display = "block";
   state.t0 = Date.now();
   const tick = setInterval(()=>{$("elapsed").textContent =
     Math.round((Date.now()-state.t0)/1000)+"s";}, 500);
   try {
     const fd = new FormData();
-    fd.append("input_csv", $("input_csv").files[0]);
-    if ($("base_mode").value==="file") fd.append("rules", $("base_file").files[0]);
-    else fd.append("include_pack", $("include_pack").value);
-    if ($("cand_mode").value==="file") fd.append("impact_rules", $("cand_file").files[0]);
-    else fd.append("impact_rules", draftRules(), "workbench_draft.fin");
-    if ($("map_file").files.length) fd.append("map_file", $("map_file").files[0]);
-    if ($("dayfirst").value) fd.append("dayfirst","true");
-    if ($("decimal").value) fd.append("decimal", $("decimal").value);
-    if ($("thousands").value) fd.append("thousands", $("thousands").value);
-    if ($("encoding").value) fd.append("encoding", $("encoding").value);
-    if ($("impact_html").checked) fd.append("impact_html","true");
+    fd.append("input_csv", R.input);
+    if (R.baseMode==="file") fd.append("rules", R.baseFile);
+    else fd.append("include_pack", R.pack);
+    if (R.candMode==="file") fd.append("impact_rules", R.candFile);
+    else fd.append("impact_rules", R.draft, "workbench_draft.fin");
+    if (R.map) fd.append("map_file", R.map);
+    if (R.dayfirst) fd.append("dayfirst","true");
+    if (R.decimal) fd.append("decimal", R.decimal);
+    if (R.thousands) fd.append("thousands", R.thousands);
+    if (R.encoding) fd.append("encoding", R.encoding);
+    if (R.html) fd.append("impact_html","true");
     const r = await fetch("/impact", {method:"POST", body:fd});
-    const b = await r.json();
+    const b = await flJson(r);
     if (!r.ok){
       const d = typeof b.detail==="string" ? b.detail
               : (b.detail && b.detail.stderr) || JSON.stringify(b.detail, null, 2);
@@ -152,10 +167,12 @@ $("f").onsubmit = async ev => {
     }
     state.resp = b; render();
   } catch(e){
-    banner("failed","Comparison failed", String(e));
+    flStatus();
+    banner("failed","Comparison failed", flUnreachable(e));
+    setTabs([["engine output", `<pre class="log">${esc(String(e))}</pre>`]]);   // never under an old result
     showResults(); $("banner").focus();
   } finally {
-    clearInterval(tick); $("spin").style.display="none"; gate();
+    clearInterval(tick); $("spin").style.display="none"; state.busy = false; gate();
   }
 };
 
@@ -204,14 +221,21 @@ function sumTab(b){
     const oi = L[0].indexOf("old_category"), ni = L[0].indexOf("new_category");
     if (oi >= 0 && ni >= 0){
       const flows = new Map();
+      let other = 0;
       for (const r of L.slice(1)){
+        if ((r[oi] || "") === (r[ni] || "")){ other++; continue; }   // same category: flags/status/rule moved
         const k = `${r[oi] || "(none)"} → ${r[ni] || "(none)"}`;
         flows.set(k, (flows.get(k) || 0) + 1);
       }
-      h += '<div style="font-weight:650;font-size:15px;margin:14px 0 6px">What moved where</div>';
-      for (const [k, n] of [...flows.entries()].sort((a,b)=>b[1]-a[1]))
-        h += `<div style="font-size:14px;margin:4px 0">` +
-             `<span style="color:var(--amber);font-family:var(--mono);font-weight:600">${n}×</span> ${esc(k)}</div>`;
+      if (flows.size){
+        h += '<div style="font-weight:650;font-size:15px;margin:14px 0 6px">What moved where</div>';
+        for (const [k, n] of [...flows.entries()].sort((a,b)=>b[1]-a[1]))
+          h += `<div style="font-size:14px;margin:4px 0">` +
+               `<span style="color:var(--amber);font-family:var(--mono);font-weight:600">${n}×</span> ${esc(k)}</div>`;
+      }
+      if (other)
+        h += `<div style="font-size:14px;margin:8px 0 0;color:var(--ink-2)">${other} ${other === 1 ? "row keeps" : "rows keep"} ` +
+             "the same category but change flags, status or the rule that decided it: see the changes tab.</div>";
     }
   }
   // Everything the engine put in its summary, verbatim. Nested values (rule
@@ -259,19 +283,21 @@ function logTab(b){
   // PowerShell also treats U+2018-U+201B as quote marks, so they are doubled too
   const shq = s => /[^\w.\-]/.test(s) ? "'" + (WIN ? s.replace(/['\u2018-\u201B]/g, "$&$&")
                                                    : s.replace(/'/g, "'\\''")) + "'" : s;
-  const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
-  let c = "finlang --input " + (fname("input_csv")||"<your csv>");
-  c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
-  c += $("cand_mode").value==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules " + (fname("cand_file")||"<candidate .fin>");
+  // the command for the comparison as it was sent - the snapshot, not the live controls
+  const R = state.run || snapshot();
+  const fname = f => f ? shq(f.name) : undefined;
+  let c = "finlang --input " + (fname(R.input)||"<your csv>");
+  c += R.baseMode==="pack" ? ` --include-pack ${R.pack}` : " --rules " + (fname(R.baseFile)||"<baseline .fin>");
+  c += R.candMode==="draft" ? " --impact-rules workbench_draft.fin" : " --impact-rules " + (fname(R.candFile)||"<candidate .fin>");
   // locale/mapping options are forwarded to /impact, so the copyable command
   // must carry them too — otherwise a German/EU run won't reproduce.
-  if ($("map_file").files.length) c += " --map " + fname("map_file");
-  if ($("dayfirst").value) c += " --dayfirst";
-  if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
-  if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
-  if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
+  if (R.map) c += " --map " + fname(R.map);
+  if (R.dayfirst) c += " --dayfirst";
+  if (R.decimal) c += ` --decimal ${shq(R.decimal)}`;
+  if (R.thousands) c += ` --thousands ${shq(R.thousands)}`;
+  if (R.encoding) c += ` --encoding ${shq(R.encoding)}`;
   c += " --impact-output-dir out/";   // impact writes no categorised output
-  if ($("impact_html").checked) c += " --impact-html";
+  if (R.html) c += " --impact-html";
   // the label states the quoting contract (the OS sniff can't see CMD/Git Bash/WSL)
   return `<p style="font-size:14px;color:var(--ink-2);margin:0 0 8px">The same comparison, ${WIN ? "in PowerShell" : "from a terminal"}:</p>` +
     `<pre class="log">${esc(c)}</pre>` +

@@ -37,7 +37,7 @@
           <div class="hint" id="andnote" style="display:none">All conditions must be true
             together (<b>AND</b>) for the rule to fire.</div>
           <div class="orlink">Want <b>OR</b>? That's a second rule:
-            <button type="button" id="dup" class="lnk">duplicate this one for another pattern</button> after inserting.</div>
+            after inserting, <button type="button" id="dup" class="lnk">edit the pattern above and insert again</button>.</div>
         </div>
 
         <div class="card">
@@ -69,7 +69,7 @@
           </div>
           <textarea id="ed" spellcheck="false" aria-label="Rules file" placeholder="# Your .fin file. The builder on the left appends to it.
 # Rules apply in order: every matching rule runs; the last to set a field wins (+= adds)."></textarea>
-          <div id="verdict"></div>
+          <div id="verdict" role="status" aria-live="polite"></div>
           <div class="card" id="readback" style="display:none;margin-top:12px">
             <div class="t">What the engine understood</div>
             <div id="rb"></div>
@@ -80,7 +80,7 @@
           <div class="hint" style="margin-top:12px">Checked by the real engine via
             <code>/rules/validate</code>; the Workbench has no parser of its own, so "valid here" and
             "valid in a run" are the same fact. Drafts autosave in this browser. Rules run in file order and the
-            <b>last matching rule sets the category</b>, so put specific rules after general ones.</div>
+            <b>last rule that sets the category decides it</b> (a rule that only adds flags doesn't), so put specific rules after general ones.</div>
         </div>
       </section>
     </div>
@@ -123,7 +123,11 @@ function row(host, FIELDS, isMatch){
   const os = document.createElement("select");
   const val = document.createElement("input"); val.type = "text";
   const x = document.createElement("span"); x.className = "x"; x.textContent = "×";
-  x.setAttribute("role", "button"); x.setAttribute("aria-label", "Remove"); x.tabIndex = 0;
+  const n = host.children.length + 1, what = isMatch ? "Condition" : "Action";
+  fs.setAttribute("aria-label", `${what} ${n}: field`);
+  os.setAttribute("aria-label", `${what} ${n}: operator`);
+  val.setAttribute("aria-label", `${what} ${n}: value`);
+  x.setAttribute("role", "button"); x.setAttribute("aria-label", `Remove ${what.toLowerCase()} ${n}`); x.tabIndex = 0;
   const hint = document.createElement("div"); hint.className = "hint"; hint.style.flexBasis = "100%";
   // Field change rebuilds the operator list; operator change must NOT -
   // rebuilding the select you just used wipes the selection back to the
@@ -132,7 +136,7 @@ function row(host, FIELDS, isMatch){
     hint.innerHTML = FIELDS[fs.value].hint;
     val.placeholder = fs.value === "amount" ? (os.value === "in" ? "-100..-10" : "-45.99")
                     : fs.value === "exclude" ? "true"
-                    : '"*PATTERN*"';
+                    : isMatch ? '"*PATTERN*"' : '"Fuel"';   // a set action takes the value literally
   }
   function syncField(){
     os.innerHTML = "";
@@ -238,7 +242,7 @@ async function check(){
   const fd = new FormData(); fd.append("rules_text", $("ed").value);
   try {
     const r = await fetch("/rules/validate", {method:"POST", body:fd});
-    const b = await r.json();
+    const b = await flJson(r);
     if (b.ok){
       v.className = "ok";
       v.textContent = `✓ Parsed ${b.rule_count} rule(s)` +
@@ -249,7 +253,7 @@ async function check(){
       v.textContent = b.error || JSON.stringify(b);
       $("readback").style.display = "none";
     }
-  } catch(e){ v.className = "bad"; v.textContent = String(e);
+  } catch(e){ flStatus(); v.className = "bad"; v.textContent = flUnreachable(e);
               $("readback").style.display = "none"; }
 }
 
