@@ -398,13 +398,13 @@ function render(stopped){
   const small = `${p.stats.rows_out} rows categorised in ${isFinite(dur) ? dur.toFixed(2) : p.stats.duration_seconds}s.`;
   // the engine assumed the other system's date convention: say so where the
   // results are read, in the engine's own words, not only in the run log
-  const dateNote = stderr => {
+  const dateNote = (stderr, stopped) => {
     const w = String(stderr || "").split("\n");
     const k = w.findIndex(l => /^WARNING: every date/.test(l));
     if (k < 0) return "";
     const para = [w[k]].concat(w.slice(k + 1).filter((l, j, a) =>
                    /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))))
-                 .filter(l => !/reconcile_report\.json/.test(l));
+                 .filter(l => !stopped || !/reconcile_report\.json/.test(l));   // a stop writes no report
     return esc(para.map(l => l.trim()).join(" ")) +
       " <b>Set the other system's date format under How rows are paired</b> and run again.";
   };
@@ -423,7 +423,7 @@ function render(stopped){
     const keyAdvice = "If the rows are in a different order, choose <b>Match on key columns</b> under How rows are paired.";
     let advice = "";
     if (/identity check failed/i.test(why))
-      advice = dateNote(sErr) ? dateNote(sErr) + " " + keyAdvice : keyAdvice;
+      advice = dateNote(sErr, true) ? dateNote(sErr, true) + " " + keyAdvice : keyAdvice;
     else if (/row count mismatch/i.test(why))
       advice = "Row by row needs the same number of rows in both files. To compare files of different lengths, choose <b>Match on key columns</b> under How rows are paired.";
     else if (/duplicate key/i.test(why))
@@ -596,9 +596,12 @@ function showWhy(i){
   // Only the full trail records the operator (its `set` strings); the light
   // trail keeps old/new values, which cannot tell "= longer value" from "+=".
   // Where it is unknown, say so rather than pick the reassuring reading.
-  const isAppendOp = s => /^\s*category\s*\+=/i.test(s);    // the engine lower-cases field names
+  // the engine lower-cases field names, so match the operator in any case
+  const isAppendOp = s => /^\s*category\s*\+=/i.test(s);
+  const isSetOp = s => /^\s*category\s*=/i.test(s);
   const opOf = e => {
-    if (e.set) return e.set.some(isAppendOp) ? "append" : "replace";
+    // one `=` anywhere in the rule replaces what came before, even if it then adds
+    if (e.set) return e.set.some(isSetOp) ? "replace" : e.set.some(isAppendOp) ? "append" : "replace";
     const c = e.changes && e.changes.category;
     return c && c.old && String(c.new ?? "").startsWith(c.old) ? "unknown" : "replace";
   };
@@ -743,6 +746,8 @@ function dlTab(p, rec){
   if (p.verify_report) items.push(["verify_report.json", JSON.stringify(p.verify_report,null,2), "application/json"]);
   if (p.verify_report_html) items.push(["verify_report.html", p.verify_report_html, "text/html"]);
   if (rec){
+    // the API's summary IS the engine's reconcile_report.json
+    if (rec.summary) items.push(["reconcile_report.json", JSON.stringify(rec.summary, null, 2), "application/json"]);
     if (rec.mismatches_csv) items.push(["reconcile_mismatches.csv", rec.mismatches_csv, "text/csv"]);
     if (rec.report_html) items.push(["reconcile_report.html", rec.report_html, "text/html"]);
     if (rec.orphans_finlang_csv) items.push(["orphans_finlang.csv", rec.orphans_finlang_csv, "text/csv"]);

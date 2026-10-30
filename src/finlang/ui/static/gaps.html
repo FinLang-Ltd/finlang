@@ -156,9 +156,10 @@ function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
 gate();
 
 function showErr(msg){ const e = $("g_err"); e.textContent = msg; e.hidden = !msg; }
-/* drafts belong to one candidate selection: whenever that changes or fails,
-   they go - out of memory as well as off screen - so nothing unseen can be
-   appended or downloaded */
+/* Drafts go - out of memory as well as off screen - when Find gaps runs
+   again, when nothing is ticked, and when drafting fails, so nothing unseen
+   can be appended or downloaded. (Changing ticks after drafting keeps the
+   drafts on screen: what is shown is what Append writes.) */
 function clearDrafts(note){
   state.drafts = "";
   $("drafts").textContent = "";
@@ -166,7 +167,8 @@ function clearDrafts(note){
   $("append_note").textContent = note || "";
 }
 $("discover").onclick = async () => {
-  $("discover").disabled = true; $("spin").style.display = "block"; showErr("");
+  $("discover").disabled = true; $("suggest").disabled = true;   // one request at a time
+  $("spin").style.display = "block"; showErr("");
   clearDrafts(); $("s_drafts").classList.remove("on");
   try {
     // No categorised output in hand? Make one right here: run the chosen rules
@@ -209,7 +211,9 @@ $("discover").onclick = async () => {
     const b = await r.json();
     if (!r.ok){ showErr(flReason(b)); return; }
     renderCands(b.candidates_csv || "");
-  } finally { $("spin").style.display = "none"; gate(); }
+  } catch(e){
+    showErr(unreachable(e));
+  } finally { $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
 
 function renderCands(csv){
@@ -250,6 +254,7 @@ $("suggest").onclick = async () => {
   const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
   const csv = lines.map(r => r.map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(",")).join("\n");
   $("spin").style.display = "block";
+  $("suggest").disabled = true; $("discover").disabled = true;   // one request at a time
   try {
     const fd = new FormData();
     fd.append("candidates_csv", new Blob([csv], {type:"text/csv"}), "candidates.csv");
@@ -264,8 +269,16 @@ $("suggest").onclick = async () => {
     $("drafts").textContent = state.drafts || "(no rules drafted)";
     $("s_drafts").classList.add("on");
     $("append_note").textContent = "";
-  } finally { $("spin").style.display = "none"; }
+  } catch(e){
+    clearDrafts(unreachable(e)); $("s_drafts").classList.add("on");
+  } finally { $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
+/* a request that never got an answer the page can read: unreachable server,
+   or a reply that isn't the API's JSON */
+function unreachable(e){
+  return `The Workbench server didn't give a usable answer (${String(e && e.message || e)}). ` +
+         "Check that finlang-ui is still running, then try again.";
+}
 
 $("append").onclick = () => {
   if (!state.drafts.trim()) return;
