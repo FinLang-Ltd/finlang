@@ -403,7 +403,8 @@ function render(stopped){
     const k = w.findIndex(l => /^WARNING: every date/.test(l));
     if (k < 0) return "";
     const para = [w[k]].concat(w.slice(k + 1).filter((l, j, a) =>
-                   /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))));
+                   /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))))
+                 .filter(l => !/reconcile_report\.json/.test(l));
     return esc(para.map(l => l.trim()).join(" ")) +
       " <b>Set the other system's date format under How rows are paired</b> and run again.";
   };
@@ -415,12 +416,19 @@ function render(stopped){
   if (stopped){
     const why = flReason(stopped);
     const sErr = stopped.detail && stopped.detail.stderr;
-    // dates that read either way can fail the identity check on rows that ARE
-    // in the same order - then the date format, not key matching, is the fix
-    banner("failed", "Categorised. The comparison stopped", why, tags,
-      dateNote(sErr) || (/identity check failed|row count mismatch/i.test(why)
-        ? "To compare files whose rows are in a different order, choose <b>Match on key columns</b> under How rows are paired."
-        : ""));
+    // Advice follows the CAUSE of the stop. The ambiguous-date warning is only
+    // relevant where dates were compared and could explain it: an identity
+    // check on rows that look misaligned may be a wrong date convention OR a
+    // different row order - the page cannot tell, so it offers both.
+    const keyAdvice = "If the rows are in a different order, choose <b>Match on key columns</b> under How rows are paired.";
+    let advice = "";
+    if (/identity check failed/i.test(why))
+      advice = dateNote(sErr) ? dateNote(sErr) + " " + keyAdvice : keyAdvice;
+    else if (/row count mismatch/i.test(why))
+      advice = "Row by row needs the same number of rows in both files. To compare files of different lengths, choose <b>Match on key columns</b> under How rows are paired.";
+    else if (/duplicate key/i.test(why))
+      advice = "Each row's key columns must be unique in both files. Add another column under How rows are paired so no two rows share a key.";
+    banner("failed", "Categorised. The comparison stopped", why, tags, advice);
   }
   else if (ex===0) banner("clean", "Clean", small, tags, note);
   else if (ex===3) banner("findings", "Findings — the product working, not failing", small, tags, note);
@@ -588,8 +596,14 @@ function showWhy(i){
   // Only the full trail records the operator (its `set` strings); the light
   // trail keeps old/new values, which cannot tell "= longer value" from "+=".
   // Where it is unknown, say so rather than pick the reassuring reading.
-  const appends = e => !!(e.set && e.set.some(s => /^\s*category\s*\+=/.test(s)));
-  const opUnknown = catSetters.length > 1 && catSetters.slice(1).some(e => !e.set);
+  const isAppendOp = s => /^\s*category\s*\+=/i.test(s);    // the engine lower-cases field names
+  const opOf = e => {
+    if (e.set) return e.set.some(isAppendOp) ? "append" : "replace";
+    const c = e.changes && e.changes.category;
+    return c && c.old && String(c.new ?? "").startsWith(c.old) ? "unknown" : "replace";
+  };
+  const appends = e => opOf(e) === "append";
+  const opUnknown = catSetters.slice(1).some(e => opOf(e) === "unknown");
   const replacedAt = k => !opUnknown && catSetters.some(e => ents.indexOf(e) > k && !appends(e));
   const lite = state.auditMode === "lite";
   let why;

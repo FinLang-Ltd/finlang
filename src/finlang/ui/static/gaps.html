@@ -156,8 +156,18 @@ function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
 gate();
 
 function showErr(msg){ const e = $("g_err"); e.textContent = msg; e.hidden = !msg; }
+/* drafts belong to one candidate selection: whenever that changes or fails,
+   they go - out of memory as well as off screen - so nothing unseen can be
+   appended or downloaded */
+function clearDrafts(note){
+  state.drafts = "";
+  $("drafts").textContent = "";
+  $("append").disabled = true; $("dl").disabled = true;
+  $("append_note").textContent = note || "";
+}
 $("discover").onclick = async () => {
   $("discover").disabled = true; $("spin").style.display = "block"; showErr("");
+  clearDrafts(); $("s_drafts").classList.remove("on");
   try {
     // No categorised output in hand? Make one right here: run the chosen rules
     // over the chosen data via /process (audit off - only categories matter for
@@ -233,9 +243,8 @@ $("tick_none").onclick = () => document.querySelectorAll(".ck").forEach(c => c.c
 $("suggest").onclick = async () => {
   if (!state.cands) return;
   const ticked = [...document.querySelectorAll(".ck")].filter(c => c.checked).map(c => +c.dataset.i);
-  if (!ticked.length){ state.drafts = ""; $("append").disabled = true;
-    $("drafts").textContent = ""; $("s_drafts").classList.add("on");
-    $("append_note").textContent = "Nothing ticked: tick at least one counterparty above."; return; }
+  if (!ticked.length){ clearDrafts("Nothing ticked: tick at least one counterparty above.");
+    $("s_drafts").classList.add("on"); return; }
   // Filter the engine's own candidates CSV down to the ticked rows - selection,
   // not interpretation. Header row passes through untouched.
   const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
@@ -249,9 +258,9 @@ $("suggest").onclick = async () => {
     fd.append("emit_match", $("sg_match").value);
     const r = await fetch("/suggest", {method:"POST", body:fd});
     const b = await r.json();
-    if (!r.ok){ $("s_drafts").classList.add("on"); $("append_note").textContent = flReason(b); return; }
+    if (!r.ok){ clearDrafts(flReason(b)); $("s_drafts").classList.add("on"); return; }
     state.drafts = b.rules_fin || "";
-    $("append").disabled = !state.drafts.trim();
+    $("append").disabled = $("dl").disabled = !state.drafts.trim();
     $("drafts").textContent = state.drafts || "(no rules drafted)";
     $("s_drafts").classList.add("on");
     $("append_note").textContent = "";

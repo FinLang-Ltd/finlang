@@ -50,7 +50,7 @@ Your default browser opens at `http://127.0.0.1:8484/ui/`. If a tab doesn't appe
 
 | Tab | What it holds |
 |---|---|
-| rows | Every categorised row with the rule that decided it. Click a row to open **Why this category**: every rule that matched, in the order it ran, what each one changed, and which earlier result a later rule replaced — with a *Copy explanation* button. Filters narrow to rows the other system disagrees with, flagged rows, or rows more than one rule matched; *Every column* shows the full output |
+| rows | Every categorised row with the rule that decided it. Click a row (or press Enter on it) to open **Why this category**: every rule that matched, in the order it ran, what each one changed, and which earlier result a later rule replaced — with a *Copy explanation* button. With the light audit trail the list holds only rules that changed something, and where a later rule's value starts with the earlier one the trail can't show whether it replaced or added to it; the drawer says so. Filters narrow to rows the other system disagrees with, flagged rows, or rows more than one rule matched; *Every column* shows the full output |
 | key results | Category totals from the run you just did, drawn as charts |
 | verify report / reconcile / reconcile report | The same HTML reports the CLI can produce, inline, plus the reconcile summary |
 | downloads | The output CSV, audit JSON, and report files |
