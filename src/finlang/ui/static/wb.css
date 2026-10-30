@@ -393,3 +393,14 @@ label.radio b { font-size: 14px; color: var(--ink); font-weight: 600; }
   .check .ct { display: block; padding-right: 52px; }
   .sub-opts { padding: 12px; }
 }
+
+/* 30 Oct 2026 review */
+#banner:focus { outline: none; }
+#banner:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+#banner .note { margin-top: 10px; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+table.ledger tbody tr:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+h3.sub { font-size: 14px; font-weight: 650; color: var(--ink); margin: 16px 0 8px; }
+button.lnk { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); height: auto; }
+.err { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--pink-fill); background: var(--paper); font-size: 14px; color: var(--ink-2); white-space: pre-wrap; }
+/* long unbroken names (card descriptors, references) wrap instead of widening the page */
+#auditbox .who, #auditbox .rn, #auditbox code, #auditbox dd, #auditbox .vc, #verdict, #rb { overflow-wrap: anywhere; }

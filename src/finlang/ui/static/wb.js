@@ -5,6 +5,21 @@
  * nothing here touches a run.
  */
 "use strict";
+/* The engine's reason for a refusal, in its own words: the last FATAL line of
+   its output, else its last error line, else the API's short message - never
+   the JSON wrapper. Shared by every screen so a failure reads the same
+   wherever it happens. */
+function flReason(body){
+  const det = body && body.detail;
+  const d = typeof det === "string" ? det
+          : det && det.stderr ? det.stderr : JSON.stringify(det, null, 2);
+  const lines = String(d).split("\n").map(l => l.trim()).filter(Boolean);
+  const fatal = lines.filter(l => /^FATAL: /.test(l)).pop();
+  if (fatal) return fatal.slice(7);
+  const err = lines.filter(l => !/Warning:/.test(l) &&
+    /error|unknown|missing|cannot|invalid|not found|no such/i.test(l)).pop();
+  return err || (det && det.message) || String(d);
+}
 (function () {
   // The lockup fragment ships with a white wordmark for the dark graphics frame.
   // On the light surface the wordmark follows the text colour (navy); the mark's

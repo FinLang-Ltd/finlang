@@ -56,7 +56,7 @@
     </div>
 
     <footer class="foot">
-      Served from 127.0.0.1 only. Your files are read by the engine on this machine, and the engine makes no network calls.
+      <span id="servedfrom">Served from this machine.</span> Your files are read by the engine here, and the engine makes no network calls.
       Every run here has an equivalent <code>finlang</code> command, shown with its result, and the same can be done
       through the <a href="/docs" class="lnk">HTTP API</a>.
     </footer>
@@ -72,6 +72,16 @@
     document.getElementById("health").innerHTML =
       "<div class='warn'>The server isn't answering yet. Is it still starting?</div>";
   });
+</script>
+<script>
+/* finlang-ui pins 127.0.0.1; finlang-api can bind elsewhere. Say what is true here. */
+(function () {
+  const host = location.hostname, el = document.getElementById("servedfrom");
+  if (!el) return;
+  el.textContent = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host)
+    ? `Served from this machine only (${host === "localhost" ? "localhost" : host}${host === "localhost" ? ", 127.0.0.1" : ""}).`
+    : `Served from ${host}: other machines on your network may be able to reach this page.`;
+})();
 </script>
 <script src="wb.js"></script>
 <script src="help.js"></script>

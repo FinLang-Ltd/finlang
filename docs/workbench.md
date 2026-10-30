@@ -56,7 +56,7 @@ Your default browser opens at `http://127.0.0.1:8484/ui/`. If a tab doesn't appe
 | downloads | The output CSV, audit JSON, and report files |
 | run log | **The exact `finlang` command line for this run** — copy it into a script or CI job and you can get the same answer without the Workbench |
 
-A verify or reconcile *finding* is reported in the banner as the product working, not as an error — the run still completes and the reports say exactly what was found. When you compared with another system, the rows table gains an **Other system** column showing their category wherever it differs.
+A verify or reconcile *finding* is reported in the banner as the product working, not as an error — the run still completes and the reports say exactly what was found. When you compared with another system, the rows table gains an **Other system** column showing their category wherever it differs, and the banner counts rows with no match in their file and rows only their file has (the reconcile tab lists both). If every date in their file could be read either way, the banner says which convention the engine assumed and where to set it. If the comparison stops — for example the identity check finds the rows in a different order — your categorised rows are still shown, with the reason.
 
 ---
 
@@ -80,7 +80,8 @@ Drafts autosave in your browser. Rules run in file order and the last matching r
 ## 🔒 Local by design
 
 - The page talks to a server bound to `127.0.0.1` — **pinned, with no override**. Your files are read by the engine on your machine and the results come back to your browser; nothing leaves.
-- No CDN, no telemetry, no external fonts or scripts — everything the page uses ships inside the wheel.
+- No CDN, no telemetry, no external fonts or scripts — everything the Workbench pages use ships inside the wheel. (The HTTP API's interactive docs at `/docs`, linked from the home page, are FastAPI's own and load Swagger UI from a CDN.)
+- Your browser keeps two things between visits, in this site's local storage: your rules draft, and your last categorised output (up to about 2 MB) so Find gaps can pick it up. A new run replaces the output. Clearing the site's data in your browser removes both.
 - If you genuinely want the HTTP surface on a network, that is a separate, explicit decision: use [`finlang-api`](api.md), which exists for exactly that and makes the exposure yours to own.
 
 ---
@@ -91,6 +92,7 @@ Drafts autosave in your browser. Rules run in file order and the last matching r
 |---|---|
 | Browser opens on a connection error | The port is taken — set `FINLANG_UI_PORT` to a free port and relaunch. The terminal shows uvicorn's own error. |
 | No browser tab appears | Some environments block auto-open. The URL is printed on start — open it manually. |
+| A page looks half-styled after upgrading | Your browser kept files from the older version. Press `Ctrl+F5` once; from this version on, the Workbench tells the browser to check for changes every time. |
 | `finlang-ui: command not found` | The environment where FinLang is installed isn't active, or its scripts directory isn't on PATH. Activate the venv you installed into. |
 | `finlang-ui` reports the web server is missing | Pre-v0.9.0 environment. `pip install -U finlang`. |
 | A run fails with dropped rows or missing columns | A locale/mapping problem, not a Workbench one — the banner opens the locale block for you; see [mapping_guide.md](mapping_guide.md). |

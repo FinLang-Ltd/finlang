@@ -37,7 +37,7 @@
           <div class="hint" id="andnote" style="display:none">All conditions must be true
             together (<b>AND</b>) for the rule to fire.</div>
           <div class="orlink">Want <b>OR</b>? That's a second rule:
-            <a id="dup">duplicate this one for another pattern</a> after inserting.</div>
+            <button type="button" id="dup" class="lnk">duplicate this one for another pattern</button> after inserting.</div>
         </div>
 
         <div class="card">
@@ -232,7 +232,8 @@ $("fname").addEventListener("input", () => { fileHandle = null; });  // new name
 $("check").onclick = check;
 async function check(){
   const v = $("verdict");
-  if (!$("ed").value.trim()){ v.className=""; return; }
+  if (!$("ed").value.trim()){ v.className=""; v.textContent=""; v.style.display="none";
+                              $("readback").style.display = "none"; return; }
   v.className = ""; v.style.display = "block"; v.textContent = "Checking…";
   const fd = new FormData(); fd.append("rules_text", $("ed").value);
   try {
@@ -273,7 +274,9 @@ function englishMatch(p){
 }
 function englishSet(p){
   const q = s => `<b style="color:var(--green)">${escT(s)}</b>`;
-  if (p.field === "exclude") return `mark the row <b>excluded</b>`;
+  if (p.field === "exclude")
+    return String(p.value).trim().toLowerCase() === "false" ? `clear the row's <b>excluded</b> mark`
+                                                            : `mark the row <b>excluded</b>`;
   if (p.op === "+=") return `add ${q(p.value)} to <i>${p.field}</i>`;
   return `set <i>${p.field}</i> to ${q(p.value)}`;
 }
@@ -288,7 +291,7 @@ function readback(rules){
     `</div>`).join("");
   $("readback").style.display = "block";
 }
-function escT(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function escT(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 
 /* start with one condition + one action ready to fill */
 row($("conds"), MATCH_FIELDS, true);

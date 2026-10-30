@@ -26,8 +26,8 @@
       <div class="card">
         <div class="t" data-n="1">The categorised output</div>
         <div id="handoff" style="display:none;margin-top:10px">
-          <div class="src">&#10003; carried over from your last Run (<span id="handoff_n"></span> rows)</div>
-          <div class="why"><a id="clear_handoff" class="lnk">Use a different file instead</a></div>
+          <div class="src">&#10003; carried over from your last categorise run (<span id="handoff_n"></span> rows)</div>
+          <div class="why"><button type="button" id="clear_handoff" class="lnk">Use a different file instead</button></div>
         </div>
         <div id="file_row">
           <label for="raw_csv">Transactions CSV</label>
@@ -53,12 +53,13 @@
         </div>
         <div style="margin-top:18px"><button type="button" class="primary" id="discover" disabled>Find gaps</button></div>
         <div id="spin">Working&hellip;</div>
+        <div id="g_err" class="err" role="alert" hidden></div>
       </div>
 
       <div class="card step" id="s_cands">
         <div class="t" data-n="2">What no rule claimed <span id="cand_n" style="color:var(--amber);margin-left:6px;font-weight:600"></span></div>
         <div style="margin:6px 0 10px;font-size:14px">
-          Tick: <a id="tick_all" class="lnk">all</a>, <a id="tick_none" class="lnk">none</a>
+          Tick: <button type="button" id="tick_all" class="lnk">all</button>, <button type="button" id="tick_none" class="lnk">none</button>
         </div>
         <div class="scroll" id="cands"></div>
       </div>
@@ -111,11 +112,17 @@ if (stash){
   try {
     const d = JSON.parse(localStorage.getItem("finlang_last_run_desc") || "null");
     if (d) $("handoff").querySelector(".src").innerHTML =
-      `&#10003; carried over from your last Run (<span id="handoff_n">${$("handoff_n").textContent}</span> rows)` +
+      `&#10003; carried over from your last categorise run (<span id="handoff_n">${$("handoff_n").textContent}</span> rows)` +
       `<div style="color:var(--ink-2);font-weight:400;margin-top:3px">${esc(d.input)}, against ` +
       `<b style="color:var(--amber)">${esc(d.rules)}</b>, ${esc(d.when)}</div>`;
   } catch(e){}
 }
+/* a dimmed step is also out of reach: inert until it is switched on */
+document.querySelectorAll(".card.step").forEach(el => {
+  const sync = () => { el.inert = !el.classList.contains("on"); };
+  sync();
+  new MutationObserver(sync).observe(el, {attributes: true, attributeFilter: ["class"]});
+});
 $("clear_handoff").onclick = () => {
   state.csvText = null;
   $("handoff").style.display = "none";
@@ -148,8 +155,9 @@ function rawReady(){
 function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
 gate();
 
+function showErr(msg){ const e = $("g_err"); e.textContent = msg; e.hidden = !msg; }
 $("discover").onclick = async () => {
-  $("discover").disabled = true; $("spin").style.display = "block";
+  $("discover").disabled = true; $("spin").style.display = "block"; showErr("");
   try {
     // No categorised output in hand? Make one right here: run the chosen rules
     // over the chosen data via /process (audit off - only categories matter for
@@ -166,8 +174,8 @@ $("discover").onclick = async () => {
       const rp = await fetch("/process", {method:"POST", body:fp});
       const bp = await rp.json();
       if (!rp.ok){
-        const d = typeof bp.detail==="string" ? bp.detail : JSON.stringify(bp.detail, null, 2);
-        alert(d); return;
+        showErr(flReason(bp) + "\nFiles that need a header mapping or locale settings: categorise them on the Categorise screen first, then come back - the output carries over.");
+        return;
       }
       state.csvText = bp.output_csv;
       const rulesDesc = m==="pack" ? `bundled pack: ${$("g_include_pack").value}`
@@ -186,7 +194,7 @@ $("discover").onclick = async () => {
     fd.append("min_count", $("min_count").value || "1");
     const r = await fetch("/discover", {method:"POST", body:fd});
     const b = await r.json();
-    if (!r.ok){ alert(typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail)); return; }
+    if (!r.ok){ showErr(flReason(b)); return; }
     renderCands(b.candidates_csv || "");
   } finally { $("spin").style.display = "none"; gate(); }
 };
@@ -195,8 +203,14 @@ function renderCands(csv){
   const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
   $("s_cands").classList.add("on");
   if (L.length < 2){
-    $("cand_n").textContent = "none: every row was claimed by a rule";
-    $("cands").innerHTML = '<div class="why">No gaps at this threshold. That is the goal, not an error.</div>';
+    const n = Math.max(1, parseInt($("min_count").value, 10) || 1);
+    if (n === 1){
+      $("cand_n").textContent = "none: every row was claimed by a rule";
+      $("cands").innerHTML = '<div class="why">No gaps. That is the goal, not an error.</div>';
+    } else {
+      $("cand_n").textContent = `none appearing ${n} or more times`;
+      $("cands").innerHTML = `<div class="why">No unclaimed counterparty appears ${n} or more times. Lower the number to see rarer ones.</div>`;
+    }
     state.cands = null; return;
   }
   state.cands = L;
@@ -216,7 +230,8 @@ $("tick_none").onclick = () => document.querySelectorAll(".ck").forEach(c => c.c
 $("suggest").onclick = async () => {
   if (!state.cands) return;
   const ticked = [...document.querySelectorAll(".ck")].filter(c => c.checked).map(c => +c.dataset.i);
-  if (!ticked.length){ alert("Nothing ticked."); return; }
+  if (!ticked.length){ $("drafts").textContent = ""; $("s_drafts").classList.add("on");
+    $("append_note").textContent = "Nothing ticked: tick at least one counterparty above."; return; }
   // Filter the engine's own candidates CSV down to the ticked rows - selection,
   // not interpretation. Header row passes through untouched.
   const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
@@ -230,7 +245,7 @@ $("suggest").onclick = async () => {
     fd.append("emit_match", $("sg_match").value);
     const r = await fetch("/suggest", {method:"POST", body:fd});
     const b = await r.json();
-    if (!r.ok){ alert(typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail)); return; }
+    if (!r.ok){ $("s_drafts").classList.add("on"); $("append_note").textContent = flReason(b); return; }
     state.drafts = b.rules_fin || "";
     $("drafts").textContent = state.drafts || "(no rules drafted)";
     $("s_drafts").classList.add("on");
@@ -272,7 +287,7 @@ function flCsvRows(text){
   if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
   return rows;
 }
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 </script>
 <script src="wb.js"></script>
 <script src="help.js"></script>

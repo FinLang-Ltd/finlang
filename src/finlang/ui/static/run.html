@@ -99,7 +99,7 @@
             <span class="bar" style="background:var(--amber-fill)"></span>
             <div>
               <label for="verify" class="ct" style="margin:0">Verify the data</label>
-              <div class="why">Confirms dates, amounts and counterparties come out exactly as they went in.</div>
+              <div class="why">Checks that dates, amounts and counterparties come out exactly as they went in.</div>
               <div class="sub-opts off" id="verify_opts">
                 <div class="inline-opts">
                   <select id="verify_kind" aria-label="Verify depth"><option value="fast">Fast: a fingerprint of each row</option><option value="full" selected>Full: field by field</option></select>
@@ -113,7 +113,7 @@
             <span class="bar" style="background:var(--green-fill)"></span>
             <div>
               <label for="reconcile" class="ct" style="margin:0">Compare with another system</label>
-              <div class="why">Load categories from a model or vendor, compared row by row. Every disagreement comes back with the rule behind FinLang's answer.</div>
+              <div class="why">Load categories from a model or vendor and compare them with FinLang's, row by row or matched on key columns. Every disagreement comes back with the rule behind FinLang's answer.</div>
               <div class="sub-opts off" id="rec_opts">
                 <label for="ml_csv">The other system's output (CSV)</label>
                 <input type="file" id="ml_csv" accept=".csv">
@@ -150,7 +150,7 @@
 
     <section class="results" id="results" aria-live="polite">
       <h2 class="section">Results</h2>
-      <div id="banner"></div>
+      <div id="banner" tabindex="-1"></div>
       <div id="gapslink" class="why" style="display:none;margin:-4px 0 14px">
         <a href="gaps.html" class="lnk">Find gaps in these results</a>: draft rules for anything no rule claimed.
       </div>
@@ -246,6 +246,15 @@ document.querySelectorAll("input[name=rec_align]").forEach(r => r.onchange = () 
   gate();
 });
 $("rec_key").oninput = gate;
+/* The browser restores ticked boxes, radios and selects on Back without firing
+   their change handlers, so labels and visibility derived from them went out of
+   step with what a run would send. Re-derive everything from the inputs. */
+function syncForm(){
+  ["rules_mode", "verify", "reconcile"].forEach(id => $(id).dispatchEvent(new Event("change")));
+  const r = document.querySelector("input[name=rec_align]:checked");
+  if (r) r.dispatchEvent(new Event("change"));
+}
+addEventListener("pageshow", syncForm);
 ["input_csv","rules_file","ml_csv"].forEach(id => $(id).onchange = gate);
 function gate(){
   const m = $("rules_mode").value;
@@ -295,6 +304,7 @@ $("f").onsubmit = async ev => {
     const body = await r.json();
     if (!r.ok) return fail(body);
     state.resp = body; state.audit = body.audit || null;
+    state.auditMode = $("audit_mode").value;
 
     /* reconcile = a second call: /reconcile has no verify passthrough, so the
        Workbench mirrors the CLI reality of one flag-set per concern. The run
@@ -320,8 +330,8 @@ $("f").onsubmit = async ev => {
       }
       const r2 = await fetch("/reconcile", {method:"POST", body:fr});
       const b2 = await r2.json();
-      if (!r2.ok) return fail(b2, "Comparison stopped");
-      state.rec = b2;
+      state.rec = r2.ok ? b2 : null;
+      if (!r2.ok){ render(b2); return; }   // categorised fine; the comparison stopped
     }
     render();
   } catch(e){
@@ -338,20 +348,20 @@ function fail(body, head){
           : det && det.stderr ? det.stderr : JSON.stringify(det, null, 2);
   // the banner says why in the engine's own words: its last FATAL line, else
   // the API's short message. The full engine output stays in the tab below.
-  const fatal = (d.match(/^FATAL: .*$/gm) || []).pop();
-  banner("failed", head || "Run failed",
-         fatal ? fatal.slice(7) : (det && det.message) || d);
+  banner("failed", head || "Run failed", flReason(body));
   // dropped rows / missing columns are locale problems - open the block for them
   if (/Dropped|Missing required columns|delimiter/i.test(d)) $("locale").open = true;
   setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
   showResults();
+  $("banner").focus();
 }
 
-function banner(cls, head, small, tags){
+function banner(cls, head, small, tags, note){
   const b = $("banner");
   b.className = cls;
   b.innerHTML = `<b>${esc(head)}</b>` + (small?`<small>${esc(small)}</small>`:"") +
-    (tags && tags.length ? `<div class="tags">${tags.join("")}</div>` : "");
+    (tags && tags.length ? `<div class="tags">${tags.join("")}</div>` : "") +
+    (note ? `<div class="note">${note}</div>` : "");
 }
 function tag(cls, text){ return `<span class="tag ${cls}">${esc(text)}</span>`; }
 function showResults(){
@@ -360,7 +370,7 @@ function showResults(){
 }
 
 /* ---------- results ---------- */
-function render(){
+function render(stopped){
   const p = state.resp, rec = state.rec;
   const ex = Math.max(p.stats.exit_code, rec ? rec.stats.exit_code : 0);
   state.ledger = buildLedger(p, rec);
@@ -369,7 +379,11 @@ function render(){
     tags.push(tag("agree", `${rec.summary.matches} agree with the other system`));
     if (rec.summary.mismatches) tags.push(tag("differs", `${rec.summary.mismatches} differ`));
     const orph = (L && L.orph.size) || 0;
-    if (orph) tags.push(tag("differs", `${orph} not in the other system's file`));
+    if (orph) tags.push(tag("differs", `${orph} with no match in their file`));
+    // rows ONLY the other system has: not in FinLang's output, so not in the
+    // ledger - an extra row must never read as agreement
+    const theirs = Number(rec.summary.orphans_ml_count) || 0;
+    if (theirs) tags.push(tag("differs", `${theirs} only in their file`));
   }
   if (L && L.nFlagged) tags.push(tag("review", `${L.nFlagged} flagged by a rule`));
   if (L && L.nMulti) tags.push(tag("info", `${L.nMulti} matched more than one rule`));
@@ -381,15 +395,38 @@ function render(){
   }
   const dur = Number(p.stats.duration_seconds);
   const small = `${p.stats.rows_out} rows categorised in ${isFinite(dur) ? dur.toFixed(2) : p.stats.duration_seconds}s.`;
-  if (ex===0) banner("clean", "Clean", small, tags);
-  else if (ex===3) banner("findings", "Findings — the product working, not failing", small, tags);
-  else banner("failed", `Exit ${ex}`, small, tags);
+  // the engine assumed the other system's date convention: say so where the
+  // results are read, in the engine's own words, not only in the run log
+  let note = "";
+  const conv = rec && rec.summary && rec.summary.ml_date_convention;
+  if (conv && conv.mode === "assumed"){
+    const w = (rec.stderr || "").split("\n");
+    const k = w.findIndex(l => /^WARNING: every date/.test(l));
+    const para = k < 0 ? [] : [w[k]].concat(w.slice(k + 1).filter((l, j, a) =>
+                   /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))));
+    note = esc(para.map(l => l.trim()).join(" ") || "The other system's dates read either way; FinLang assumed month-first.") +
+      " <b>Set the other system's date format under How rows are paired</b> and run again.";
+  }
+  if (stopped){
+    banner("failed", "Categorised. The comparison stopped", flReason(stopped), tags,
+      /identity check failed|row count mismatch/i.test(flReason(stopped))
+        ? "To compare files whose rows are in a different order, choose <b>Match on key columns</b> under How rows are paired."
+        : "");
+  }
+  else if (ex===0) banner("clean", "Clean", small, tags, note);
+  else if (ex===3) banner("findings", "Findings — the product working, not failing", small, tags, note);
+  else banner("failed", `Exit ${ex}`, small, tags, note);
 
   const tabs = [["rows", rowsTab()], ["key results", chartTab(p, rec)]];
   if (p.verify_report_html) tabs.push(["verify report", iframeTab(p.verify_report_html)]);
   if (rec){
     if (rec.summary) tabs.push(["reconcile", recTab(rec)]);
     if (rec.report_html) tabs.push(["reconcile report", iframeTab(rec.report_html)]);
+  }
+  if (stopped){
+    const d = typeof stopped.detail === "string" ? stopped.detail
+            : (stopped.detail && stopped.detail.stderr) || JSON.stringify(stopped.detail, null, 2);
+    tabs.push(["comparison output", `<pre class="log">${esc(d)}</pre>`]);
   }
   tabs.push(["downloads", dlTab(p, rec)]);
   tabs.push(["run log", logTab()]);
@@ -419,6 +456,7 @@ function render(){
   } catch(e){ /* quota - the file path still works */ }
   $("gapslink").style.display = "block";
   showResults();
+  $("banner").focus();
 }
 
 /* The ledger joins three things the engine returned, presentationally only:
@@ -449,12 +487,16 @@ function buildLedger(p, rec){
   }
   const setsCat = e => e.changes ? ("category" in e.changes)
                     : (e.set || []).some(s => /^\s*category\b/.test(s));
+  // "the rule that decided it" is the LAST rule that set the category - not
+  // the last rule that matched (flag-only rules often run last). The ledger,
+  // Every column and the drawer all read it from here.
+  const catRule = ents => { const c = ents.filter(setsCat); return c.length ? c[c.length - 1] : null; };
   let nFlagged = 0, nMulti = 0;
   rows.forEach((r, i) => {
     if (ci.flags >= 0 && (r[ci.flags] || "").trim()) nFlagged++;
     if ((byIdx.get(i) || []).length > 1) nMulti++;
   });
-  return {head, rows, ci, byIdx, mism, orph, rec: !!rec, setsCat, nFlagged, nMulti,
+  return {head, rows, ci, byIdx, mism, orph, rec: !!rec, setsCat, catRule, nFlagged, nMulti,
           ok: ci.cp >= 0 && ci.cat >= 0};
 }
 
@@ -468,7 +510,7 @@ function rowsTab(){
   const L = state.ledger;
   if (!L || !L.ok) return genericTable();
   const chips = [`<button type="button" class="chip" data-f="all" aria-pressed="true">All ${L.rows.length}</button>`];
-  if (L.rec) chips.push(`<button type="button" class="chip" data-f="diff" aria-pressed="false">Differ ${L.mism.size + L.orph.size}</button>`);
+  if (L.rec) chips.push(`<button type="button" class="chip" data-f="diff" aria-pressed="false">Differ or no match ${L.mism.size + L.orph.size}</button>`);
   if (L.nFlagged) chips.push(`<button type="button" class="chip" data-f="flag" aria-pressed="false">Flagged ${L.nFlagged}</button>`);
   if (L.nMulti) chips.push(`<button type="button" class="chip" data-f="multi" aria-pressed="false">More than one rule ${L.nMulti}</button>`);
   chips.push(`<button type="button" class="chip end" data-f="cols" aria-pressed="false">Every column</button>`);
@@ -482,21 +524,21 @@ function ledgerTable(){
     '<th>Category, and the rule that decided it</th>' + (L.rec ? "<th>Other system</th>" : "") + "</tr></thead><tbody>";
   L.rows.forEach((r, i) => {
     const ents = L.byIdx.get(i) || [];
-    const last = ents.length ? ents[ents.length - 1] : null;
+    const decider = L.catRule(ents);
     const cat = (r[ci.cat] || "").trim();
     const flags = ci.flags >= 0 ? (r[ci.flags] || "").split(/[;|,\s]+/).filter(Boolean) : [];
     const diff = L.mism.has(i + 1), orphan = L.orph.has(i + 1);
     const f = [diff || orphan ? "diff" : "", flags.length ? "flag" : "", ents.length > 1 ? "multi" : ""].join(" ");
-    h += `<tr data-i="${i}" data-f="${f}"${diff || orphan ? ' class="mismatch"' : ""}>` +
+    h += `<tr data-i="${i}" data-f="${f}" tabindex="0"${diff || orphan ? ' class="mismatch"' : ""}>` +
       `<td class="date">${esc(ci.date >= 0 ? r[ci.date] : "")}</td>` +
       `<td><div class="cp">${esc(r[ci.cp])}</div>${ci.memo >= 0 && r[ci.memo] ? `<div class="memo">${esc(r[ci.memo])}</div>` : ""}</td>` +
       `<td class="amt">${ci.amount >= 0 ? fmtAmt(r[ci.amount]) : ""}</td>` +
       `<td class="rule" data-i="${i}"><div>${cat ? `<span class="cat">${esc(cat)}</span>` : '<span class="cat none">No category</span>'}` +
         flags.map(x => ` <span class="tag review flag">${esc(x)}</span>`).join("") + "</div>" +
-        (last ? `<span class="why-rule">${esc(last.rule)}${ents.length > 1 ? `<span class="more">+${ents.length - 1}</span>` : ""}</span>` : "") +
+        (decider ? `<span class="why-rule">${esc(decider.rule)}${ents.length > 1 ? `<span class="more">+${ents.length - 1}</span>` : ""}</span>` : "") +
       "</td>" +
       (L.rec ? `<td>${diff ? `<span class="model diff">${esc(L.mism.get(i + 1) || "differs")}</span>`
-                 : orphan ? '<span class="model">Not in their file</span>'
+                 : orphan ? '<span class="model">No match in their file</span>'
                  : '<span class="model same">Same</span>'}</td>` : "") +
       "</tr>";
   });
@@ -506,13 +548,14 @@ function genericTable(){
   const p = state.resp, lines = flCsvRows(p.output_csv);
   const head = lines[0] || [], rows = lines.slice(1);
   const byIdx = {};
-  (state.audit||[]).forEach(e => { byIdx[e.index] = e; });
+  (state.audit||[]).forEach(e => { (byIdx[e.index] = byIdx[e.index] || []).push(e); });
+  const catRule = state.ledger ? state.ledger.catRule : (ents => ents[ents.length - 1]);
   let h = '<div class="scroll"><table class="rows generic"><thead><tr>' +
     head.map(c=>`<th>${esc(c)}</th>`).join("") + (state.audit ? "<th>rule</th>" : "") + "</tr></thead><tbody>";
   rows.forEach((r,i) => {
     h += `<tr data-i="${i}">` + r.map(c=>`<td>${esc(c)}</td>`).join("");
     if (state.audit){
-      const e = byIdx[i];
+      const e = byIdx[i] ? catRule(byIdx[i]) : null;
       h += e ? `<td class="rule" data-i="${i}">${esc(e.rule)}</td>` : "<td></td>";
     }
     h += "</tr>";
@@ -530,17 +573,26 @@ function showWhy(i){
   if (tr) tr.classList.add("picked");
   const cat = (r[ci.cat] || "").trim();
   const catSetters = ents.filter(L.setsCat);
-  const lastSetter = catSetters[catSetters.length - 1];
+  const lastSetter = L.catRule(ents);
+  // `category += "x"` builds on what an earlier rule set; only `=` replaces it.
+  // The full trail records the operator; the light one only old/new values.
+  const appends = e => e.set ? e.set.some(s => /^\s*category\s*\+=/.test(s))
+    : !!(e.changes && e.changes.category && e.changes.category.old &&
+         String(e.changes.category.new ?? "").startsWith(e.changes.category.old));
+  const replacedAt = k => catSetters.some(e => ents.indexOf(e) > k && !appends(e));
+  const lite = state.auditMode === "lite";
   let why;
   if (!state.audit) why = "The audit trail was off for this run, so the rule behind each row wasn't recorded. Turn it on under Checks and run again.";
   else if (!ents.length) why = cat
       ? "This row has a category, but the audit trail has no entry for it. The trail may have reached its size limit on a large file."
       : "No rule matched this row, so it has no category. Find gaps can draft a rule for it.";
+  else if (lite) why = (ents.length === 1 ? "One rule changed this row." : `${ents.length} rules changed this row.`) +
+      " The light audit trail records only rules that changed something; rules that matched without changing anything aren't listed.";
   else if (ents.length === 1) why = "One rule matched this row.";
   else why = `${ents.length} rules matched this row. Rules run in file order, and the last one to set a field wins.`;
 
   const items = ents.map((e, k) => {
-    const over = L.setsCat(e) && e !== lastSetter;
+    const over = L.setsCat(e) && replacedAt(k);
     const conds = (e.match || []).map(c => `<code>${esc(c)}</code>`).join("<br>");
     let eff = "";
     if (e.changes && Object.keys(e.changes).length){
@@ -552,15 +604,18 @@ function showWhy(i){
       eff = "Matched, but changed nothing.";
     }
     if (over) eff += " Replaced by a later rule.";
+    else if (L.setsCat(e) && k > 0 && appends(e) && catSetters.indexOf(e) > 0) eff += " Added to the category an earlier rule set.";
     return `<li class="${over ? "over" : ""}"><span class="n">${k + 1}</span><div>` +
       `<div class="rn">${esc(e.rule)}</div>${conds ? `<div>${conds}</div>` : ""}` +
       (eff ? `<div class="eff">${eff}</div>` : "") + "</div></li>";
   }).join("");
 
   const notes = [];
-  if (catSetters.length > 1) notes.push(`<div class="note">More than one rule set the category. The earlier ${catSetters.length > 2 ? "patterns also match" : "pattern also matches"} this row; check that's intended.</div>`);
+  if (catSetters.length > 1 && catSetters.slice(1).every(appends))
+    notes.push(`<div class="note">Later rules added to the category an earlier rule set; nothing was replaced.</div>`);
+  else if (catSetters.length > 1) notes.push(`<div class="note">More than one rule set the category. The earlier ${catSetters.length > 2 ? "patterns also match" : "pattern also matches"} this row; check that's intended.</div>`);
   if (L.mism.has(i + 1)) notes.push(`<div class="note rec">The other system said <b>${esc(L.mism.get(i + 1) || "something different")}</b>.</div>`);
-  else if (L.orph.has(i + 1)) notes.push(`<div class="note rec">This row isn't in the other system's file.</div>`);
+  else if (L.orph.has(i + 1)) notes.push(`<div class="note rec">No row in the other system's file matched this one.</div>`);
 
   const known = new Set(["date","amount","counterparty","memo","category"]);
   const extra = L.head.map((h, k) => [h, r[k]]).filter(([h, v]) => !known.has(h) && v !== undefined && String(v).trim() !== "");
@@ -571,6 +626,10 @@ function showWhy(i){
     (items ? `<ol>${items}</ol>` : "") + notes.join("") +
     (extra.length ? `<dl>${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "") +
     `<footer><button type="button" class="ghost" id="copywhy">Copy explanation</button></footer>`;
+  if (matchMedia("(max-width: 1120px)").matches){
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    box.scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+  }
   state.whyText = [`Row ${i + 1}: ${r[ci.cp]}${amt ? ", " + amt.replace("−", "-") : ""}`, `Category: ${cat || "none"}`, why]
     .concat(ents.map((e, k) => `${k + 1}. ${e.rule}${(e.match || []).length ? " — " + e.match.join(" and ") : ""}`)).join("\n");
 }
@@ -600,19 +659,42 @@ function chartTab(p, rec){
     h += flDonut(flAggregate(lines.slice(1).map(r => r[ci])),
                  {title: `Categories, ${lines.length - 1} rows`,
                   centre: String(lines.length - 1)});
-  if (rec && rec.summary)
-    h += flDonut(
-      [{label: "agree", value: rec.summary.matches, color: "#3ad6a5"},
-       {label: "disagree", value: rec.summary.mismatches, color: "#ff7a85"}],
-      {title: "Compared row by row with the other system", size: 150,
-       centre: `${Math.round(rec.summary.matches / rec.summary.total_rows * 100)}%`});
+  if (rec && rec.summary){
+    const s = rec.summary, unmatched = (+s.orphans_finlang_count || 0) + (+s.orphans_ml_count || 0);
+    const parts = [{label: "agree", value: s.matches, color: "#3ad6a5"},
+                   {label: "disagree", value: s.mismatches, color: "#ff7a85"}];
+    if (unmatched) parts.push({label: "no match", value: unmatched, color: "#f5b544"});
+    const all = parts.reduce((t, x) => t + (+x.value || 0), 0) || 1;
+    h += flDonut(parts, {title: pairedHow(s) + " with the other system", size: 150,
+                         centre: `${Math.round(s.matches / all * 100)}%`});
+  }
   return h || '<span style="color:var(--muted)">No category column in the output.</span>';
+}
+function pairedHow(s){
+  const m = String(s.alignment_mode || "");
+  return m.startsWith("key:") ? `Matched on key columns (${m.slice(4).split(",").join(", ")})` : "Compared row by row";
+}
+function csvTable(csv){
+  const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
+  if (L.length < 2) return "";
+  return '<div class="scroll"><table class="rows generic"><thead><tr>' +
+    L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
+    L.slice(1).map(r=>"<tr>"+r.map(c=>`<td>${esc(c)}</td>`).join("")+"</tr>").join("") +
+    "</tbody></table></div>";
 }
 function recTab(rec){
   const s = rec.summary;
-  let h = `<p style="margin:0 0 12px">${s.total_rows} rows compared. ` +
+  const fl = +s.orphans_finlang_count || 0, ml = +s.orphans_ml_count || 0;
+  let h = `<p style="margin:0 0 12px">${esc(pairedHow(s))}: ${s.total_rows} rows compared. ` +
     `<span class="tag agree">${s.matches} agree</span> <span class="tag differs">${s.mismatches} do not</span>` +
+    (fl ? ` <span class="tag differs">${fl} with no match in their file</span>` : "") +
+    (ml ? ` <span class="tag differs">${ml} only in their file</span>` : "") +
     (s.status?` <span class="tag info">${esc(s.status)}</span>`:"") + "</p>";
+  if (ml && rec.orphans_ml_csv)
+    h += `<h3 class="sub">Only in their file</h3>${csvTable(rec.orphans_ml_csv)}`;
+  if (fl && rec.orphans_finlang_csv)
+    h += `<h3 class="sub">No match in their file</h3>${csvTable(rec.orphans_finlang_csv)}`;
+  if (rec.mismatches_csv && (ml || fl)) h += '<h3 class="sub">Disagreements</h3>';
   if (rec.mismatches_csv){
     const L = flCsvRows(rec.mismatches_csv);
     h += '<div class="scroll"><table class="rows generic"><thead><tr>' +
@@ -652,11 +734,15 @@ function logTab(){
   // each malformed or lossy in the other), and the Workbench is local-only
   // (P2): the browser's OS IS the shell's OS, so pick the local convention.
   const WIN = /Windows/.test(navigator.userAgent);
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, WIN ? "''" : "'\\''") + "'" : s;
+  // PowerShell also treats U+2018-U+201B as quote marks (a curly apostrophe
+  // in a file name ended the quoting and the rest of the name ran on paste),
+  // so they are doubled too; to POSIX shells they are ordinary characters.
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + (WIN ? s.replace(/['\u2018-\u201B]/g, "$&$&")
+                                                   : s.replace(/'/g, "'\\''")) + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
-  let c = "finlang --input " + (fname("input_csv")||"<your csv>");
-  c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
+  const rulesArg = $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
      : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname("rules_file")||"<your .fin>");
+  let c = "finlang --input " + (fname("input_csv")||"<your csv>") + rulesArg;
   if ($("dayfirst").value) c += " --dayfirst";
   if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
   if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
@@ -671,8 +757,7 @@ function logTab(){
   c += " --output categorized.csv";
   a.push(c);
   if (state.rec){
-    let r = "finlang --input " + (fname("input_csv")||"<your csv>") + " " +
-      ($("rules_mode").value==="pack" ? `--include-pack ${$("include_pack").value}` : "--rules " + (fname("rules_file")||"<your .fin>")) +
+    let r = "finlang --input " + (fname("input_csv")||"<your csv>") + rulesArg +
       " --output categorized.csv --audit audit.json --audit-mode full" +
       ` --reconcile ${fname("ml_csv")||"<model output.csv>"} --reconcile-output-dir out/`;
     // the reconcile call forwards the same locale/mapping options as /process,
@@ -702,16 +787,19 @@ function logTab(){
 function setTabs(list){
   const T = $("tabs"), P = $("pane");
   T.innerHTML = ""; P.innerHTML = "";
+  T.setAttribute("role", "tablist");
   list.forEach(([name, html], i) => {
     const b = document.createElement("button");
     b.textContent = name; b.type = "button";
     b.className = i===0 ? "on" : "";
+    b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(i===0));
     const d = document.createElement("div");
     d.innerHTML = html; d.className = i===0 ? "on" : "";
+    d.setAttribute("role", "tabpanel"); d.setAttribute("aria-label", name);
     b.onclick = () => {
-      T.querySelectorAll("button").forEach(x=>x.className="");
+      T.querySelectorAll("button").forEach(x=>{ x.className=""; x.setAttribute("aria-selected", "false"); });
       P.querySelectorAll(":scope>div").forEach(x=>x.className="");
-      b.className="on"; d.className="on";
+      b.className="on"; d.className="on"; b.setAttribute("aria-selected", "true");
     };
     T.appendChild(b); P.appendChild(d);
   });
@@ -729,6 +817,13 @@ $("pane").addEventListener("click", ev => {
   }
   const tr = ev.target.closest("tr[data-i]");
   if (tr && state.ledger && tr.closest("table.ledger, table.generic")) showWhy(+tr.dataset.i);
+});
+$("pane").addEventListener("keydown", ev => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const tr = ev.target.closest && ev.target.closest("table.ledger tbody tr[data-i], table.generic tbody tr[data-i]");
+  if (!tr || ev.target !== tr || !state.ledger) return;
+  ev.preventDefault();
+  showWhy(+tr.dataset.i);
 });
 function flCsvRows(text){
   // RFC-4180 CSV parse: double-quotes protect commas AND newlines; "" is a
@@ -750,7 +845,7 @@ function flCsvRows(text){
   if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
   return rows;
 }
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 </script>
 <script src="wb.js"></script>
 <script src="help.js"></script>

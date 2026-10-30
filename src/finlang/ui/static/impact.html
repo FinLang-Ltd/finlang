@@ -83,7 +83,7 @@
 
     <section class="results" id="results" aria-live="polite">
       <h2 class="section">Results</h2>
-      <div id="banner"></div>
+      <div id="banner" tabindex="-1"></div>
       <div class="tabs" id="tabs"></div>
       <div class="pane" id="pane"><div class="on" style="display:block;color:var(--muted)">
         Nothing yet. Choose a file and both sets of rules above, then press Compare.
@@ -143,8 +143,9 @@ $("f").onsubmit = async ev => {
     const r = await fetch("/impact", {method:"POST", body:fd});
     const b = await r.json();
     if (!r.ok){
-      const d = typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail, null, 2);
-      banner("failed","Comparison failed", d);
+      const d = typeof b.detail==="string" ? b.detail
+              : (b.detail && b.detail.stderr) || JSON.stringify(b.detail, null, 2);
+      banner("failed","Comparison failed", flReason(b));
       setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
       showResults();
       return;
@@ -254,7 +255,9 @@ function logTab(b){
   // Apostrophe escapes differ by shell ('' PowerShell, '\'' POSIX), and the
   // Workbench is local-only (P2): the browser's OS IS the shell's OS.
   const WIN = /Windows/.test(navigator.userAgent);
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, WIN ? "''" : "'\\''") + "'" : s;
+  // PowerShell also treats U+2018-U+201B as quote marks, so they are doubled too
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + (WIN ? s.replace(/['\u2018-\u201B]/g, "$&$&")
+                                                   : s.replace(/'/g, "'\\''")) + "'" : s;
   const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
   let c = "finlang --input " + (fname("input_csv")||"<your csv>");
   c += $("base_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}` : " --rules " + (fname("base_file")||"<baseline .fin>");
@@ -266,7 +269,7 @@ function logTab(b){
   if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
   if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
   if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
-  c += " --impact-output-dir out/ --output categorized.csv";
+  c += " --impact-output-dir out/";   // impact writes no categorised output
   if ($("impact_html").checked) c += " --impact-html";
   // the label states the quoting contract (the OS sniff can't see CMD/Git Bash/WSL)
   return `<p style="font-size:14px;color:var(--ink-2);margin:0 0 8px">The same comparison, ${WIN ? "in PowerShell" : "from a terminal"}:</p>` +
@@ -276,15 +279,18 @@ function logTab(b){
 function setTabs(list){
   const T = $("tabs"), P = $("pane");
   T.innerHTML = ""; P.innerHTML = "";
+  T.setAttribute("role", "tablist");
   list.forEach(([name, html], i) => {
     const bt = document.createElement("button");
     bt.textContent = name; bt.type = "button"; bt.className = i===0 ? "on" : "";
+    bt.setAttribute("role", "tab"); bt.setAttribute("aria-selected", String(i===0));
     const d = document.createElement("div");
     d.innerHTML = html; d.className = i===0 ? "on" : "";
+    d.setAttribute("role", "tabpanel"); d.setAttribute("aria-label", name);
     bt.onclick = () => {
-      T.querySelectorAll("button").forEach(x=>x.className="");
+      T.querySelectorAll("button").forEach(x=>{ x.className=""; x.setAttribute("aria-selected", "false"); });
       P.querySelectorAll(":scope>div").forEach(x=>x.className="");
-      bt.className="on"; d.className="on";
+      bt.className="on"; d.className="on"; bt.setAttribute("aria-selected", "true");
     };
     T.appendChild(bt); P.appendChild(d);
   });
@@ -298,7 +304,7 @@ function csvSplit(line){
   }
   out.push(cur); return out;
 }
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 gate();
 </script>
 <script src="wb.js"></script>
