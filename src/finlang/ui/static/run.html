@@ -179,33 +179,62 @@ $("rules_mode").onchange = e => {
 // the draft is checked through /rules/validate and described by name and count.
 // It lives in this browser (autosaved) and runs whether or not it was ever
 // saved to a .fin file - said explicitly, because that surprised the operator.
-async function describeDraft(on){
+/* The description is tied to the exact text it describes (state.draftShown).
+   The draft is shared with the Rules screen in other tabs, so it can change
+   under this page: a change describes it again, Run stays off until the
+   description is of the text a run would send, and a run sends exactly that
+   text (Codex, 1 Nov: the page described Draft A and ran Draft B). Only the
+   latest check may write the description; an overtaken check's reply is dropped. */
+let draftSeq = 0;
+async function describeDraft(on, changed){
   const el = $("draft_info");
-  if (!on){ el.style.display = "none"; return; }
+  const seq = ++draftSeq;
+  state.draftShown = null;
+  if (!on){ el.style.display = "none"; gate(); return; }
   el.style.display = "block";
-  const blob = draftRules();
-  if (!blob){
-    el.innerHTML = 'The Rules editor is empty. <a href="rules.html" class="lnk">Write some rules first</a>.';
+  const text = draftText();
+  const lead = changed ? "The draft changed in the Rules editor; this is the new one. " : "";
+  if (!text.trim()){
+    el.innerHTML = esc(lead) + 'The Rules editor is empty. <a href="rules.html" class="lnk">Write some rules first</a>.';
+    state.draftShown = text; gate();
     return;
   }
-  el.textContent = "Checking the draft against the engine…";
+  el.textContent = lead + "Checking the draft against the engine…";
+  gate();
+  // a reply is used only while it is the latest check and its text is still the
+  // draft; if the draft changed with no newer check under way, describe the new one
+  const stale = () => {
+    if (seq !== draftSeq) return true;
+    if (draftText() !== text){ describeDraft(true, true); return true; }
+    return false;
+  };
   const fd = new FormData();
-  fd.append("rules", blob, "draft.fin");
+  fd.append("rules", new Blob([text], {type:"text/plain"}), "draft.fin");
   try {
     const r = await fetch("/rules/validate", {method:"POST", body:fd});
     const b = await flJson(r);
-    if (!r.ok){ el.textContent = flFailure(b, r.status); return; }
-    if (b.ok){
+    if (stale()) return;
+    if (!r.ok) el.textContent = lead + flFailure(b, r.status);
+    else if (b.ok){
       const names = b.rule_names.slice(0, 4).join(", ");
-      el.innerHTML = `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
+      el.innerHTML = esc(lead) + `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
         (names ? ` (${esc(names)}${b.rule_count > 4 ? ", …" : ""})` : "") +
         `. Autosaved in this browser; runs even if never saved to a .fin file.`;
     } else {
-      el.innerHTML = `<span style="color:var(--pink)">The draft's rules do not parse.</span> ` +
+      el.innerHTML = esc(lead) + `<span style="color:var(--pink)">The draft's rules do not parse.</span> ` +
         `<a href="rules.html" class="lnk">Fix them on the Rules screen</a>.`;
     }
-  } catch(e){ el.textContent = flUnreachable(e); }
+  } catch(e){
+    if (stale()) return;
+    el.textContent = lead + flUnreachable(e);
+  }
+  state.draftShown = text; gate();
 }
+// another tab saved a different draft: what this page describes is no longer it
+addEventListener("storage", e => {
+  if ((e.key === "finlang_rules_draft" || e.key === null) && $("rules_mode").value === "draft")
+    describeDraft(true, true);
+});
 // the dropdown asks the engine, so it can never lie again (GET /rulepacks
 // serves the CLI's own PACK_MAP); the hardcoded list below is the fallback
 // for the file:// case only.
@@ -213,8 +242,9 @@ fetch("/rulepacks").then(r=>r.json()).then(b=>{
   const s = $("include_pack"); s.innerHTML = "";
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
 }).catch(() => { $("include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
+function draftText(){ return localStorage.getItem("finlang_rules_draft") || ""; }
 function draftRules(){
-  const t = localStorage.getItem("finlang_rules_draft") || "";
+  const t = draftText();
   return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
 }
 // gaps.html's "re-run with updated rules" arrives as ?rules=draft
@@ -262,7 +292,9 @@ addEventListener("pageshow", syncForm);
 function gate(){
   if (state.busy){ $("go").disabled = true; return; }   // one run at a time
   const m = $("rules_mode").value;
-  const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() : $("rules_file").files.length);
+  // the draft only once the description on screen is of the draft a run would send
+  const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() && state.draftShown === draftText()
+                                             : $("rules_file").files.length);
   const recOk = !$("reconcile").checked ||
     ($("ml_csv").files.length && (alignMode()==="rows" || $("rec_key").value.trim()));
   $("go").disabled = !($("input_csv").files.length && rulesOk && recOk);
@@ -311,6 +343,12 @@ function addLocale(fd, R){
 $("f").onsubmit = async ev => {
   ev.preventDefault();
   if (state.busy) return;
+  // the draft changed since it was described (and no change event said so):
+  // describe it again; the user runs what they can see
+  if ($("rules_mode").value === "draft" && state.draftShown !== draftText()){
+    describeDraft(true, true);
+    return;
+  }
   const R = state.run = snapshot();
   state.busy = true;
   $("go").disabled = true; $("spin").style.display = "block";
