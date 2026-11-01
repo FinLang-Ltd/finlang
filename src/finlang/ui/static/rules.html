@@ -243,6 +243,11 @@ async function check(){
   try {
     const r = await fetch("/rules/validate", {method:"POST", body:fd});
     const b = await flJson(r);
+    if (!r.ok){                          // an HTTP error is not a verdict on the rules
+      v.className = "bad"; v.textContent = flFailure(b, r.status);
+      $("readback").style.display = "none";
+      return;
+    }
     if (b.ok){
       v.className = "ok";
       v.textContent = `✓ Parsed ${b.rule_count} rule(s)` +

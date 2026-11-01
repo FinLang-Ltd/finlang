@@ -63,7 +63,7 @@
   </div>
 </main>
 <script>
-  fetch("/health").then(r => r.json()).then(h => {
+  fetch("/health").then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then(h => {
     document.getElementById("health").innerHTML =
       "<div>Version <b>" + h.version + "</b></div>" +
       "<div>Service <b>" + h.service + "</b></div>" +

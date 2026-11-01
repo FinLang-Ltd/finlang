@@ -173,6 +173,11 @@ $("discover").onclick = async () => {
   $("discover").disabled = true; $("suggest").disabled = true;   // one request at a time
   // what this run uses is fixed now: provenance must not follow a later pick
   const runRules = $("g_rules_mode").value, runRaw = ($("raw_csv").files[0] || {}).name || "input.csv";
+  // the threshold too: the request AND the explanation of its answer use the
+  // value the run started with (read again on return, a threshold changed
+  // mid-run turned "none at 2" into "every row was claimed" - Codex re-check)
+  const runMin = Math.max(1, Math.floor(Number($("min_count").value)) || 1);
+  $("min_count").value = runMin;
   const runDesc = runRules==="pack" ? `bundled pack: ${$("g_include_pack").value}`
                 : runRules==="draft" ? "your Workbench draft"
                 : ($("g_rules_file").files[0] || {}).name || "a .fin file";
@@ -216,24 +221,20 @@ $("discover").onclick = async () => {
     }
     const fd = new FormData();
     fd.append("input_csv", new Blob([state.csvText], {type:"text/csv"}), "categorized.csv");
-    // the API takes a whole number; "2.5" or "" must not reach it as-is
-    const n = Math.max(1, Math.floor(Number($("min_count").value)) || 1);
-    $("min_count").value = n;
-    fd.append("min_count", String(n));
+    fd.append("min_count", String(runMin));     // a whole number, fixed at the start
     const r = await fetch("/discover", {method:"POST", body:fd});
     const b = await flJson(r);
     if (!r.ok){ showErr(flReason(b)); return; }
-    renderCands(b.candidates_csv || "");
+    renderCands(b.candidates_csv || "", runMin);
   } catch(e){
     flStatus(); showErr(flUnreachable(e));
   } finally { state.busy = false; $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
 
-function renderCands(csv){
+function renderCands(csv, n){
   const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
   $("s_cands").classList.add("on");
   if (L.length < 2){
-    const n = Math.max(1, parseInt($("min_count").value, 10) || 1);
     if (n === 1){
       $("cand_n").textContent = "none: every row was claimed by a rule";
       $("cands").innerHTML = '<div class="why">No gaps. That is the goal, not an error.</div>';

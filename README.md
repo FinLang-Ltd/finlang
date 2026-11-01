@@ -295,7 +295,7 @@ Contributions are welcome! Before submitting a PR, please review and accept our
 | Core Engine      | v0.8.3   | Hardening: `FINLANG_AUDIT_MAX`/`audit_max` validation; categorisation output unchanged |
 | CLI Suite        | v0.9.1   | 204 tests across 10 gates (daily); 7-gate full pre-release suite |
 | FastAPI Wrapper  | v0.9.1   | 43 standalone integration tests + CLI/API parity contract test; `/rulepacks` + `/rules/validate`; verify mismatch on `/process` → HTTP 200 |
-| Workbench        | v0.9.1   | 18 UI-contract tests + 60 Playwright end-to-end tests (real browser, live server, real CLI) |
+| Workbench        | v0.9.1   | 18 UI-contract tests + 65 Playwright end-to-end tests (real browser, live server, real CLI) |
 | Discover/Suggest | v0.8.2   | 97.8% average coverage gain across 5 validation runs |
 | Integrity Test   | v0.8.2   | 20M rows verified field-by-field, ~227K rows/sec FastIO on the integrity harness (re-validated 20 Jul 2026) |
 | Verify           | v0.8.3   | `--verify` / `--verify-full` / `--verify-html` (SHA-256 fingerprint + field comparison + readable report), vectorised — ~570s → ~15s on the 500K full-mode benchmark |

@@ -162,6 +162,7 @@
   </div>
 </main>
 <script src="charts.js"></script>
+<script src="wb.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
@@ -191,7 +192,9 @@ async function describeDraft(on){
   const fd = new FormData();
   fd.append("rules", blob, "draft.fin");
   try {
-    const b = await flJson(await fetch("/rules/validate", {method:"POST", body:fd}));
+    const r = await fetch("/rules/validate", {method:"POST", body:fd});
+    const b = await flJson(r);
+    if (!r.ok){ el.textContent = flFailure(b, r.status); return; }
     if (b.ok){
       const names = b.rule_names.slice(0, 4).join(", ");
       el.innerHTML = `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
@@ -659,7 +662,11 @@ function showWhy(i){
   let why;
   if (!state.audit) why = "The audit trail was off for this run, so the rule behind each row wasn't recorded. Turn it on under Checks and run again.";
   else if (capped) why = `The audit trail reached its limit (${L.capped} entries) before every rule was recorded, so this list can be missing rules that ran later - including the one that decided this category. Start finlang-ui with FINLANG_AUDIT_MAX set higher to record them all.`;
-  else if (!ents.length) why = cat
+  else if (!ents.length) why = lite
+      // the light trail leaves out rules that matched without changing anything,
+      // so an empty one cannot say that nothing matched (Codex re-check)
+      ? "The light audit trail recorded no changes for this row. It leaves out rules that matched without changing anything, so a rule may still have matched. Run with the full audit trail to see every match."
+      : cat
       ? "This row has a category, but the audit trail has no entry for it. The trail may have reached its size limit on a large file."
       : "No rule matched this row, so it has no category. Find gaps can draft a rule for it.";
   else if (lite) why = (ents.length === 1 ? "One rule changed this row." : `${ents.length} rules changed this row.`) +
@@ -932,7 +939,6 @@ function flCsvRows(text){
 }
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 </script>
-<script src="wb.js"></script>
 <script src="help.js"></script>
 </body>
 </html>

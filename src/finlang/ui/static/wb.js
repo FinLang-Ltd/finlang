@@ -35,6 +35,16 @@ function flUnreachable(e){
    caller's catch says the server didn't answer, and nothing renders it as a
    result. Returning an error-shaped body instead let an HTTP 200 page read as
    success ("every row was claimed by a rule"). */
+/* An HTTP error the API answered in JSON (its timeout is 504 {"detail":
+   "Subprocess exceeded 300s timeout."}): the engine's reason in words, plus
+   what to do next - never the JSON itself. */
+function flFailure(body, status){
+  const why = flReason(body).trim();
+  const advice = status === 504
+    ? "The engine took too long to answer. Try again; if it keeps happening, restart finlang-ui."
+    : "Try again; if it keeps happening, restart finlang-ui.";
+  return why + (/[.!?]$/.test(why) ? " " : ". ") + advice;
+}
 async function flJson(r){
   try { return await r.json(); }
   catch (e){ throw new Error(`HTTP ${r.status}, not a FinLang reply`); }
@@ -46,7 +56,7 @@ function flStatus(){
   const st = document.getElementById("wbstatus");
   if (!st) return;
   st.classList.remove("ok", "warn");
-  fetch("/health").then(r => r.json()).then(h => {
+  fetch("/health").then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).then(h => {
     st.classList.add(h.cli_resolved ? "ok" : "warn");
     st.title = h.cli_resolved
       ? "The engine this page calls was found and answered. Everything runs on this machine."
