@@ -234,15 +234,30 @@ $("save").onclick = async () => {
 };
 $("fname").addEventListener("input", () => { fileHandle = null; });  // new name = new file
 $("check").onclick = check;
+/* Only the latest check of the draft as it stands may give the verdict. Each
+   check takes a number and keeps the text it sent; a reply from a check that
+   has been overtaken, or whose text is no longer in the editor, is dropped -
+   success, refusal or failure alike. (Codex 1 Nov: an older success arrived
+   after a newer refusal and put "Parsed" beside the broken draft.) And an
+   edit withdraws the verdict at once: it described text that is gone. */
+let checkSeq = 0;
+function clearVerdict(){
+  const v = $("verdict"); v.className = ""; v.textContent = ""; v.style.display = "none";
+  $("readback").style.display = "none";
+}
+$("ed").addEventListener("input", clearVerdict);
 async function check(){
+  const seq = ++checkSeq, sent = $("ed").value;
+  const current = () => seq === checkSeq && $("ed").value === sent;
   const v = $("verdict");
-  if (!$("ed").value.trim()){ v.className=""; v.textContent=""; v.style.display="none";
-                              $("readback").style.display = "none"; return; }
+  if (!sent.trim()){ clearVerdict(); return; }
   v.className = ""; v.style.display = "block"; v.textContent = "Checking…";
-  const fd = new FormData(); fd.append("rules_text", $("ed").value);
+  $("readback").style.display = "none";  // the old read-back is for text that may be gone (Insert, Load)
+  const fd = new FormData(); fd.append("rules_text", sent);
   try {
     const r = await fetch("/rules/validate", {method:"POST", body:fd});
     const b = await flJson(r);
+    if (!current()) return;
     if (!r.ok){                          // an HTTP error is not a verdict on the rules
       v.className = "bad"; v.textContent = flFailure(b, r.status);
       $("readback").style.display = "none";
@@ -258,7 +273,9 @@ async function check(){
       v.textContent = b.error || JSON.stringify(b);
       $("readback").style.display = "none";
     }
-  } catch(e){ flStatus(); v.className = "bad"; v.textContent = flUnreachable(e);
+  } catch(e){ flStatus();                // the header still reports the server, whichever check failed
+              if (!current()) return;
+              v.className = "bad"; v.textContent = flUnreachable(e);
               $("readback").style.display = "none"; }
 }
 

@@ -235,12 +235,21 @@ function renderCands(csv, n){
   const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
   $("s_cands").classList.add("on");
   if (L.length < 2){
+    // An empty list says what discovery found, never that every row has a
+    // category: it groups rows by a fingerprint of the counterparty name made
+    // of Latin letters and digits, and skips rows whose fingerprint is empty
+    // (山田商店, a blank name) - Codex re-check, 1 Nov
+    const skipped = " An empty list does not mean every row has a category: discovery groups rows by " +
+      "counterparty name and skips names it cannot group (blank names, or names with no Latin letters " +
+      "or digits), so rows like those can stay uncategorised at any threshold. Check the categorised " +
+      "output for blank categories.";
     if (n === 1){
-      $("cand_n").textContent = "none: every row was claimed by a rule";
-      $("cands").innerHTML = '<div class="why">No gaps. That is the goal, not an error.</div>';
+      $("cand_n").textContent = "no candidates found";
+      $("cands").innerHTML = `<div class="why">No candidate counterparties found at this threshold.${skipped}</div>`;
     } else {
-      $("cand_n").textContent = `none appearing ${n} or more times`;
-      $("cands").innerHTML = `<div class="why">No unclaimed counterparty appears ${n} or more times. Lower the number to see rarer ones.</div>`;
+      $("cand_n").textContent = `no candidates appearing ${n} or more times`;
+      $("cands").innerHTML = `<div class="why">No candidate counterparties found appearing ${n} or more times. ` +
+        `Lower the number to see rarer ones.${skipped}</div>`;
     }
     state.cands = null; $("s_suggest").classList.remove("on"); return;
   }

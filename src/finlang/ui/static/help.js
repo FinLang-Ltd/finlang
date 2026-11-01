@@ -26,7 +26,7 @@
     },
     "gaps.html": {
       "THE CATEGORISED OUTPUT": "Two ways in: choose raw data plus the rules to check coverage of (it categorises first, then finds what was missed), or open the disclosure and hand it a categorized.csv you saved earlier. After a categorise run, or once it has categorised your file here, the line at the top says which file and which rules the gaps are measured against.",
-      "WHAT NO RULE CLAIMED": "Every counterparty no rule claimed, with how often it appears: ×6 outranks a one-off. Tick the ones worth a rule; raise the threshold above to hide rare ones.",
+      "WHAT NO RULE CLAIMED": "The counterparties no rule claimed, grouped by name, with how often each appears: ×6 outranks a one-off. Tick the ones worth a rule; raise the threshold above to hide rare ones. Names discovery cannot group (blank names, or names with no Latin letters or digits) are left out, so rows can have no category without appearing here.",
       "DRAFT RULES": "Drafting options: the category the new rules should assign, a prefix for their names (so drafted rules are easy to spot later), and fuzzy or exact matching. Fuzzy writes contains-style wildcards and can merge similar counterparties into one rule.",
       "THE DRAFTS": "Proposals, not decisions. Append adds them to your Rules draft under a dated review comment; you keep, edit or delete each one there, then run again to watch the gap count fall.",
     },

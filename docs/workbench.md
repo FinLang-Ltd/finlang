@@ -72,7 +72,7 @@ Drafts autosave in your browser. Rules run in file order, and when several rules
 
 ## 🔁 The other screens
 
-- **Find gaps** (the growth loop) — takes a run's output, or any file plus rules, and finds what no rule claimed, then drafts candidate rules for the ones you tick. Nothing enters your ruleset without you accepting it.
+- **Find gaps** (the growth loop) — takes a run's output, or any file plus rules, and lists the counterparties no rule claimed, grouped by name, then drafts candidate rules for the ones you tick. Nothing enters your ruleset without you accepting it. Names it cannot group (blank names, or names with no Latin letters or digits) are left out, so an empty list is not proof that every row has a category.
 - **Test a change** (impact) — point it at your current rules and a proposed version to see what a change would actually move — which rows re-categorise and how much value shifts — before you ship it. It writes no output; it is a rehearsal.
 
 ---
