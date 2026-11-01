@@ -58,7 +58,7 @@
           <option value="draft">My draft from the Rules screen</option>
         </select>
         <div id="rules_file_row" style="margin-top:10px"><input type="file" id="rules_file" accept=".fin" aria-label="Rules file (.fin)"></div>
-        <div class="why" id="draft_info" style="display:none"></div>
+        <div class="why" id="draft_info" role="status" tabindex="-1" style="display:none"></div>
         <div id="rules_pack_row" style="display:none;margin-top:10px">
           <!-- Values are the engine's short names (PACK_MAP, run_finlang.py);
                labels show the shipped file each resolves to. Replaced by a
@@ -179,61 +179,87 @@ $("rules_mode").onchange = e => {
 // the draft is checked through /rules/validate and described by name and count.
 // It lives in this browser (autosaved) and runs whether or not it was ever
 // saved to a .fin file - said explicitly, because that surprised the operator.
-/* The description is tied to the exact text it describes (state.draftShown).
-   The draft is shared with the Rules screen in other tabs, so it can change
-   under this page: a change describes it again, Run stays off until the
-   description is of the text a run would send, and a run sends exactly that
-   text (Codex, 1 Nov: the page described Draft A and ran Draft B). Only the
-   latest check may write the description; an overtaken check's reply is dropped. */
-let draftSeq = 0;
-async function describeDraft(on, changed){
+/* Run may send a Rules-editor draft only after this page has SUCCESSFULLY
+   described the exact text it will send: state.draftReady holds that text,
+   and is null otherwise. A refusal, an HTTP error, an unreadable reply or a
+   lost connection leaves Run off - a refusal says how to fix the draft, the
+   others offer Retry preview (Codex, re-check of 09a0bd9: a failed description
+   enabled Run, and one click ran a draft the page had never named). The draft
+   is shared with the Rules screen in other tabs: an edit there withdraws the
+   description at once and is checked once the typing pauses, so a burst of
+   keystrokes costs one check, not one each, and a text already being checked
+   is not checked twice. Only the latest check of the current draft may write
+   the description; a check with no answer within the limit is a failure. */
+const DRAFT_QUIET_MS = 400, DRAFT_LIMIT_MS = 30000;
+let draftSeq = 0, draftTimer = null, draftChecking = null;   // draftChecking: the text being checked now
+function draftRetire(){              // nothing in flight or pending may speak for the draft any more
+  draftSeq++; clearTimeout(draftTimer); draftTimer = null; draftChecking = null; state.draftReady = null;
+}
+async function describeDraft(on, changed, retry){
   const el = $("draft_info");
-  const seq = ++draftSeq;
-  state.draftShown = null;
+  // that exact text is being checked already: let that check answer (the hand-off
+  // link and a back/forward restore each asked twice)
+  if (on && draftChecking !== null && draftChecking === draftText()) return;
+  draftRetire();
+  const seq = draftSeq;
   if (!on){ el.style.display = "none"; gate(); return; }
   el.style.display = "block";
   const text = draftText();
   const lead = changed ? "The draft changed in the Rules editor; this is the new one. " : "";
   if (!text.trim()){
     el.innerHTML = esc(lead) + 'The Rules editor is empty. <a href="rules.html" class="lnk">Write some rules first</a>.';
-    state.draftShown = text; gate();
+    gate();
     return;
   }
   el.textContent = lead + "Checking the draft against the engine…";
   gate();
-  // a reply is used only while it is the latest check and its text is still the
-  // draft; if the draft changed with no newer check under way, describe the new one
-  const stale = () => {
-    if (seq !== draftSeq) return true;
-    if (draftText() !== text){ describeDraft(true, true); return true; }
-    return false;
-  };
+  draftChecking = text;
   const fd = new FormData();
   fd.append("rules", new Blob([text], {type:"text/plain"}), "draft.fin");
-  try {
-    const r = await fetch("/rules/validate", {method:"POST", body:fd});
-    const b = await flJson(r);
-    if (stale()) return;
-    if (!r.ok) el.textContent = lead + flFailure(b, r.status);
-    else if (b.ok){
-      const names = b.rule_names.slice(0, 4).join(", ");
-      el.innerHTML = esc(lead) + `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
-        (names ? ` (${esc(names)}${b.rule_count > 4 ? ", …" : ""})` : "") +
-        `. Autosaved in this browser; runs even if never saved to a .fin file.`;
-    } else {
-      el.innerHTML = esc(lead) + `<span style="color:var(--pink)">The draft's rules do not parse.</span> ` +
-        `<a href="rules.html" class="lnk">Fix them on the Rules screen</a>.`;
-    }
-  } catch(e){
-    if (stale()) return;
-    el.textContent = lead + flUnreachable(e);
+  const ctl = new AbortController();
+  const limit = setTimeout(() => ctl.abort(new Error(`no answer within ${DRAFT_LIMIT_MS / 1000} s`)), DRAFT_LIMIT_MS);
+  let r = null, b = null, err = null;
+  try { r = await fetch("/rules/validate", {method:"POST", body:fd, signal:ctl.signal}); b = await flJson(r); }
+  catch(e){ err = e; }
+  clearTimeout(limit);
+  // a reply is used only while it is the latest check and its text is still the
+  // draft; if the draft changed with no newer check under way, describe the new one
+  if (seq !== draftSeq) return;
+  draftChecking = null;
+  if (draftText() !== text){ describeDraft(true, true); return; }
+  // only the API's own shape is an answer; any other reply is unreadable
+  if (!err && r.ok && !(b && typeof b.ok === "boolean" &&
+                        (!b.ok || (Array.isArray(b.rule_names) && typeof b.rule_count === "number"))))
+    err = new Error(`HTTP ${r.status}, not a FinLang reply`);
+  const again = ' <button type="button" class="lnk" id="draft_retry">Retry preview</button>';
+  if (err) el.innerHTML = esc(lead + flUnreachable(err)) + again;
+  else if (!r.ok) el.innerHTML = esc(lead + flFailure(b, r.status)) + again;
+  else if (b.ok){
+    const names = b.rule_names.slice(0, 4).join(", ");
+    el.innerHTML = esc(lead) + `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
+      (names ? ` (${esc(names)}${b.rule_count > 4 ? ", …" : ""})` : "") +
+      `. Autosaved in this browser; runs even if never saved to a .fin file.`;
+    state.draftReady = text;           // described, successfully, exactly as it will be sent
+  } else {
+    // the engine's own reason: a refusal is not always the rules failing to parse
+    el.innerHTML = esc(lead) + `<span style="color:var(--pink)">The engine did not accept the draft:</span> ` +
+      `${esc(b.error || "it gave no reason")} <a href="rules.html" class="lnk">Open the Rules screen</a>.`;
   }
-  state.draftShown = text; gate();
+  gate();
+  if (retry) ($("draft_retry") || el).focus();   // keyboard users stay with the answer
 }
-// another tab saved a different draft: what this page describes is no longer it
+// Retry preview checks the draft as it is now; it never starts a run
+$("draft_info").addEventListener("click", e => { if (e.target.id === "draft_retry") describeDraft(true, false, true); });
+// another tab saved a different draft: withdraw the description at once, and
+// check the new text once the editing pauses (not if that text is already
+// being checked or described: a back/forward restore delivers the event late)
 addEventListener("storage", e => {
-  if ((e.key === "finlang_rules_draft" || e.key === null) && $("rules_mode").value === "draft")
-    describeDraft(true, true);
+  if ((e.key !== "finlang_rules_draft" && e.key !== null) || $("rules_mode").value !== "draft") return;
+  if (draftText() === draftChecking || draftText() === state.draftReady) return;
+  draftRetire();
+  $("draft_info").textContent = "The draft changed in the Rules editor; it is checked once the editing pauses.";
+  gate();
+  draftTimer = setTimeout(() => describeDraft(true, true), DRAFT_QUIET_MS);
 });
 // the dropdown asks the engine, so it can never lie again (GET /rulepacks
 // serves the CLI's own PACK_MAP); the hardcoded list below is the fallback
@@ -243,10 +269,6 @@ fetch("/rulepacks").then(r=>r.json()).then(b=>{
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
 }).catch(() => { $("include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
 function draftText(){ return localStorage.getItem("finlang_rules_draft") || ""; }
-function draftRules(){
-  const t = draftText();
-  return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
-}
 // gaps.html's "re-run with updated rules" arrives as ?rules=draft
 if (new URLSearchParams(location.search).get("rules") === "draft"){
   $("rules_mode").value = "draft";
@@ -292,8 +314,8 @@ addEventListener("pageshow", syncForm);
 function gate(){
   if (state.busy){ $("go").disabled = true; return; }   // one run at a time
   const m = $("rules_mode").value;
-  // the draft only once the description on screen is of the draft a run would send
-  const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() && state.draftShown === draftText()
+  // the draft only once it has been described, successfully, as it would be sent
+  const rulesOk = m==="pack" || (m==="draft" ? state.draftReady != null && state.draftReady === draftText()
                                              : $("rules_file").files.length);
   const recOk = !$("reconcile").checked ||
     ($("ml_csv").files.length && (alignMode()==="rows" || $("rec_key").value.trim()));
@@ -320,7 +342,8 @@ function snapshot(){
   const rm = $("rules_mode").value;
   return {
     input: $("input_csv").files[0], rulesMode: rm, rulesFile: $("rules_file").files[0] || null,
-    pack: $("include_pack").value, draft: rm === "draft" ? draftRules() : null,
+    pack: $("include_pack").value,
+    draft: rm === "draft" ? new Blob([state.draftReady], {type:"text/plain"}) : null,   // the text that earned Run
     map: $("map_file").files[0] || null, dayfirst: $("dayfirst").value, decimal: $("decimal").value,
     thousands: $("thousands").value, encoding: $("encoding").value, audit: $("audit_mode").value,
     verify: $("verify").checked, verifyKind: $("verify_kind").value, verifyHtml: $("verify_html").checked,
@@ -343,9 +366,9 @@ function addLocale(fd, R){
 $("f").onsubmit = async ev => {
   ev.preventDefault();
   if (state.busy) return;
-  // the draft changed since it was described (and no change event said so):
-  // describe it again; the user runs what they can see
-  if ($("rules_mode").value === "draft" && state.draftShown !== draftText()){
+  // the draft is not the text last described successfully (it changed with no
+  // change event, say): describe it again; the user runs what they can see
+  if ($("rules_mode").value === "draft" && state.draftReady !== draftText()){
     describeDraft(true, true);
     return;
   }
