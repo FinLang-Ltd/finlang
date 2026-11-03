@@ -227,17 +227,23 @@ async function describeDraft(on, changed, retry){
   if (seq !== draftSeq) return;
   draftChecking = null;
   if (draftText() !== text){ describeDraft(true, true); return; }
-  // only the API's own shape is an answer; any other reply is unreadable
-  if (!err && r.ok && !(b && typeof b.ok === "boolean" &&
-                        (!b.ok || (Array.isArray(b.rule_names) && typeof b.rule_count === "number"))))
-    err = new Error(`HTTP ${r.status}, not a FinLang reply`);
+  // only the API's own shape is an answer; any other reply is unreadable. And a
+  // success must name every rule it counts (flRuleNames, wb.js: the engine's
+  // structured rules, never the CLI-printout rule_names that dropped "...Fuel" -
+  // Codex, re-check of b198f9b)
+  if (!err && r.ok){
+    if (!(b && typeof b.ok === "boolean" && (!b.ok || typeof b.rule_count === "number")))
+      err = new Error(`HTTP ${r.status}, not a FinLang reply`);
+    else if (b.ok && !flRuleNames(b))
+      err = new Error("the reply did not name the rules it counted");
+  }
   const again = ' <button type="button" class="lnk" id="draft_retry">Retry preview</button>';
   if (err) el.innerHTML = esc(lead + flUnreachable(err)) + again;
   else if (!r.ok) el.innerHTML = esc(lead + flFailure(b, r.status)) + again;
   else if (b.ok){
-    const names = b.rule_names.slice(0, 4).join(", ");
+    const names = flRuleNames(b).slice(0, 4).join(", ");   // shown as written, spacing kept
     el.innerHTML = esc(lead) + `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
-      (names ? ` (${esc(names)}${b.rule_count > 4 ? ", …" : ""})` : "") +
+      (names ? ` (<span style="white-space:pre-wrap">${esc(names)}</span>${b.rule_count > 4 ? ", …" : ""})` : "") +
       `. Autosaved in this browser; runs even if never saved to a .fin file.`;
     state.draftReady = text;           // described, successfully, exactly as it will be sent
   } else {

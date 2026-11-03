@@ -45,6 +45,20 @@ function flFailure(body, status){
     : "Try again; if it keeps happening, restart finlang-ui.";
   return why + (/[.!?]$/.test(why) ? " " : ". ") + advice;
 }
+/* The rule names a /rules/validate success can show: every rule it counts,
+   from the engine's structured rules (rule_names is parsed from the CLI's
+   printout and drops a name starting with "...", splits names at commas, stops
+   at ten). null when the reply cannot name what it counts: no count, rules
+   missing or short, or a name with nothing visible in it (blank, a soft
+   hyphen, a control character). Shared, so every screen that shows this reply
+   names rules the same way - a check made on one screen only left the other
+   ticking drafts it could not name (adversarial pass, 2 Nov). */
+function flRuleNames(b){
+  if (!b || typeof b.rule_count !== "number" || !Array.isArray(b.rules) || b.rules.length !== b.rule_count)
+    return null;
+  const names = b.rules.map(x => x && x.name);
+  return names.every(n => typeof n === "string" && /[^\p{C}\p{Z}\s]/u.test(n)) ? names : null;
+}
 async function flJson(r){
   try { return await r.json(); }
   catch (e){ throw new Error(`HTTP ${r.status}, not a FinLang reply`); }

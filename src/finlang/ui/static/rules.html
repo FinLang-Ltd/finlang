@@ -263,11 +263,20 @@ async function check(){
       $("readback").style.display = "none";
       return;
     }
-    if (b.ok){
+    // names from the engine's structured rules (flRuleNames, wb.js), never the
+    // CLI-printout rule_names; a success that cannot name every rule it counts
+    // gets no tick: it showed "✓ Parsed 2 rule(s)" with no names, or "null"
+    const names = b.ok ? flRuleNames(b) : null;
+    if (b.ok && !names){
+      v.className = "bad";
+      v.textContent = "The engine accepted the draft but could not name every rule it counted, so it can't be " +
+                      "read back here. Check that every rule has a name and valid fields, then check again.";
+      $("readback").style.display = "none";
+    } else if (b.ok){
       v.className = "ok";
       v.textContent = `✓ Parsed ${b.rule_count} rule(s)` +
-        (b.rule_names.length ? `: ${b.rule_names.join(", ")}` : "");
-      readback(b.rules || []);
+        (names.length ? `: ${names.slice(0, 10).join(", ")}${names.length > 10 ? ", …" : ""}` : "");
+      readback(b.rules);
     } else {
       v.className = "bad";
       v.textContent = b.error || JSON.stringify(b);
