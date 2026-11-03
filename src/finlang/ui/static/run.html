@@ -3,135 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Run — FinLang Workbench</title>
-<style>
-  /* House style per FORMAT.md / house_style.py. Same tokens as index.html. */
-  :root{
-    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
-    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --purple:#c4a7fa; --dim:#6f82a6;
-    --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
-    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
-  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-  header{position:relative;z-index:1;display:flex;align-items:center;
-    justify-content:space-between;padding:20px 32px 16px}
-  header a.home{display:block}
-  .lk{width:140px;display:block}
-  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
-  main{position:relative;z-index:1;display:grid;grid-template-columns:340px 1fr;
-    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
-  @media (max-width:900px){main{grid-template-columns:1fr}}
-  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
-  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
-    border-radius:8px;padding:14px 16px;margin-bottom:12px}
-  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
-    margin-bottom:10px}
-  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-  input[type=file]{width:100%;font-size:12px;color:var(--muted)}
-  input[type=text],input[type=number],select{width:100%;background:#0a1633;color:#dbe4f5;
-    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
-    font-family:var(--mono);font-size:13px}
-  .tick{display:flex;align-items:flex-start;gap:8px;margin:9px 0;font-size:14px}
-  .tick input{margin-top:3px}
-  .tick .why{display:block;font-size:12px;color:var(--dim);margin-top:2px}
-  .sub-opts{margin:4px 0 4px 24px;padding-left:10px;border-left:2px solid rgba(255,255,255,.09)}
-  .sub-opts.off{display:none}
-  details{margin:10px 0}
-  summary{cursor:pointer;font-size:13px;color:var(--blue)}
-  button#go{width:100%;margin-top:12px;padding:11px;border:0;border-radius:6px;
-    background:var(--mark);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
-  button#go:disabled{background:#1c355f;color:var(--dim);cursor:not-allowed}
-  /* results */
-  #banner{border-radius:8px;padding:13px 16px;margin-bottom:12px;font-size:15px;display:none}
-  #banner.clean{display:block;background:rgba(58,214,165,.12);border:1px solid var(--green);color:var(--green)}
-  #banner.findings{display:block;background:rgba(245,181,68,.10);border:1px solid var(--amber);color:var(--amber)}
-  #banner.failed{display:block;background:rgba(255,122,133,.10);border:1px solid var(--pink);color:var(--pink)}
-  #banner small{display:block;margin-top:4px;color:var(--muted);font-size:12.5px}
-  .tabs{display:flex;gap:2px;margin-bottom:-1px;flex-wrap:wrap}
-  .tabs button{background:transparent;border:1px solid rgba(255,255,255,.13);
-    border-bottom:0;border-radius:6px 6px 0 0;color:var(--muted);padding:7px 14px;
-    font-size:13px;cursor:pointer}
-  .tabs button.on{background:rgba(13,27,60,.9);color:#fff}
-  .pane{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
-    border-radius:0 8px 8px 8px;padding:14px 16px;min-height:220px}
-  .pane>div{display:none}
-  .pane>div.on{display:block}
-  table.rows{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}
-  table.rows th{text-align:left;color:var(--dim);font-weight:400;padding:4px 12px 6px 0;
-    border-bottom:1px solid rgba(255,255,255,.14);position:sticky;top:0;background:#0f1e42}
-  table.rows td{padding:5px 12px 5px 0;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.05)}
-  td.rule{color:var(--amber);cursor:pointer}
-  td.rule:hover{text-decoration:underline}
-  .scroll{max-height:430px;overflow:auto}
-  iframe{width:100%;height:520px;border:1px solid rgba(255,255,255,.13);border-radius:6px;background:#fff}
-  pre.log{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:pre-wrap;
-    word-break:break-all;background:#0a1633;border-radius:6px;padding:12px}
-  .dl{display:inline-block;margin:4px 10px 4px 0;color:var(--mark);font-size:13px;
-    text-decoration:none;font-family:var(--mono)}
-  #auditbox{position:fixed;right:20px;bottom:20px;max-width:460px;max-height:50vh;overflow:auto;
-    background:#0a1633;border:1px solid var(--amber);border-radius:8px;padding:14px;
-    font-family:var(--mono);font-size:12px;display:none;z-index:2;white-space:pre-wrap}
-  #spin{display:none;color:var(--blue);font-family:var(--mono);font-size:13px;margin-top:10px}
-  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
-  nav a{font-family:var(--mono);font-size:14px;letter-spacing:.04em;color:var(--muted);
-    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
-  nav a:hover{color:#fff}
-  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
-  /* design-canvas port: per-screen accent (Run blue, Rules purple,
-     Growth loop green, Impact amber) + help chips on section titles */
-  :root{--acc:var(--blue)}
-  nav a.on{border-bottom:3px solid var(--acc);padding-bottom:5px}
-  .card{border-top:2px solid var(--acc)}
-  .card .t{color:var(--acc)}
-  .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--acc);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
-  .helpbox{border:1px solid var(--acc, var(--mark));background:rgba(127,196,255,0.06);border-radius:6px;padding:10px 13px;font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 10px}
-  .card .t.nohelp::after{content:none}
-</style>
+<title>Categorise a file — FinLang Workbench</title>
+<link rel="stylesheet" href="wb.css">
 </head>
 <body>
-<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
-    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
-  </pattern></defs>
-  <rect width="100%" height="100%" fill="#0d1b3c"/>
-  <rect width="100%" height="100%" fill="url(#ht)"/>
-</svg>
-<header>
-  <a class="home" href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
-  <small>WORKBENCH &middot; RUN</small>
+<header class="top">
+  <div class="wrap">
+    <a class="home" href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+    <nav class="tabsnav" aria-label="Workbench"><a href="run.html" class="on" aria-current="page">Categorise</a><a href="rules.html">Rules</a><a href="gaps.html">Find gaps</a><a href="impact.html">Test a change</a></nav>
+    <div class="status" id="wbstatus"><span class="dot" aria-hidden="true"></span><span>Engine</span></div>
+  </div>
 </header>
-<nav><a href="index.html">Home</a><a href="run.html" class="on">Run</a><a href="rules.html">Rules</a><a href="gaps.html">Growth loop</a><a href="impact.html">Impact</a></nav>
 
-<!-- The lockup paths are injected from lockup.js (shared with index at Phase 5;
-     inline here via fetch of the svg fragment to avoid duplicating 4.5KB). -->
-<main>
-  <section>
-    <h1>Run</h1>
-    <form id="f">
+<main class="page">
+  <div class="wrap">
+    <form id="f" class="flow">
+      <div class="head">
+        <h1>Categorise a file</h1>
+        <p class="lede">Pick a bank or card export and the rules to apply. Every match comes back with the rule that decided it.</p>
+      </div>
+
       <div class="card">
-        <div class="t">FILES</div>
-        <label>Transactions CSV</label>
-        <input type="file" id="input_csv" accept=".csv" required>
-        <div class="why">One CSV, any columns, any order &mdash; it needs <b>date</b>,
-          <b>amount</b> and <b>counterparty</b> to be findable (memo optional). Everything
-          else passes through untouched, plus <b>category &middot; flags &middot; status</b>
-          on the way out. Different header names? See the locale block below.</div>
-        <label>Rules</label>
+        <div class="t" data-n="1">Your file</div>
+        <div class="why">A CSV with a date, an amount and a counterparty, in any order (a memo column is optional).
+          Every other column passes through untouched, and <b>category</b>, <b>flags</b> and <b>status</b> are added on the way out.</div>
+        <div class="drop" id="drop">
+          <div class="lines" aria-hidden="true"><span></span><span></span><span></span></div>
+          <strong>Drop a CSV here, or choose one</strong>
+          <input type="file" id="input_csv" accept=".csv" required aria-label="Transactions CSV">
+        </div>
+        <details id="locale">
+          <summary>My file isn't a UK/US-style CSV</summary>
+          <label for="dayfirst">Day-first dates (31/01/2026)</label>
+          <select id="dayfirst"><option value="">No</option><option value="1">Yes</option></select>
+          <label for="decimal">Decimal separator</label>
+          <input type="text" id="decimal" placeholder="." maxlength="1">
+          <label for="thousands">Thousands separator</label>
+          <input type="text" id="thousands" placeholder="(none)" maxlength="1">
+          <label for="encoding">Encoding</label>
+          <input type="text" id="encoding" placeholder="utf-8-sig">
+          <label for="map_file">Header mapping (.json)</label>
+          <input type="file" id="map_file" accept=".json">
+          <span class="why">Needed if your columns aren't called date, amount, counterparty and memo.</span>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="t" data-n="2">Rules</div>
+        <div class="why">Your rules are a plain-text file your team owns and can read. Start from a bundled pack, bring your own, or use the draft from the Rules screen.</div>
+        <label for="rules_mode">Where the rules come from</label>
         <select id="rules_mode">
-          <option value="file">a .fin file from disk</option>
-          <option value="pack">a bundled rulepack</option>
-          <option value="draft">rules from the Rules editor</option>
+          <option value="file">A .fin file from your computer</option>
+          <option value="pack">A bundled starter pack</option>
+          <option value="draft">My draft from the Rules screen</option>
         </select>
-        <div id="rules_file_row"><input type="file" id="rules_file" accept=".fin"></div>
-        <div class="why" id="draft_info" style="display:none"></div>
-        <div id="rules_pack_row" style="display:none">
+        <div id="rules_file_row" style="margin-top:10px"><input type="file" id="rules_file" accept=".fin" aria-label="Rules file (.fin)"></div>
+        <div class="why" id="draft_info" role="status" tabindex="-1" style="display:none"></div>
+        <div id="rules_pack_row" style="display:none;margin-top:10px">
           <!-- Values are the engine's short names (PACK_MAP, run_finlang.py);
                labels show the shipped file each resolves to. Replaced by a
                fetch of GET /rulepacks when that endpoint lands, so this list
                can never drift from the engine again. -->
-          <select id="include_pack">
+          <select id="include_pack" aria-label="Bundled pack">
             <option value="retail">retail &mdash; 01-vendors-retail.fin</option>
             <option value="transport">transport &mdash; 02-transport.fin</option>
             <option value="subscriptions">subscriptions &mdash; 03-subscriptions.fin</option>
@@ -142,77 +75,98 @@
             <option value="examples">examples &mdash; 08-examples.fin</option>
           </select>
         </div>
-        <details id="locale">
-          <summary>My file isn't a UK/US-style CSV</summary>
-          <label>Day-first dates</label>
-          <select id="dayfirst"><option value="">no</option><option value="1">yes</option></select>
-          <label>Decimal separator</label>
-          <input type="text" id="decimal" placeholder="." maxlength="1">
-          <label>Thousands separator</label>
-          <input type="text" id="thousands" placeholder="(none)" maxlength="1">
-          <label>Encoding</label>
-          <input type="text" id="encoding" placeholder="utf-8-sig">
-          <label>Header mapping (.json) &mdash; needed if your columns aren't date/amount/counterparty/memo</label>
-          <input type="file" id="map_file" accept=".json">
-        </details>
       </div>
 
       <div class="card">
-        <div class="t">WHAT TO RUN</div>
-        <div class="tick"><div style="width:100%">Audit trail
-            <select id="audit_mode" style="width:auto;margin-left:6px"><option value="none">none</option><option value="lite">lite</option><option value="full" selected>full</option></select>
-            <span class="why">full records the rule, condition and changes for every decision;
-              none skips the trail entirely (and the rows lose their rule column)</span>
-          </div></div>
-        <div class="tick"><input type="checkbox" id="verify">
-          <div>Verify
-            <div class="sub-opts off" id="verify_opts">
-              <select id="verify_kind" style="width:auto"><option value="fast">fast (fingerprint)</option><option value="full" selected>full (field-by-field)</option></select>
-              <label style="display:inline;margin-left:10px"><input type="checkbox" id="verify_html" checked> HTML report</label>
-            </div>
-            <span class="why">date, amount and counterparty came out the way they went in</span>
-          </div></div>
-        <div class="tick"><input type="checkbox" id="reconcile">
-          <div>Reconcile against a model
-            <div class="sub-opts off" id="rec_opts">
-              <label>Model output CSV</label>
-              <input type="file" id="ml_csv" accept=".csv">
-              <label style="display:inline"><input type="checkbox" id="rec_html" checked> HTML report</label>
+        <div class="t" data-n="3">Checks</div>
+        <div class="why">Optional. Each check writes its own report, which you can open here or hand to someone else.</div>
+        <div class="checks">
+          <div class="check">
+            <span class="bar" style="background:var(--purple-fill)"></span>
+            <div>
+              <label for="audit_mode" class="ct" style="margin:0">Audit trail</label>
+              <div class="why">Records why each row got its category. The results table needs it to show the rule under each category.</div>
+              <select id="audit_mode" style="margin-top:10px">
+                <option value="full" selected>Full: the rule, the condition it matched, and what it changed</option>
+                <option value="lite">Light: the rule and what it changed</option>
+                <option value="none">Off</option>
+              </select>
               <div class="why" id="rec_forces" style="margin-top:6px"></div>
-              <details><summary>Advanced alignment</summary>
-                <label>Key columns (content match, reports orphans)</label>
-                <input type="text" id="rec_key" placeholder="e.g. date,amount,counterparty">
-                <label>ML date format</label>
-                <input type="text" id="rec_datefmt" placeholder="e.g. %d/%m/%Y &mdash; blank = infer">
-              </details>
             </div>
-            <span class="why">compared row by row &middot; every disagreement, with its rule</span>
-          </div></div>
+            <span></span>
+          </div>
+          <div class="check">
+            <span class="bar" style="background:var(--amber-fill)"></span>
+            <div>
+              <label for="verify" class="ct" style="margin:0">Verify the data</label>
+              <div class="why">Checks that dates, amounts and counterparties come out exactly as they went in.</div>
+              <div class="sub-opts off" id="verify_opts">
+                <div class="inline-opts">
+                  <select id="verify_kind" aria-label="Verify depth"><option value="fast">Fast: a fingerprint of each row</option><option value="full" selected>Full: field by field</option></select>
+                  <label><input type="checkbox" id="verify_html" checked> HTML report</label>
+                </div>
+              </div>
+            </div>
+            <input type="checkbox" class="sw" id="verify">
+          </div>
+          <div class="check">
+            <span class="bar" style="background:var(--green-fill)"></span>
+            <div>
+              <label for="reconcile" class="ct" style="margin:0">Compare with another system</label>
+              <div class="why">Load categories from a model or vendor and compare them with FinLang's, row by row or matched on key columns. Every disagreement comes back with the rule behind FinLang's answer.</div>
+              <div class="sub-opts off" id="rec_opts">
+                <label for="ml_csv">The other system's output (CSV)</label>
+                <input type="file" id="ml_csv" accept=".csv">
+                <div class="inline-opts" style="margin-top:10px"><label><input type="checkbox" id="rec_html" checked> HTML report</label></div>
+                <details id="rec_align"><summary>How rows are paired: <span id="rec_align_now">row by row (the default)</span></summary>
+                  <div class="hint">Their file needs a <code>category</code> column. Columns can be in any order: they are found by name.</div>
+                  <div class="radios" role="radiogroup" aria-label="How rows are paired">
+                    <label class="radio"><input type="radio" name="rec_align" value="rows" checked><span><b>Row by row</b><br>Row 1 against row 1. Both files need the same rows in the same order.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="identity"><span><b>Row by row, checking each pair is the same transaction</b><br>Stops the comparison if the columns below differ on any row, rather than comparing different transactions.</span></label>
+                    <label class="radio"><input type="radio" name="rec_align" value="key"><span><b>Match on key columns</b><br>Pairs rows by the values in the columns below. Any row order, row counts can differ, and rows only one file has are listed separately.</span></label>
+                  </div>
+                  <div id="rec_cols" class="off">
+                    <label for="rec_key">Columns</label>
+                    <input type="text" id="rec_key" placeholder="date,amount,counterparty">
+                    <div class="hint">Both files need these columns under these names (any case). Amounts compare as numbers, dates as dates, text ignoring case.</div>
+                    <label for="rec_datefmt">The other system's date format</label>
+                    <input type="text" id="rec_datefmt" placeholder="e.g. %d/%m/%Y">
+                    <div class="hint">Leave blank and FinLang works it out from their dates. If every date reads either way (05/01), it assumes month-first and says so in the run log.</div>
+                  </div>
+                </details>
+              </div>
+            </div>
+            <input type="checkbox" class="sw" id="reconcile">
+          </div>
+        </div>
       </div>
-      <button id="go" type="submit" disabled>Run</button>
-      <div id="spin">running&hellip; <span id="elapsed"></span></div>
-    </form>
-  </section>
 
-  <section>
-    <h1>Results</h1>
-    <div id="banner"></div>
-    <div id="gapslink" style="display:none;margin:-4px 0 10px;font-size:13px">
-      <a href="gaps.html" style="color:var(--mark);text-decoration:none">Growth loop: close the gaps in these
-      results &rarr;</a> <span style="color:var(--dim)">&mdash; draft rules for whatever no rule claimed</span>
-    </div>
-    <div class="tabs" id="tabs"></div>
-    <div class="pane" id="pane"><div class="on" id="empty" style="display:block;color:var(--dim)">
-      Nothing yet. Pick a CSV and rules, tick what you want, and Run.
-    </div></div>
-  </section>
+      <div class="go">
+        <button id="go" type="submit" disabled>Categorise file</button>
+        <span class="why">You'll also get the equivalent <code>finlang</code> command, so the same run can be scripted.</span>
+      </div>
+      <div id="spin" style="padding-left:52px">Running&hellip; <span id="elapsed"></span></div>
+    </form>
+
+    <section class="results" id="results">
+      <h2 class="section">Results</h2>
+      <div id="banner" tabindex="-1" aria-live="polite"></div>
+      <div id="gapslink" class="why" style="display:none;margin:-4px 0 14px">
+        <a href="gaps.html" class="lnk">Find gaps in these results</a>: draft rules for anything no rule claimed.
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="pane" id="pane"><div class="on" id="empty" style="display:block;color:var(--muted)">
+        Nothing yet. Choose a file and rules above, then press Categorise file.
+      </div></div>
+    </section>
+  </div>
 </main>
-<div id="auditbox"></div>
 <script src="charts.js"></script>
+<script src="wb.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const state = {audit:null, resp:null, rec:null, t0:0};
+const state = {audit:null, resp:null, rec:null, t0:0, ledger:null};
 
 /* ---------- form wiring ---------- */
 $("rules_mode").onchange = e => {
@@ -225,42 +179,102 @@ $("rules_mode").onchange = e => {
 // the draft is checked through /rules/validate and described by name and count.
 // It lives in this browser (autosaved) and runs whether or not it was ever
 // saved to a .fin file - said explicitly, because that surprised the operator.
-async function describeDraft(on){
+/* Run may send a Rules-editor draft only after this page has SUCCESSFULLY
+   described the exact text it will send: state.draftReady holds that text,
+   and is null otherwise. A refusal, an HTTP error, an unreadable reply or a
+   lost connection leaves Run off - a refusal says how to fix the draft, the
+   others offer Retry preview (Codex, re-check of 09a0bd9: a failed description
+   enabled Run, and one click ran a draft the page had never named). The draft
+   is shared with the Rules screen in other tabs: an edit there withdraws the
+   description at once and is checked once the typing pauses, so a burst of
+   keystrokes costs one check, not one each, and a text already being checked
+   is not checked twice. Only the latest check of the current draft may write
+   the description; a check with no answer within the limit is a failure. */
+const DRAFT_QUIET_MS = 400, DRAFT_LIMIT_MS = 30000;
+let draftSeq = 0, draftTimer = null, draftChecking = null;   // draftChecking: the text being checked now
+function draftRetire(){              // nothing in flight or pending may speak for the draft any more
+  draftSeq++; clearTimeout(draftTimer); draftTimer = null; draftChecking = null; state.draftReady = null;
+}
+async function describeDraft(on, changed, retry){
   const el = $("draft_info");
-  if (!on){ el.style.display = "none"; return; }
+  // that exact text is being checked already: let that check answer (the hand-off
+  // link and a back/forward restore each asked twice)
+  if (on && draftChecking !== null && draftChecking === draftText()) return;
+  draftRetire();
+  const seq = draftSeq;
+  if (!on){ el.style.display = "none"; gate(); return; }
   el.style.display = "block";
-  const blob = draftRules();
-  if (!blob){
-    el.innerHTML = 'The Rules editor is empty. <a href="rules.html" style="color:var(--mark)">Write some rules first &rarr;</a>';
+  const text = draftText();
+  const lead = changed ? "The draft changed in the Rules editor; this is the new one. " : "";
+  if (!text.trim()){
+    el.innerHTML = esc(lead) + 'The Rules editor is empty. <a href="rules.html" class="lnk">Write some rules first</a>.';
+    gate();
     return;
   }
-  el.textContent = "checking the editor's rules against the engine…";
+  el.textContent = lead + "Checking the draft against the engine…";
+  gate();
+  draftChecking = text;
   const fd = new FormData();
-  fd.append("rules", blob, "draft.fin");
-  try {
-    const b = await (await fetch("/rules/validate", {method:"POST", body:fd})).json();
-    if (b.ok){
-      const names = b.rule_names.slice(0, 4).join(", ");
-      el.innerHTML = `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
-        (names ? ` (${esc(names)}${b.rule_count > 4 ? ", …" : ""})` : "") +
-        ` &mdash; autosaved in this browser; runs even if never saved to a .fin file.`;
-    } else {
-      el.innerHTML = `<span style="color:var(--pink)">The editor's rules do not parse.</span> ` +
-        `<a href="rules.html" style="color:var(--mark)">Fix them on the Rules screen &rarr;</a>`;
-    }
-  } catch(e){ el.textContent = String(e); }
+  fd.append("rules", new Blob([text], {type:"text/plain"}), "draft.fin");
+  const ctl = new AbortController();
+  const limit = setTimeout(() => ctl.abort(new Error(`no answer within ${DRAFT_LIMIT_MS / 1000} s`)), DRAFT_LIMIT_MS);
+  let r = null, b = null, err = null;
+  try { r = await fetch("/rules/validate", {method:"POST", body:fd, signal:ctl.signal}); b = await flJson(r); }
+  catch(e){ err = e; }
+  clearTimeout(limit);
+  // a reply is used only while it is the latest check and its text is still the
+  // draft; if the draft changed with no newer check under way, describe the new one
+  if (seq !== draftSeq) return;
+  draftChecking = null;
+  if (draftText() !== text){ describeDraft(true, true); return; }
+  // only the API's own shape is an answer; any other reply is unreadable. And a
+  // success must name every rule it counts (flRuleNames, wb.js: the engine's
+  // structured rules, never the CLI-printout rule_names that dropped "...Fuel" -
+  // Codex, re-check of b198f9b)
+  if (!err && r.ok){
+    if (!(b && typeof b.ok === "boolean" && (!b.ok || typeof b.rule_count === "number")))
+      err = new Error(`HTTP ${r.status}, not a FinLang reply`);
+    else if (b.ok && !flRuleNames(b))
+      err = new Error("the reply did not name the rules it counted");
+  }
+  const again = ' <button type="button" class="lnk" id="draft_retry">Retry preview</button>';
+  if (err) el.innerHTML = esc(lead + flUnreachable(err)) + again;
+  else if (!r.ok) el.innerHTML = esc(lead + flFailure(b, r.status)) + again;
+  else if (b.ok){
+    const names = flRuleNames(b).slice(0, 4).join(", ");   // shown as written, spacing kept
+    el.innerHTML = esc(lead) + `<b style="color:var(--green)">${b.rule_count} rule(s)</b> from the Rules editor` +
+      (names ? ` (<span style="white-space:pre-wrap">${esc(names)}</span>${b.rule_count > 4 ? ", …" : ""})` : "") +
+      `. Autosaved in this browser; runs even if never saved to a .fin file.`;
+    state.draftReady = text;           // described, successfully, exactly as it will be sent
+  } else {
+    // the engine's own reason: a refusal is not always the rules failing to parse
+    el.innerHTML = esc(lead) + `<span style="color:var(--pink)">The engine did not accept the draft:</span> ` +
+      `${esc(b.error || "it gave no reason")} <a href="rules.html" class="lnk">Open the Rules screen</a>.`;
+  }
+  gate();
+  if (retry) ($("draft_retry") || el).focus();   // keyboard users stay with the answer
 }
+// Retry preview checks the draft as it is now; it never starts a run
+$("draft_info").addEventListener("click", e => { if (e.target.id === "draft_retry") describeDraft(true, false, true); });
+// another tab saved a different draft: withdraw the description at once, and
+// check the new text once the editing pauses (not if that text is already
+// being checked or described: a back/forward restore delivers the event late)
+addEventListener("storage", e => {
+  if ((e.key !== "finlang_rules_draft" && e.key !== null) || $("rules_mode").value !== "draft") return;
+  if (draftText() === draftChecking || draftText() === state.draftReady) return;
+  draftRetire();
+  $("draft_info").textContent = "The draft changed in the Rules editor; it is checked once the editing pauses.";
+  gate();
+  draftTimer = setTimeout(() => describeDraft(true, true), DRAFT_QUIET_MS);
+});
 // the dropdown asks the engine, so it can never lie again (GET /rulepacks
 // serves the CLI's own PACK_MAP); the hardcoded list below is the fallback
 // for the file:// case only.
 fetch("/rulepacks").then(r=>r.json()).then(b=>{
   const s = $("include_pack"); s.innerHTML = "";
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
-}).catch(()=>{});
-function draftRules(){
-  const t = localStorage.getItem("finlang_rules_draft") || "";
-  return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
-}
+}).catch(() => { $("include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
+function draftText(){ return localStorage.getItem("finlang_rules_draft") || ""; }
 // gaps.html's "re-run with updated rules" arrives as ?rules=draft
 if (new URLSearchParams(location.search).get("rules") === "draft"){
   $("rules_mode").value = "draft";
@@ -274,110 +288,267 @@ $("reconcile").onchange = e => {
   $("audit_mode").disabled = on;
   if (on) $("audit_mode").value = "full";
   $("rec_forces").textContent = on ?
-    "audit is locked to full: the mismatch reasoning comes from the audit trail" : "";
+    "Locked to full while comparing: the reason for each disagreement comes from the audit trail." : "";
   gate();
 };
+/* How rows are paired. The engine offers three, and refuses mixtures: the
+   identity check and key matching are mutually exclusive, and a date format
+   is rejected (exit 2) unless one of them is on - so the columns and
+   date-format fields exist only while a mode that reads them is chosen. */
+const ALIGN_NOW = {rows: "row by row (the default)",
+                   identity: "row by row, checking each pair",
+                   key: "by key columns"};
+function alignMode(){ return document.querySelector("input[name=rec_align]:checked").value; }
+document.querySelectorAll("input[name=rec_align]").forEach(r => r.onchange = () => {
+  const m = alignMode();
+  $("rec_align_now").textContent = ALIGN_NOW[m];
+  $("rec_cols").classList.toggle("off", m === "rows");
+  if (m !== "rows" && !$("rec_key").value.trim()) $("rec_key").value = "date,amount,counterparty";
+  gate();
+});
+$("rec_key").oninput = gate;
+/* The browser restores ticked boxes, radios and selects on Back without firing
+   their change handlers, so labels and visibility derived from them went out of
+   step with what a run would send. Re-derive everything from the inputs. */
+function syncForm(){
+  ["rules_mode", "verify", "reconcile"].forEach(id => $(id).dispatchEvent(new Event("change")));
+  const r = document.querySelector("input[name=rec_align]:checked");
+  if (r) r.dispatchEvent(new Event("change"));
+}
+addEventListener("pageshow", syncForm);
 ["input_csv","rules_file","ml_csv"].forEach(id => $(id).onchange = gate);
 function gate(){
+  if (state.busy){ $("go").disabled = true; return; }   // one run at a time
   const m = $("rules_mode").value;
-  const rulesOk = m==="pack" || (m==="draft" ? !!draftRules() : $("rules_file").files.length);
-  const recOk = !$("reconcile").checked || $("ml_csv").files.length;
+  // the draft only once it has been described, successfully, as it would be sent
+  const rulesOk = m==="pack" || (m==="draft" ? state.draftReady != null && state.draftReady === draftText()
+                                             : $("rules_file").files.length);
+  const recOk = !$("reconcile").checked ||
+    ($("ml_csv").files.length && (alignMode()==="rows" || $("rec_key").value.trim()));
   $("go").disabled = !($("input_csv").files.length && rulesOk && recOk);
 }
 
+/* drag a file onto the drop zone: same as choosing it */
+const drop = $("drop");
+["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, () => drop.classList.remove("over")));
+drop.addEventListener("drop", e => {
+  e.preventDefault();
+  if (!e.dataTransfer.files.length) return;
+  $("input_csv").files = e.dataTransfer.files;
+  $("input_csv").dispatchEvent(new Event("change"));
+});
+
 /* ---------- run ---------- */
+/* What a run uses is fixed when it starts. Both requests, the provenance handed
+   to Find gaps and the run log read this snapshot, never the live controls:
+   picking different rules mid-run sent the NEW rules to the comparison, so
+   results from two rule sets were compared as one (Codex, 31 Oct). */
+function snapshot(){
+  const rm = $("rules_mode").value;
+  return {
+    input: $("input_csv").files[0], rulesMode: rm, rulesFile: $("rules_file").files[0] || null,
+    pack: $("include_pack").value,
+    draft: rm === "draft" ? new Blob([state.draftReady], {type:"text/plain"}) : null,   // the text that earned Run
+    map: $("map_file").files[0] || null, dayfirst: $("dayfirst").value, decimal: $("decimal").value,
+    thousands: $("thousands").value, encoding: $("encoding").value, audit: $("audit_mode").value,
+    verify: $("verify").checked, verifyKind: $("verify_kind").value, verifyHtml: $("verify_html").checked,
+    reconcile: $("reconcile").checked, ml: $("ml_csv").files[0] || null, recHtml: $("rec_html").checked,
+    align: alignMode(), recKey: $("rec_key").value.trim(), recDate: $("rec_datefmt").value.trim(),
+  };
+}
+function addRules(fd, R){
+  if (R.rulesMode === "file") fd.append("rules", R.rulesFile);
+  else if (R.rulesMode === "draft") fd.append("rules", R.draft, "workbench_draft.fin");
+  else fd.append("include_pack", R.pack);
+}
+function addLocale(fd, R){
+  if (R.map) fd.append("map_file", R.map);
+  if (R.dayfirst) fd.append("dayfirst", "true");
+  if (R.decimal) fd.append("decimal", R.decimal);
+  if (R.thousands) fd.append("thousands", R.thousands);
+  if (R.encoding) fd.append("encoding", R.encoding);
+}
 $("f").onsubmit = async ev => {
   ev.preventDefault();
+  if (state.busy) return;
+  // the draft is not the text last described successfully (it changed with no
+  // change event, say): describe it again; the user runs what they can see
+  if ($("rules_mode").value === "draft" && state.draftReady !== draftText()){
+    describeDraft(true, true);
+    return;
+  }
+  const R = state.run = snapshot();
+  state.busy = true;
   $("go").disabled = true; $("spin").style.display = "block";
-  state.t0 = Date.now();
+  state.t0 = Date.now(); state.recTried = false;   // a failed run must not show the last run's comparison
   const tick = setInterval(()=>{$("elapsed").textContent =
     Math.round((Date.now()-state.t0)/1000)+"s";}, 500);
   try {
     const fd = new FormData();
-    fd.append("input_csv", $("input_csv").files[0]);
-    const rm = $("rules_mode").value;
-    if (rm==="file") fd.append("rules", $("rules_file").files[0]);
-    else if (rm==="draft") fd.append("rules", draftRules(), "workbench_draft.fin");
-    else fd.append("include_pack", $("include_pack").value);
-    if ($("map_file").files.length) fd.append("map_file", $("map_file").files[0]);
-    if ($("dayfirst").value) fd.append("dayfirst","true");
-    if ($("decimal").value) fd.append("decimal", $("decimal").value);
-    if ($("thousands").value) fd.append("thousands", $("thousands").value);
-    if ($("encoding").value) fd.append("encoding", $("encoding").value);
-    fd.append("audit_mode", $("audit_mode").value);
-    fd.append("return_audit", $("audit_mode").value === "none" ? "false" : "true");
-    if ($("verify").checked){
-      fd.append($("verify_kind").value==="full" ? "verify_full" : "verify", "true");
-      if ($("verify_html").checked) fd.append("verify_html","true");
+    fd.append("input_csv", R.input);
+    addRules(fd, R); addLocale(fd, R);
+    fd.append("audit_mode", R.audit);
+    fd.append("return_audit", R.audit === "none" ? "false" : "true");
+    if (R.verify){
+      fd.append(R.verifyKind==="full" ? "verify_full" : "verify", "true");
+      if (R.verifyHtml) fd.append("verify_html","true");
     }
     const r = await fetch("/process", {method:"POST", body:fd});
-    const body = await r.json();
+    const body = await flJson(r);
     if (!r.ok) return fail(body);
     state.resp = body; state.audit = body.audit || null;
+    state.auditMode = R.audit;
 
     /* reconcile = a second call: /reconcile has no verify passthrough, so the
        Workbench mirrors the CLI reality of one flag-set per concern. The run
        log shows both invocations. */
     state.rec = null;
-    if ($("reconcile").checked){
+    state.recTried = R.reconcile;
+    if (R.reconcile){
       const fr = new FormData();
-      fr.append("input_csv", $("input_csv").files[0]);
-      fr.append("ml_output_csv", $("ml_csv").files[0]);
-      if (rm==="file") fr.append("rules", $("rules_file").files[0]);
-      else if (rm==="draft") fr.append("rules", draftRules(), "workbench_draft.fin");
-      else fr.append("include_pack", $("include_pack").value);
-      if ($("map_file").files.length) fr.append("map_file", $("map_file").files[0]);
-      if ($("dayfirst").value) fr.append("dayfirst","true");
-      if ($("decimal").value) fr.append("decimal", $("decimal").value);
-      if ($("thousands").value) fr.append("thousands", $("thousands").value);
-      if ($("encoding").value) fr.append("encoding", $("encoding").value);
-      if ($("rec_html").checked) fr.append("reconcile_html","true");
-      if ($("rec_key").value) fr.append("reconcile_key", $("rec_key").value);
-      if ($("rec_datefmt").value) fr.append("reconcile_date_format", $("rec_datefmt").value);
-      const r2 = await fetch("/reconcile", {method:"POST", body:fr});
-      const b2 = await r2.json();
-      if (!r2.ok) return fail(b2);
-      state.rec = b2;
+      fr.append("input_csv", R.input);
+      fr.append("ml_output_csv", R.ml);
+      addRules(fr, R); addLocale(fr, R);
+      if (R.recHtml) fr.append("reconcile_html","true");
+      if (R.align !== "rows"){
+        fr.append(R.align==="key" ? "reconcile_key" : "reconcile_identity_fields", R.recKey);
+        if (R.recDate) fr.append("reconcile_date_format", R.recDate);
+      }
+      // the categorisation succeeded: a comparison that can't be reached is a
+      // stopped comparison, not a failed run
+      let r2, b2;
+      try { r2 = await fetch("/reconcile", {method:"POST", body:fr}); b2 = await flJson(r2); }
+      catch (e){ flStatus(); render({detail: flUnreachable(e)}); return; }
+      state.rec = r2.ok ? b2 : null;
+      if (!r2.ok){ render(b2); return; }   // categorised fine; the comparison stopped
     }
     render();
   } catch(e){
-    fail({detail: String(e)});
+    flStatus();
+    fail({detail: flUnreachable(e)});
   } finally {
     clearInterval(tick);
-    $("spin").style.display="none"; gate();
+    $("spin").style.display="none"; state.busy = false; gate();
   }
 };
 
-function fail(body){
-  const d = typeof body.detail==="string" ? body.detail : JSON.stringify(body.detail, null, 2);
-  banner("failed", "Run failed", d);
+function fail(body, head){
+  const det = body.detail;
+  const d = typeof det==="string" ? det
+          : det && det.stderr ? det.stderr : JSON.stringify(det, null, 2);
+  // the banner says why in the engine's own words: its last FATAL line, else
+  // the API's short message. The full engine output stays in the tab below.
+  banner("failed", head || "Run failed", flReason(body));
   // dropped rows / missing columns are locale problems - open the block for them
-  if (/Dropped|Missing required columns|delimiter/i.test(d)) $("locale").open = true;
-  setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`]]);
+  if (/Dropped|Missing required columns|delimiter|codec can't decode/i.test(d)) $("locale").open = true;
+  if (/codec can't decode/i.test(d))
+    $("banner").insertAdjacentHTML("beforeend", '<div class="note">The file isn\'t in the expected text encoding. ' +
+      "Set <b>Encoding</b> under <b>My file isn't a UK/US-style CSV</b> (for example cp1252 for older Windows exports) and run again.</div>");
+  setTabs([["engine output", `<pre class="log">${esc(d)}</pre>`], ["run log", logTab()]]);
+  showResults();
+  $("banner").focus();
 }
 
-function banner(cls, head, small){
+function banner(cls, head, small, tags, note){
   const b = $("banner");
   b.className = cls;
-  b.innerHTML = `<b>${esc(head)}</b>` + (small?`<small>${esc(small)}</small>`:"");
+  b.innerHTML = `<b>${esc(head)}</b>` + (small?`<small>${esc(small)}</small>`:"") +
+    (tags && tags.length ? `<div class="tags">${tags.join("")}</div>` : "") +
+    (note ? `<div class="note">${note}</div>` : "");
+}
+function tag(cls, text){ return `<span class="tag ${cls}">${esc(text)}</span>`; }
+function showResults(){
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  $("results").scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
 }
 
 /* ---------- results ---------- */
-function render(){
+function render(stopped){
   const p = state.resp, rec = state.rec;
   const ex = Math.max(p.stats.exit_code, rec ? rec.stats.exit_code : 0);
-  const bits = [`${p.stats.rows_out} rows categorised in ${p.stats.duration_seconds}s`];
-  if (p.verify_report) bits.push("verify ran");
-  if (rec) bits.push(rec.stats.mismatches_found ? "reconcile found disagreements" : "reconcile: all rows agree");
-  if (ex===0) banner("clean","Clean", bits.join(" · "));
-  else if (ex===3) banner("findings","Findings — the product working, not failing", bits.join(" · "));
-  else banner("failed", `Exit ${ex}`, bits.join(" · "));
+  state.ledger = buildLedger(p, rec);
+  const L = state.ledger, tags = [];
+  if (rec && rec.summary){
+    tags.push(tag("agree", `${rec.summary.matches} agree with the other system`));
+    if (rec.summary.mismatches) tags.push(tag("differs", `${rec.summary.mismatches} differ`));
+    const orph = (L && L.orph.size) || 0;
+    if (orph) tags.push(tag("differs", `${orph} with no match in their file`));
+    // rows ONLY the other system has: not in FinLang's output, so not in the
+    // ledger - an extra row must never read as agreement
+    const theirs = Number(rec.summary.orphans_ml_count) || 0;
+    if (theirs) tags.push(tag("differs", `${theirs} only in their file`));
+  }
+  if (L && L.ok){
+    const none = L.rows.filter(r => !(r[L.ci.cat] || "").trim()).length;
+    if (none) tags.push(tag("review", `${none} with no category`));
+  }
+  if (L && L.nFlagged) tags.push(tag("review", `${L.nFlagged} flagged by a rule`));
+  if (L && L.nMulti) tags.push(tag("info", state.auditMode === "lite"
+      ? `${L.nMulti} changed by more than one rule` : `${L.nMulti} matched more than one rule`));
+  if (p.verify_report){
+    const vs = String(p.verify_report.status || "").toUpperCase();
+    tags.push(vs === "PASS" ? tag("agree", "Verify: nothing underneath changed")
+            : vs === "FAIL" ? tag("differs", "Verify: data changed, see the verify report")
+            : tag("info", "Verify ran: see the verify report"));
+  }
+  const dur = Number(p.stats.duration_seconds);
+  const nCat = L && L.ok ? L.rows.filter(r => (r[L.ci.cat] || "").trim()).length : null;
+  const small = `${p.stats.rows_out} rows processed in ${isFinite(dur) ? dur.toFixed(2) : p.stats.duration_seconds}s` +
+    (nCat === null ? "." : `; ${nCat} categorised.`);
+  // the engine assumed the other system's date convention: say so where the
+  // results are read, in the engine's own words, not only in the run log
+  const dateNote = (stderr, stopped) => {
+    const w = String(stderr || "").split("\n");
+    const k = w.findIndex(l => /^WARNING: every date/.test(l));
+    if (k < 0) return "";
+    const para = [w[k]].concat(w.slice(k + 1).filter((l, j, a) =>
+                   /^\s+\S/.test(l) && a.slice(0, j).every(x => /^\s+\S/.test(x))))
+                 .filter(l => !stopped || !/reconcile_report\.json/.test(l));   // a stop writes no report
+    return esc(para.map(l => l.trim()).join(" ")) +
+      " <b>Set the other system's date format under How rows are paired</b> and run again.";
+  };
+  let note = "";
+  const conv = rec && rec.summary && rec.summary.ml_date_convention;
+  if (conv && conv.mode === "assumed")
+    note = dateNote(rec.stderr) || "The other system's dates read either way, so FinLang assumed month-first. " +
+      "<b>Set the other system's date format under How rows are paired</b> and run again.";
+  if (L && L.capped)
+    note = (note ? note + "<br>" : "") + `The audit trail stopped at its limit of ${L.capped} entries, so the rule ` +
+      "behind each category isn't shown: rules that ran after the limit weren't recorded for any row. " +
+      "To record more, start finlang-ui with <code>FINLANG_AUDIT_MAX</code> set higher (for example 100000).";
+  if (stopped){
+    const why = flReason(stopped);
+    const sErr = stopped.detail && stopped.detail.stderr;
+    // Advice follows the CAUSE of the stop. The ambiguous-date warning is only
+    // relevant where dates were compared and could explain it: an identity
+    // check on rows that look misaligned may be a wrong date convention OR a
+    // different row order - the page cannot tell, so it offers both.
+    const keyAdvice = "If the rows are in a different order, choose <b>Match on key columns</b> under How rows are paired.";
+    let advice = "";
+    if (/identity check failed/i.test(why))
+      advice = dateNote(sErr, true) ? dateNote(sErr, true) + " " + keyAdvice : keyAdvice;
+    else if (/row count mismatch/i.test(why))
+      advice = "Row by row needs the same number of rows in both files. To compare files of different lengths, choose <b>Match on key columns</b> under How rows are paired.";
+    else if (/duplicate key/i.test(why))
+      advice = "Each row's key columns must be unique in both files. Add another column under How rows are paired so no two rows share a key.";
+    banner("failed", "Categorised. The comparison stopped", why, tags, advice);
+  }
+  // "Clean" claims a check passed; with no check run, say what happened
+  else if (ex===0) banner("clean", (rec || p.verify_report) ? "Clean" : "Categorised", small, tags, note);
+  else if (ex===3) banner("findings", "Findings — the product working, not failing", small, tags, note);
+  else banner("failed", `Exit ${ex}`, small, tags, note);
 
-  const tabs = [["rows", rowsTab(p)], ["key results", chartTab(p, rec)]];
+  const tabs = [["rows", rowsTab()], ["key results", chartTab(p, rec)]];
   if (p.verify_report_html) tabs.push(["verify report", iframeTab(p.verify_report_html)]);
   if (rec){
     if (rec.summary) tabs.push(["reconcile", recTab(rec)]);
     if (rec.report_html) tabs.push(["reconcile report", iframeTab(rec.report_html)]);
+  }
+  if (stopped){
+    const d = typeof stopped.detail === "string" ? stopped.detail
+            : (stopped.detail && stopped.detail.stderr) || JSON.stringify(stopped.detail, null, 2);
+    tabs.push(["comparison output", `<pre class="log">${esc(d)}</pre>`]);
   }
   tabs.push(["downloads", dlTab(p, rec)]);
   tabs.push(["run log", logTab()]);
@@ -391,12 +562,12 @@ function render(){
       localStorage.setItem("finlang_last_output", p.output_csv);
       // provenance for the Growth loop: WHICH rules produced this output.
       // Gaps only mean anything relative to the rules that ran.
-      const rm = $("rules_mode").value;
-      const rulesDesc = rm === "pack" ? `bundled pack: ${$("include_pack").value}`
-                      : rm === "draft" ? "your Workbench draft"
-                      : ($("rules_file").files[0] || {}).name || "a .fin file";
+      const R = state.run || {};
+      const rulesDesc = R.rulesMode === "pack" ? `bundled pack: ${R.pack}`
+                      : R.rulesMode === "draft" ? "your Workbench draft"
+                      : (R.rulesFile || {}).name || "a .fin file";
       localStorage.setItem("finlang_last_run_desc", JSON.stringify({
-        input: ($("input_csv").files[0] || {}).name || "input.csv",
+        input: (R.input || {}).name || "input.csv",
         rules: rulesDesc,
         when: new Date().toISOString().slice(0, 16).replace("T", " "),
       }));
@@ -406,6 +577,233 @@ function render(){
     }
   } catch(e){ /* quota - the file path still works */ }
   $("gapslink").style.display = "block";
+  showResults();
+  $("banner").focus();
+}
+
+/* The ledger joins three things the engine returned, presentationally only:
+   the output rows, the audit entries (all of them per row, in order), and -
+   when a comparison ran - which rows the other system disagreed on or lacked.
+   The downloadable artefacts are the engine's own, untouched. */
+function buildLedger(p, rec){
+  const lines = flCsvRows(p.output_csv);
+  const head = lines[0] || [], rows = lines.slice(1);
+  const col = n => head.indexOf(n);
+  const ci = {date: col("date"), amount: col("amount"), cp: col("counterparty"), memo: col("memo"),
+              cat: col("category"), flags: col("flags"), status: col("status")};
+  const byIdx = new Map();
+  (state.audit || []).forEach(e => {
+    if (e.index === undefined) return;                 // the engine's cap marker, not a row
+    if (!byIdx.has(e.index)) byIdx.set(e.index, []);
+    byIdx.get(e.index).push(e);
+  });
+  // Past its entry limit the engine stops recording for EVERY row and appends
+  // {"message": "Audit log capped at N entries."}. Rules that ran after the
+  // limit are missing everywhere, so no row's "deciding rule" can be vouched for.
+  const capMsg = (state.audit || []).find(e => e && e.index === undefined && /capped/i.test(String(e.message || "")));
+  const capped = capMsg ? ((String(capMsg.message).match(/\d+/) || ["its"])[0]) : null;
+  const mism = new Map(), orph = new Set();
+  if (rec && rec.mismatches_csv){
+    const M = flCsvRows(rec.mismatches_csv), mh = M[0] || [];
+    const rn = mh.indexOf("row_number"), ml = mh.indexOf("ml_category"), df = mh.indexOf("differing_fields");
+    M.slice(1).forEach(r => { if (rn >= 0 && r[rn]) mism.set(+r[rn], ml >= 0 ? r[ml] : (df >= 0 ? r[df] : "")); });
+  }
+  if (rec && rec.orphans_finlang_csv){
+    const O = flCsvRows(rec.orphans_finlang_csv), oh = O[0] || [];
+    const rn = oh.indexOf("row_number");
+    O.slice(1).forEach(r => { if (rn >= 0 && r[rn]) orph.add(+r[rn]); });
+  }
+  // The full trail lists each rule's actions (`set`) - including an assignment
+  // that left the value as it was, which `changes` records as nothing. Only the
+  // light trail, which has no actions, falls back to recorded changes.
+  const isCatAction = s => /^\s*category\s*\+?=/i.test(s);
+  const setsCat = e => Array.isArray(e.set) ? e.set.some(isCatAction)
+                     : !!(e.changes && "category" in e.changes);
+  // "the rule that decided it" is the LAST rule that set the category - not
+  // the last rule that matched (flag-only rules often run last). The ledger,
+  // Every column and the drawer all read it from here.
+  const catRule = ents => { const c = ents.filter(setsCat); return c.length ? c[c.length - 1] : null; };
+  let nFlagged = 0, nMulti = 0;
+  rows.forEach((r, i) => {
+    if (ci.flags >= 0 && (r[ci.flags] || "").trim()) nFlagged++;
+    if (!capped && (byIdx.get(i) || []).length > 1) nMulti++;   // unknowable once capped
+  });
+  return {head, rows, ci, byIdx, mism, orph, rec: !!rec, setsCat, catRule, nFlagged, nMulti, capped,
+          ok: ci.cp >= 0 && ci.cat >= 0};
+}
+
+function fmtAmt(v){
+  const x = Number(v);
+  if (v === undefined || String(v).trim() === "" || !isFinite(x)) return esc(v ?? "");
+  return (x < 0 ? "−" : "") + Math.abs(x).toLocaleString("en-GB", {minimumFractionDigits: 2, maximumFractionDigits: 6});
+}
+
+function rowsTab(){
+  const L = state.ledger;
+  if (!L || !L.ok) return genericTable();
+  const chips = [`<button type="button" class="chip" data-f="all" aria-pressed="true">All ${L.rows.length}</button>`];
+  if (L.rec) chips.push(`<button type="button" class="chip" data-f="diff" aria-pressed="false">Differ or no match ${L.mism.size + L.orph.size}</button>`);
+  if (L.nFlagged) chips.push(`<button type="button" class="chip" data-f="flag" aria-pressed="false">Flagged ${L.nFlagged}</button>`);
+  if (L.nMulti) chips.push(`<button type="button" class="chip" data-f="multi" aria-pressed="false">More than one rule ${L.nMulti}</button>`);
+  chips.push(`<button type="button" class="chip end" data-f="cols" aria-pressed="false">Every column</button>`);
+  return `<div class="ledger-wrap"><div><div class="sheet-bar" role="group" aria-label="Show">${chips.join("")}</div>` +
+    `<div class="scroll" id="ledgerhost">${ledgerTable()}</div></div>` +
+    `<aside id="auditbox" aria-live="polite"><div class="ph">Select a row to see the rule behind its category.</div></aside></div>`;
+}
+function ledgerTable(){
+  const L = state.ledger, ci = L.ci;
+  let h = '<table class="rows ledger"><thead><tr><th>Date</th><th>Counterparty</th><th class="amt">Amount</th>' +
+    '<th>Category, and the rule that decided it</th>' + (L.rec ? "<th>Other system</th>" : "") + "</tr></thead><tbody>";
+  L.rows.forEach((r, i) => {
+    const ents = L.byIdx.get(i) || [];
+    const decider = L.catRule(ents);
+    const cat = (r[ci.cat] || "").trim();
+    const flags = ci.flags >= 0 ? (r[ci.flags] || "").split(/[;|,\s]+/).filter(Boolean) : [];
+    const diff = L.mism.has(i + 1), orphan = L.orph.has(i + 1);
+    const f = [diff || orphan ? "diff" : "", flags.length ? "flag" : "", ents.length > 1 ? "multi" : ""].join(" ");
+    h += `<tr data-i="${i}" data-f="${f}" tabindex="0"${diff || orphan ? ' class="mismatch"' : ""}>` +
+      `<td class="date">${esc(ci.date >= 0 ? r[ci.date] : "")}</td>` +
+      `<td><div class="cp">${esc(r[ci.cp])}</div>${ci.memo >= 0 && r[ci.memo] ? `<div class="memo">${esc(r[ci.memo])}</div>` : ""}</td>` +
+      `<td class="amt">${ci.amount >= 0 ? fmtAmt(r[ci.amount]) : ""}</td>` +
+      `<td class="rule" data-i="${i}"><div>${cat ? `<span class="cat">${esc(cat)}</span>` : '<span class="cat none">No category</span>'}` +
+        flags.map(x => ` <span class="tag review flag">${esc(x)}</span>`).join("") + "</div>" +
+        (L.capped ? '<span class="why-rule incomplete">rule not recorded (audit limit)</span>'
+         : decider ? `<span class="why-rule"${state.auditMode === "lite" ? ' title="The last rule that changed the category: the light audit trail records changes only"' : ""}>` +
+                     `${esc(decider.rule)}${ents.length > 1 ? `<span class="more">+${ents.length - 1}</span>` : ""}</span>` : "") +
+      "</td>" +
+      (L.rec ? `<td>${diff ? `<span class="model diff">${esc(L.mism.get(i + 1) || "differs")}</span>`
+                 : orphan ? '<span class="model">No match in their file</span>'
+                 : '<span class="model same">Same</span>'}</td>` : "") +
+      "</tr>";
+  });
+  return h + "</tbody></table>";
+}
+function genericTable(){
+  const p = state.resp, lines = flCsvRows(p.output_csv);
+  const head = lines[0] || [], rows = lines.slice(1);
+  const byIdx = {};
+  (state.audit||[]).forEach(e => { if (e.index !== undefined) (byIdx[e.index] = byIdx[e.index] || []).push(e); });
+  const catRule = state.ledger ? state.ledger.catRule : (ents => ents[ents.length - 1]);
+  let h = '<div class="scroll"><table class="rows generic"><thead><tr>' +
+    head.map(c=>`<th>${esc(c)}</th>`).join("") + (state.audit ? "<th>rule</th>" : "") + "</tr></thead><tbody>";
+  rows.forEach((r,i) => {
+    h += `<tr data-i="${i}"${state.ledger ? ' tabindex="0"' : ""}>` + r.map(c=>`<td>${esc(c)}</td>`).join("");
+    if (state.audit){
+      const e = byIdx[i] && !(state.ledger && state.ledger.capped) ? catRule(byIdx[i]) : null;
+      h += e ? `<td class="rule" data-i="${i}">${esc(e.rule)}</td>` : "<td></td>";
+    }
+    h += "</tr>";
+  });
+  return h + "</tbody></table></div>";
+}
+
+/* "Why this category": every rule that matched the row, in the order it ran. */
+function showWhy(i){
+  const L = state.ledger, box = $("auditbox");
+  if (!L || !box) return;
+  const r = L.rows[i], ci = L.ci, ents = L.byIdx.get(i) || [];
+  document.querySelectorAll("table.ledger tr.picked").forEach(t => t.classList.remove("picked"));
+  const tr = document.querySelector(`table.ledger tr[data-i="${i}"]`);
+  if (tr) tr.classList.add("picked");
+  const cat = (r[ci.cat] || "").trim();
+  const catSetters = ents.filter(L.setsCat);
+  const lastSetter = L.catRule(ents);
+  // `category += "x"` builds on what an earlier rule set; only `=` replaces it.
+  // The full trail records the operator; the light one only old/new values.
+  // Only the full trail records the operator (its `set` strings); the light
+  // trail keeps old/new values, which cannot tell "= longer value" from "+=".
+  // Where it is unknown, say so rather than pick the reassuring reading.
+  // the engine lower-cases field names, so match the operator in any case
+  const isAppendOp = s => /^\s*category\s*\+=/i.test(s);
+  const isSetOp = s => /^\s*category\s*=/i.test(s);
+  const opOf = e => {
+    // one `=` anywhere in the rule replaces what came before, even if it then adds
+    if (e.set) return e.set.some(isSetOp) ? "replace" : e.set.some(isAppendOp) ? "append" : "replace";
+    const c = e.changes && e.changes.category;
+    return c && c.old && String(c.new ?? "").startsWith(c.old) ? "unknown" : "replace";
+  };
+  const appends = e => opOf(e) === "append";
+  const opUnknown = catSetters.slice(1).some(e => opOf(e) === "unknown");
+  const replacedAt = k => !opUnknown && catSetters.some(e => ents.indexOf(e) > k && !appends(e));
+  const lite = state.auditMode === "lite", capped = !!L.capped;
+  let why;
+  if (!state.audit) why = "The audit trail was off for this run, so the rule behind each row wasn't recorded. Turn it on under Checks and run again.";
+  else if (capped) why = `The audit trail reached its limit (${L.capped} entries) before every rule was recorded, so this list can be missing rules that ran later - including the one that decided this category. Start finlang-ui with FINLANG_AUDIT_MAX set higher to record them all.`;
+  else if (!ents.length) why = lite
+      // the light trail leaves out rules that matched without changing anything,
+      // so an empty one cannot say that nothing matched (Codex re-check)
+      ? "The light audit trail recorded no changes for this row. It leaves out rules that matched without changing anything, so a rule may still have matched. Run with the full audit trail to see every match."
+      : cat
+      ? "This row has a category, but the audit trail has no entry for it. The trail may have reached its size limit on a large file."
+      : "No rule matched this row, so it has no category. Find gaps can draft a rule for it.";
+  else if (lite) why = (ents.length === 1 ? "One rule changed this row." : `${ents.length} rules changed this row.`) +
+      " The light audit trail records only rules that changed something; rules that matched without changing anything aren't listed.";
+  else if (ents.length === 1) why = "One rule matched this row.";
+  else why = `${ents.length} rules matched this row. Rules run in file order, and the last one to set a field wins.`;
+
+  const items = ents.map((e, k) => {
+    const over = !capped && L.setsCat(e) && replacedAt(k);
+    const conds = (e.match || []).map(c => `<code>${esc(c)}</code>`).join("<br>");
+    let eff = "";
+    if (e.changes && Object.keys(e.changes).length){
+      eff = Object.entries(e.changes).map(([f, d]) =>
+        `Set ${esc(f)} to <b>${esc(d.new ?? "(empty)")}</b>` + (d.old != null && d.old !== "" ? ` (was ${esc(d.old)})` : "")).join("; ") + ".";
+    } else if (e.set && e.set.length){
+      eff = e.set.map(s => `<code>${esc(s)}</code>`).join(" ");
+    } else if (e.changes){
+      eff = "Matched, but changed nothing.";
+    }
+    if (over) eff += " Replaced by a later rule.";
+    else if (!capped && !opUnknown && L.setsCat(e) && appends(e) && catSetters.indexOf(e) > 0) eff += " Added to the category an earlier rule set.";
+    return `<li class="${over ? "over" : ""}"><span class="n">${k + 1}</span><div>` +
+      `<div class="rn">${esc(e.rule)}</div>${conds ? `<div>${conds}</div>` : ""}` +
+      (eff ? `<div class="eff">${eff}</div>` : "") + "</div></li>";
+  }).join("");
+
+  const notes = [];
+  if (capped) {}                                    // nothing about setters can be vouched for
+  else if (opUnknown)
+    notes.push(`<div class="note">More than one rule set the category. The light audit trail doesn't record whether a later rule replaced it or added to it: run with the full audit trail to see which.</div>`);
+  else if (catSetters.length > 1 && catSetters.slice(1).every(appends))
+    notes.push(`<div class="note">Later rules added to the category an earlier rule set; nothing was replaced.</div>`);
+  else if (catSetters.length > 1) notes.push(`<div class="note">More than one rule set the category. The earlier ${catSetters.length > 2 ? "patterns also match" : "pattern also matches"} this row; check that's intended.</div>`);
+  if (L.mism.has(i + 1)) notes.push(`<div class="note rec">The other system said <b>${esc(L.mism.get(i + 1) || "something different")}</b>.</div>`);
+  else if (L.orph.has(i + 1)) notes.push(`<div class="note rec">No row in the other system's file matched this one.</div>`);
+
+  const known = new Set(["date","amount","counterparty","memo","category"]);
+  const extra = L.head.map((h, k) => [h, r[k]]).filter(([h, v]) => !known.has(h) && v !== undefined && String(v).trim() !== "");
+  const amt = ci.amount >= 0 ? fmtAmt(r[ci.amount]) : "";
+  box.innerHTML =
+    `<header><h3>Why this category</h3><div class="who">Row ${i + 1}: ${esc(r[ci.cp])}${amt ? `, ${amt}` : ""}</div></header>` +
+    `<div class="verdict"><div class="vc">${cat ? esc(cat) : "No category"}</div><p>${why}</p></div>` +
+    (items ? `<ol>${items}</ol>` : "") + notes.join("") +
+    (extra.length ? `<dl>${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : "") +
+    `<footer><button type="button" class="ghost" id="copywhy">Copy explanation</button></footer>`;
+  if (matchMedia("(max-width: 1120px)").matches){
+    const t = box.getBoundingClientRect().top;
+    if (t < 0 || t > innerHeight - 120){
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      box.scrollIntoView({behavior: reduce ? "auto" : "smooth", block: "start"});
+    }
+  }
+  state.whyText = [`Row ${i + 1}: ${r[ci.cp]}${amt ? ", " + amt.replace("−", "-") : ""}`, `Category: ${cat || "none"}`, why]
+    .concat(ents.map((e, k) => `${k + 1}. ${e.rule}${(e.match || []).length ? " — " + e.match.join(" and ") : ""}`)).join("\n");
+}
+
+function setFilter(f){
+  document.querySelectorAll(".sheet-bar .chip[data-f]").forEach(c => {
+    if (c.dataset.f !== "cols") c.setAttribute("aria-pressed", String(c.dataset.f === f));
+  });
+  document.querySelectorAll("table.ledger tbody tr").forEach(tr => {
+    tr.style.display = f === "all" || (tr.dataset.f || "").split(" ").includes(f) ? "" : "none";
+  });
+}
+function toggleCols(btn){
+  const on = btn.getAttribute("aria-pressed") !== "true";
+  btn.setAttribute("aria-pressed", String(on));
+  $("ledgerhost").innerHTML = on ? genericTable() : ledgerTable();
+  document.querySelectorAll(".sheet-bar .chip[data-f]").forEach(c => { if (c.dataset.f !== "cols") c.disabled = on; });
+  if (!on) setFilter("all");
 }
 
 function chartTab(p, rec){
@@ -415,44 +813,47 @@ function chartTab(p, rec){
   let h = "";
   if (ci >= 0)
     h += flDonut(flAggregate(lines.slice(1).map(r => r[ci])),
-                 {title: `categories · ${lines.length - 1} rows`,
+                 {title: `Categories, ${lines.length - 1} rows`,
                   centre: String(lines.length - 1)});
-  if (rec && rec.summary)
-    h += flDonut(
-      [{label: "agree", value: rec.summary.matches, color: "#3ad6a5"},
-       {label: "disagree", value: rec.summary.mismatches, color: "#f5b544"}],
-      {title: "reconcile · row by row vs your model", size: 150,
-       centre: `${Math.round(rec.summary.matches / rec.summary.total_rows * 100)}%`});
-  return h || '<span style="color:var(--dim)">no category column in the output</span>';
+  if (rec && rec.summary){
+    const s = rec.summary, unmatched = (+s.orphans_finlang_count || 0) + (+s.orphans_ml_count || 0);
+    const parts = [{label: "agree", value: s.matches, color: "#3ad6a5"},
+                   {label: "disagree", value: s.mismatches, color: "#ff7a85"}];
+    if (unmatched) parts.push({label: "no match", value: unmatched, color: "#f5b544"});
+    const all = parts.reduce((t, x) => t + (+x.value || 0), 0) || 1;
+    h += flDonut(parts, {title: pairedHow(s) + " with the other system", size: 150,
+                         centre: `${Math.round(s.matches / all * 100)}%`});
+  }
+  return h || '<span style="color:var(--muted)">No category column in the output.</span>';
 }
-function rowsTab(p){
-  const lines = flCsvRows(p.output_csv);
-  const head = lines[0], rows = lines.slice(1);
-  // join the audit reason by row index - presentational only; audit.json is the artefact
-  const byIdx = {};
-  (state.audit||[]).forEach(e => { byIdx[e.index] = e; });
-  let h = '<div class="scroll"><table class="rows"><thead><tr>' +
-    head.map(c=>`<th>${esc(c)}</th>`).join("") +
-    (state.audit ? "<th>rule</th>" : "") + "</tr></thead><tbody>";
-  rows.forEach((r,i) => {
-    h += "<tr>" + r.map(c=>`<td>${esc(c)}</td>`).join("");
-    if (state.audit){
-      const e = byIdx[i];
-      h += e ? `<td class="rule" data-i="${i}">&#8592; ${esc(e.rule)}</td>` : "<td></td>";
-    }
-    h += "</tr>";
-  });
-  return h + "</tbody></table></div>";
+function pairedHow(s){
+  const m = String(s.alignment_mode || "");
+  return m.startsWith("key:") ? `Matched on key columns (${m.slice(4).split(",").join(", ")})` : "Compared row by row";
+}
+function csvTable(csv){
+  const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
+  if (L.length < 2) return "";
+  return '<div class="scroll"><table class="rows generic"><thead><tr>' +
+    L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
+    L.slice(1).map(r=>"<tr>"+r.map(c=>`<td>${esc(c)}</td>`).join("")+"</tr>").join("") +
+    "</tbody></table></div>";
 }
 function recTab(rec){
   const s = rec.summary;
-  let h = `<p style="font-family:var(--mono);font-size:14px">${s.total_rows} rows compared · ` +
-    `<span style="color:var(--green)">${s.matches} agree</span> · ` +
-    `<span style="color:var(--amber)">${s.mismatches} do not</span>` +
-    (s.status?` · ${esc(s.status)}`:"") + "</p>";
+  const fl = +s.orphans_finlang_count || 0, ml = +s.orphans_ml_count || 0;
+  let h = `<p style="margin:0 0 12px">${esc(pairedHow(s))}: ${s.total_rows} ${s.total_rows === 1 ? "row" : "rows"} compared. ` +
+    `<span class="tag agree">${s.matches} agree</span> <span class="tag differs">${s.mismatches} do not</span>` +
+    (fl ? ` <span class="tag differs">${fl} with no match in their file</span>` : "") +
+    (ml ? ` <span class="tag differs">${ml} only in their file</span>` : "") +
+    (s.status?` <span class="tag info">${esc(s.status)}</span>`:"") + "</p>";
+  if (ml && rec.orphans_ml_csv)
+    h += `<h3 class="sub">Only in their file</h3>${csvTable(rec.orphans_ml_csv)}`;
+  if (fl && rec.orphans_finlang_csv)
+    h += `<h3 class="sub">No match in their file</h3>${csvTable(rec.orphans_finlang_csv)}`;
+  if (rec.mismatches_csv && (ml || fl)) h += '<h3 class="sub">Disagreements</h3>';
   if (rec.mismatches_csv){
     const L = flCsvRows(rec.mismatches_csv);
-    h += '<div class="scroll"><table class="rows"><thead><tr>' +
+    h += '<div class="scroll"><table class="rows generic"><thead><tr>' +
       L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>" +
       L.slice(1).map(r=>"<tr>"+r.map(c=>`<td>${esc(c)}</td>`).join("")+"</tr>").join("") +
       "</tbody></table></div>";
@@ -468,14 +869,17 @@ function dlTab(p, rec){
   if (p.verify_report) items.push(["verify_report.json", JSON.stringify(p.verify_report,null,2), "application/json"]);
   if (p.verify_report_html) items.push(["verify_report.html", p.verify_report_html, "text/html"]);
   if (rec){
+    // the API's summary IS the engine's reconcile_report.json
+    if (rec.summary) items.push(["reconcile_report.json", JSON.stringify(rec.summary, null, 2), "application/json"]);
     if (rec.mismatches_csv) items.push(["reconcile_mismatches.csv", rec.mismatches_csv, "text/csv"]);
     if (rec.report_html) items.push(["reconcile_report.html", rec.report_html, "text/html"]);
     if (rec.orphans_finlang_csv) items.push(["orphans_finlang.csv", rec.orphans_finlang_csv, "text/csv"]);
     if (rec.orphans_ml_csv) items.push(["orphans_ml.csv", rec.orphans_ml_csv, "text/csv"]);
   }
-  return items.map(([name, data, type]) =>
+  return '<p class="why" style="margin:0 0 12px">The engine\'s own files from this run, unchanged.</p><div class="dlrow">' +
+    items.map(([name, data, type]) =>
     `<a class="dl" download="${name}" href="${URL.createObjectURL(new Blob([data],{type}))}">${name}</a>`
-  ).join("");
+  ).join("") + "</div>";
 }
 function logTab(){
   // the UI teaching the CLI: the equivalent command for every run
@@ -488,75 +892,98 @@ function logTab(){
   // each malformed or lossy in the other), and the Workbench is local-only
   // (P2): the browser's OS IS the shell's OS, so pick the local convention.
   const WIN = /Windows/.test(navigator.userAgent);
-  const shq = s => /[^\w.\-]/.test(s) ? "'" + s.replace(/'/g, WIN ? "''" : "'\\''") + "'" : s;
-  const fname = id => { const f = $(id).files[0]; return f ? shq(f.name) : undefined; };
-  let c = "finlang --input " + (fname("input_csv")||"<your csv>");
-  c += $("rules_mode").value==="pack" ? ` --include-pack ${$("include_pack").value}`
-     : $("rules_mode").value==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname("rules_file")||"<your .fin>");
-  if ($("dayfirst").value) c += " --dayfirst";
-  if ($("decimal").value) c += ` --decimal ${shq($("decimal").value)}`;
-  if ($("thousands").value) c += ` --thousands ${shq($("thousands").value)}`;
-  if ($("map_file").files.length) c += " --map " + fname("map_file");
-  if ($("encoding").value) c += ` --encoding ${shq($("encoding").value)}`;
-  if ($("audit_mode").value !== "none") c += ` --audit audit.json --audit-mode ${$("audit_mode").value}`;
-  if ($("verify").checked){
-    c += $("verify_kind").value==="full" ? " --verify-full" : " --verify";
+  // PowerShell also treats U+2018-U+201B as quote marks (a curly apostrophe
+  // in a file name ended the quoting and the rest of the name ran on paste),
+  // so they are doubled too; to POSIX shells they are ordinary characters.
+  const shq = s => /[^\w.\-]/.test(s) ? "'" + (WIN ? s.replace(/['\u2018-\u201B]/g, "$&$&")
+                                                   : s.replace(/'/g, "'\\''")) + "'" : s;
+  // the command for the run as it was sent - the snapshot, not the live controls
+  const R = state.run || snapshot();
+  const fname = f => f ? shq(f.name) : undefined;
+  const rulesArg = R.rulesMode==="pack" ? ` --include-pack ${R.pack}`
+     : R.rulesMode==="draft" ? " --rules workbench_draft.fin" : " --rules " + (fname(R.rulesFile)||"<your .fin>");
+  let c = "finlang --input " + (fname(R.input)||"<your csv>") + rulesArg;
+  if (R.dayfirst) c += " --dayfirst";
+  if (R.decimal) c += ` --decimal ${shq(R.decimal)}`;
+  if (R.thousands) c += ` --thousands ${shq(R.thousands)}`;
+  if (R.map) c += " --map " + fname(R.map);
+  if (R.encoding) c += ` --encoding ${shq(R.encoding)}`;
+  if (R.audit !== "none") c += ` --audit audit.json --audit-mode ${R.audit}`;
+  if (R.verify){
+    c += R.verifyKind==="full" ? " --verify-full" : " --verify";
     c += " --verify-output-dir out/";
-    if ($("verify_html").checked) c += " --verify-html";
+    if (R.verifyHtml) c += " --verify-html";
   }
   c += " --output categorized.csv";
   a.push(c);
-  if (state.rec){
-    let r = "finlang --input " + (fname("input_csv")||"<your csv>") + " " +
-      ($("rules_mode").value==="pack" ? `--include-pack ${$("include_pack").value}` : "--rules " + (fname("rules_file")||"<your .fin>")) +
+  if (state.recTried){
+    let r = "finlang --input " + (fname(R.input)||"<your csv>") + rulesArg +
       " --output categorized.csv --audit audit.json --audit-mode full" +
-      ` --reconcile ${fname("ml_csv")||"<model output.csv>"} --reconcile-output-dir out/`;
+      ` --reconcile ${fname(R.ml)||"<model output.csv>"} --reconcile-output-dir out/`;
     // the reconcile call forwards the same locale/mapping options as /process,
     // so the reconcile command must show them too (encoding added SOL-112).
-    if ($("map_file").files.length) r += " --map " + fname("map_file");
-    if ($("dayfirst").value) r += " --dayfirst";
-    if ($("decimal").value) r += ` --decimal ${shq($("decimal").value)}`;
-    if ($("thousands").value) r += ` --thousands ${shq($("thousands").value)}`;
-    if ($("encoding").value) r += ` --encoding ${shq($("encoding").value)}`;
-    if ($("rec_html").checked) r += " --reconcile-html";
-    if ($("rec_key").value) r += ` --reconcile-key ${shq($("rec_key").value)}`;
-    if ($("rec_datefmt").value) r += ` --reconcile-date-format ${shq($("rec_datefmt").value)}`;
+    if (R.map) r += " --map " + fname(R.map);
+    if (R.dayfirst) r += " --dayfirst";
+    if (R.decimal) r += ` --decimal ${shq(R.decimal)}`;
+    if (R.thousands) r += ` --thousands ${shq(R.thousands)}`;
+    if (R.encoding) r += ` --encoding ${shq(R.encoding)}`;
+    if (R.recHtml) r += " --reconcile-html";
+    if (R.align !== "rows"){
+      r += ` ${R.align==="key" ? "--reconcile-key" : "--reconcile-identity-fields"} ${shq(R.recKey)}`;
+      if (R.recDate) r += ` --reconcile-date-format ${shq(R.recDate)}`;
+    }
     a.push(r);
   }
   const err = [state.resp && state.resp.stderr, state.rec && state.rec.stderr].filter(Boolean).join("\n");
   // name the shell the quoting targets: the OS sniff can't see CMD/Git
   // Bash/WSL, so the label states the contract instead of claiming "terminal"
-  return `<p style="font-size:13px;color:var(--muted)">The same run, ${WIN ? "in PowerShell" : "from a terminal"}:</p>` +
+  return `<p style="font-size:14px;color:var(--ink-2);margin:0 0 8px">The same run, ${WIN ? "in PowerShell" : "from a terminal"}:</p>` +
     `<pre class="log">${esc(a.join("\n\n"))}</pre>` +
-    (err?`<p style="font-size:13px;color:var(--muted)">Engine output:</p><pre class="log">${esc(err)}</pre>`:"");
+    (err?`<p style="font-size:14px;color:var(--ink-2);margin:14px 0 8px">Engine output:</p><pre class="log">${esc(err)}</pre>`:"");
 }
 
 /* ---------- plumbing ---------- */
 function setTabs(list){
   const T = $("tabs"), P = $("pane");
   T.innerHTML = ""; P.innerHTML = "";
+  T.setAttribute("role", "tablist");
   list.forEach(([name, html], i) => {
     const b = document.createElement("button");
     b.textContent = name; b.type = "button";
     b.className = i===0 ? "on" : "";
+    b.setAttribute("role", "tab"); b.setAttribute("aria-selected", String(i===0));
     const d = document.createElement("div");
     d.innerHTML = html; d.className = i===0 ? "on" : "";
+    d.setAttribute("role", "tabpanel"); d.setAttribute("aria-label", name);
     b.onclick = () => {
-      T.querySelectorAll("button").forEach(x=>x.className="");
+      T.querySelectorAll("button").forEach(x=>{ x.className=""; x.setAttribute("aria-selected", "false"); });
       P.querySelectorAll(":scope>div").forEach(x=>x.className="");
-      b.className="on"; d.className="on";
+      b.className="on"; d.className="on"; b.setAttribute("aria-selected", "true");
     };
     T.appendChild(b); P.appendChild(d);
   });
-  P.addEventListener("click", ev => {
-    const td = ev.target.closest("td.rule");
-    if (!td) return;
-    const e = (state.audit||[]).find(x => x.index === +td.dataset.i);
-    const box = $("auditbox");
-    box.textContent = JSON.stringify(e, null, 2);
-    box.style.display = box.style.display==="block" ? "none" : "block";
-  });
 }
+// one delegated listener for the whole results pane, attached once - re-adding
+// it on every run stacked listeners, so a second run's clicks fired twice.
+$("pane").addEventListener("click", ev => {
+  const chip = ev.target.closest(".sheet-bar .chip");
+  if (chip){ chip.dataset.f === "cols" ? toggleCols(chip) : setFilter(chip.dataset.f); return; }
+  if (ev.target.closest("#copywhy")){
+    if (navigator.clipboard && state.whyText) navigator.clipboard.writeText(state.whyText).then(() => {
+      ev.target.textContent = "Copied";
+    }).catch(() => {});
+    return;
+  }
+  const tr = ev.target.closest("tr[data-i]");
+  if (tr && state.ledger && tr.closest("table.ledger, table.generic")) showWhy(+tr.dataset.i);
+});
+$("pane").addEventListener("keydown", ev => {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const tr = ev.target.closest && ev.target.closest("table.ledger tbody tr[data-i], table.generic tbody tr[data-i]");
+  if (!tr || ev.target !== tr || !state.ledger) return;
+  ev.preventDefault();
+  showWhy(+tr.dataset.i);
+});
 function flCsvRows(text){
   // RFC-4180 CSV parse: double-quotes protect commas AND newlines; "" is a
   // literal quote. Whole-text scan (not line-split) so a quoted field carrying
@@ -577,15 +1004,7 @@ function flCsvRows(text){
   if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
   return rows;
 }
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-
-/* shared lockup: fetch the fragment once (kept in lockup.svg, also used by index) */
-fetch("lockup.svg").then(r=>r.text()).then(t=>{
-  const div = document.createElement("div");
-  div.style.display="none"; div.innerHTML =
-    `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
-  document.body.appendChild(div);
-});
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 </script>
 <script src="help.js"></script>
 </body>

@@ -75,7 +75,18 @@ _UI_STATIC = Path(__file__).resolve().parent.parent / "ui" / "static"
 if _UI_STATIC.is_dir():
     from fastapi.staticfiles import StaticFiles
 
-    app.mount("/ui", StaticFiles(directory=str(_UI_STATIC), html=True), name="ui")
+    class _RevalidatedStaticFiles(StaticFiles):
+        """Tell the browser to re-check every load. With no Cache-Control the
+        browser guesses a lifetime, and after an upgrade it can draw a new page
+        with an old stylesheet (seen 13 Oct 2026). An unchanged file still comes
+        back as a 304 via its ETag, so on a local server this costs nothing."""
+
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            response.headers["Cache-Control"] = "no-cache"
+            return response
+
+    app.mount("/ui", _RevalidatedStaticFiles(directory=str(_UI_STATIC), html=True), name="ui")
 
 # CLI entry points — run as modules under THIS interpreter, never looked up on
 # PATH. A PATH lookup finds no engine when the server is launched by full path

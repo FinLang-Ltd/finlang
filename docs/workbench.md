@@ -3,7 +3,7 @@
 > **Status:** Production
 > **Last verified:** v0.9.1
 
-The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, tick the checks you want, and run — every row comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
+The Workbench is FinLang's local browser interface: run `finlang-ui` and a page opens against a server on **your own machine**. Pick a CSV, pick rules, switch on the checks you want, and run — every match comes back with the rule that decided it, verification and reconciliation arrive as reports you can hand to a human, and a rule builder reads your rules back in plain English, checked by the same engine that runs them.
 
 It is a fourth surface over the **same engine** as the CLI, the Python call, and the HTTP API — not a second implementation. Every run shows the equivalent `finlang` command line, so anything you click today you can script tomorrow.
 
@@ -13,8 +13,9 @@ It is a fourth surface over the **same engine** as the CLI, the Python call, and
 
 **I want to…**
 - [Get it running](#-setup) → one command
-- [Do a first run](#-the-run-screen) → files, checks, results
-- [Build and check rules](#-the-rules-screen) → plain-English read-back
+- [Do a first run](#-categorise-a-file) → files, checks, results
+- [Build and check rules](#-rules) → plain-English read-back
+- [Find gaps or test a change](#-the-other-screens) → growth loop and impact
 - [Understand the local-only design](#-local-by-design) → what leaves your machine (nothing)
 - [Fix a problem](#-troubleshooting) → port, browser, PATH
 
@@ -37,50 +38,50 @@ Your default browser opens at `http://127.0.0.1:8484/ui/`. If a tab doesn't appe
 
 ---
 
-## ▶ The Run screen
+## ▶ Categorise a file
 
-A run needs two files, chosen with ordinary file pickers:
+*(Called the Run screen before the October 2026 redesign.)* One page, three numbered steps:
 
-1. **Transactions CSV** — any columns, any order; it needs date, amount and counterparty to be findable (memo optional). Non-UK/US files are covered by the locale block on the same card: day-first dates, decimal/thousands separators, encoding, and a header-mapping JSON for differently named columns.
-2. **Rules** — a `.fin` file from disk, a bundled rulepack, or the draft from the Rules screen.
-
-**What to run:** the audit trail (`full` by default — it is what puts the deciding rule on every row), **Verify** (fast fingerprint or full field-by-field, with an HTML report), and **Reconcile** against a model-output CSV (row-by-row comparison, every disagreement explained, with orphan-reporting key alignment under *Advanced*).
+1. **Your file** — drop a CSV on the drop zone or choose it. Any columns, any order; it needs date, amount and counterparty to be findable (memo optional). Non-UK/US files are covered by *My file isn't a UK/US-style CSV* on the same step: day-first dates, decimal/thousands separators, encoding, and a header-mapping JSON for differently named columns.
+2. **Rules** — a `.fin` file from your computer, a bundled starter pack, or your draft from the Rules screen. For the draft, the screen names its rules before you run, and Run waits until it has named them successfully: if the check fails or gets no answer within 30 seconds, it says why and offers Retry preview; if the engine refuses the draft, it gives the engine's reason and a link to the Rules screen. If the draft is changed in another tab, it is checked again once the editing pauses. A run sends exactly the draft it names.
+3. **Checks** — the audit trail (`full` by default — it is what puts the deciding rule on every row), **Verify** (fast fingerprint or full field-by-field, with an HTML report), and **Compare with another system** — reconcile against a model-output CSV, every disagreement explained. *How rows are paired* sets the alignment: **row by row** (the default: row 1 against row 1, so both files need the same rows in the same order; columns can be in any order), **row by row, checking each pair is the same transaction** (`--reconcile-identity-fields`: stops if the named columns differ on any row), or **match on key columns** (`--reconcile-key`: any row order, row counts can differ, rows only one file has are listed separately). Their file needs a `category` column, plus any columns you check or match on, under the same names. See [reconciliation.md](reconciliation.md). Each check is a switch; its options open when it is on.
 
 **Results** land in tabs:
 
 | Tab | What it holds |
 |---|---|
-| rows | Every categorised row — category, flags, status, and the rule that set them |
+| rows | Every categorised row with the rule that decided it. Click a row (or press Enter on it) to open **Why this category**: every rule that matched, in the order it ran, what each one changed, and which earlier result a later rule replaced — with a *Copy explanation* button. With the light audit trail the list holds only rules that changed something, and where a later rule's value starts with the earlier one the trail can't show whether it replaced or added to it; the drawer says so. Filters narrow to rows the other system disagrees with, flagged rows, or rows more than one rule matched; *Every column* shows the full output |
 | key results | Category totals from the run you just did, drawn as charts |
-| verify report / reconcile report | The same HTML reports the CLI can produce, inline |
+| verify report / reconcile / reconcile report | The same HTML reports the CLI can produce, inline, plus the reconcile summary |
 | downloads | The output CSV, audit JSON, and report files |
 | run log | **The exact `finlang` command line for this run** — copy it into a script or CI job and you can get the same answer without the Workbench |
 
-A verify or reconcile *finding* is reported in the banner as the product working, not as an error — the run still completes and the reports say exactly what was found.
+A verify or reconcile *finding* is reported in the banner as the product working, not as an error — the run still completes and the reports say exactly what was found. When you compared with another system, the rows table gains an **Other system** column showing their category wherever it differs, and the banner counts rows with no match in their file and rows only their file has (the reconcile tab lists both). If every date in their file could be read either way, the banner says which convention the engine assumed and where to set it. If the comparison stops — for example the identity check finds the rows in a different order — your categorised rows are still shown, with the reason.
 
 ---
 
-## ✏ The Rules screen
+## ✏ Rules
 
 Build a rule step by step on the left — name, match conditions, actions — and **Insert & check** appends it to the editor and runs the whole file through the engine. Or paste/type straight into the editor and hit **Check syntax**.
 
 The payoff is the read-back: **“What the engine understood”** renders every rule in plain English — *when counterparty contains SHELL, then set category to Energy & Commodities…* — produced by the engine's own tokeniser via `/rules/validate`. The Workbench contains no parser of its own, so “valid here” and “valid in a run” are the same fact.
 
-Drafts autosave in your browser. Rules run in file order and the last matching rule sets the category — put specific rules after general ones.
+Drafts autosave in your browser. Rules run in file order, and when several rules set the category the last of them decides it (a rule that only adds flags doesn't) — put specific rules after general ones. With the audit trail off, or past its entry limit on a large file (`FINLANG_AUDIT_MAX`, 5,000 by default), the Workbench can't show which rule decided a category, and says so.
 
 ---
 
 ## 🔁 The other screens
 
-- **Growth loop** — takes a run's output and finds what no rule claimed, then drafts candidate rules for the gaps. Nothing enters your ruleset without you accepting it.
-- **Impact** — point it at your current rules and a candidate version to see what a change would actually move — which rows re-categorise and how much value shifts — before you ship it. It writes no output; it is a rehearsal.
+- **Find gaps** (the growth loop) — takes a run's output, or any file plus rules, and lists the counterparties no rule claimed, grouped by name, then drafts candidate rules for the ones you tick. Nothing enters your ruleset without you accepting it. Names it cannot group (blank names, or names with no Latin letters or digits) are left out, so an empty list is not proof that every row has a category.
+- **Test a change** (impact) — point it at your current rules and a proposed version to see what a change would actually move — which rows re-categorise and how much value shifts — before you ship it. It writes no output; it is a rehearsal.
 
 ---
 
 ## 🔒 Local by design
 
 - The page talks to a server bound to `127.0.0.1` — **pinned, with no override**. Your files are read by the engine on your machine and the results come back to your browser; nothing leaves.
-- No CDN, no telemetry, no external fonts or scripts — everything the page uses ships inside the wheel.
+- No CDN, no telemetry, no external fonts or scripts — everything the Workbench pages use ships inside the wheel. (The HTTP API's interactive docs at `/docs`, linked from the home page, are FastAPI's own and load Swagger UI from a CDN.)
+- Your browser keeps, in this site's local storage between visits: your rules draft and its file name, and your last categorised output (up to about 2 MB) with the names of the file and rules it came from and when, so Find gaps can pick it up. A new run replaces the output. Clearing the site's data in your browser removes all of it.
 - If you genuinely want the HTTP surface on a network, that is a separate, explicit decision: use [`finlang-api`](api.md), which exists for exactly that and makes the exposure yours to own.
 
 ---
@@ -91,6 +92,7 @@ Drafts autosave in your browser. Rules run in file order and the last matching r
 |---|---|
 | Browser opens on a connection error | The port is taken — set `FINLANG_UI_PORT` to a free port and relaunch. The terminal shows uvicorn's own error. |
 | No browser tab appears | Some environments block auto-open. The URL is printed on start — open it manually. |
+| A page looks half-styled after upgrading | Your browser kept files from the older version. Press `Ctrl+F5` once; from this version on, the Workbench tells the browser to check for changes every time. |
 | `finlang-ui: command not found` | The environment where FinLang is installed isn't active, or its scripts directory isn't on PATH. Activate the venv you installed into. |
 | `finlang-ui` reports the web server is missing | Pre-v0.9.0 environment. `pip install -U finlang`. |
 | A run fails with dropped rows or missing columns | A locale/mapping problem, not a Workbench one — the banner opens the locale block for you; see [mapping_guide.md](mapping_guide.md). |

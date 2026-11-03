@@ -3,155 +3,96 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Growth loop — FinLang Workbench</title>
-<style>
-  :root{
-    --navy:#0d1b3c; --tex:#17284d; --mark:#0090ff; --green:#3ad6a5;
-    --amber:#f5b544; --pink:#ff7a85; --blue:#7fc4ff; --purple:#c4a7fa;
-    --dim:#6f82a6; --muted:#9fb0cf; --mono:ui-monospace,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--navy);color:#dbe4f5;
-    font-family:system-ui,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
-  #bg{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-  header{position:relative;z-index:1;display:flex;align-items:center;
-    justify-content:space-between;padding:20px 32px 16px}
-  .lk{width:140px;display:block}
-  header small{font-family:var(--mono);color:var(--dim);font-size:11px;letter-spacing:.08em}
-  main{position:relative;z-index:1;display:grid;grid-template-columns:340px 1fr;
-    gap:22px;max-width:1280px;margin:0 auto;padding:8px 32px 48px}
-  @media (max-width:900px){main{grid-template-columns:1fr}}
-  h1{font-size:24px;color:#fff;margin:4px 0 14px;letter-spacing:-.02em}
-  .card{border:1px solid rgba(255,255,255,.13);background:rgba(13,27,60,.72);
-    border-radius:8px;padding:14px 16px;margin-bottom:12px}
-  .card .t{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
-    margin-bottom:10px}
-  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
-  input[type=file]{width:100%;font-size:12px;color:var(--muted)}
-  input[type=text],input[type=number],select{width:100%;background:#0a1633;color:#dbe4f5;
-    border:1px solid rgba(255,255,255,.15);border-radius:5px;padding:6px 8px;
-    font-family:var(--mono);font-size:13px}
-  .why{font-size:12px;color:var(--dim);margin-top:4px;line-height:1.5}
-  button.primary{width:100%;margin-top:12px;padding:11px;border:0;border-radius:6px;
-    background:var(--mark);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
-  button.primary:disabled{background:#1c355f;color:var(--dim);cursor:not-allowed}
-  button.ghost{padding:8px 14px;border:1px solid rgba(255,255,255,.2);border-radius:6px;
-    background:transparent;color:var(--muted);font-size:13px;cursor:pointer}
-  #spin{display:none;color:var(--blue);font-family:var(--mono);font-size:13px;margin-top:10px}
-  table.rows{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px}
-  table.rows th{text-align:left;color:var(--dim);font-weight:400;padding:4px 12px 6px 0;
-    border-bottom:1px solid rgba(255,255,255,.14)}
-  table.rows td{padding:5px 12px 5px 0;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.05)}
-  .scroll{max-height:340px;overflow:auto}
-  pre.fin{font-family:var(--mono);font-size:13px;background:#0a1633;border-radius:6px;
-    padding:12px;white-space:pre-wrap;color:#c7d4ec;max-height:320px;overflow:auto}
-  .step{opacity:.45;pointer-events:none}
-  .step.on{opacity:1;pointer-events:auto}
-  .src{font-family:var(--mono);font-size:12px;color:var(--green)}
-  nav{position:relative;z-index:1;display:flex;gap:4px;padding:0 32px;margin-top:-6px}
-  nav a{font-family:var(--mono);font-size:14px;letter-spacing:.04em;color:var(--muted);
-    text-decoration:none;padding:7px 12px;border-radius:6px 6px 0 0}
-  nav a:hover{color:#fff}
-  nav a.on{color:#fff;background:rgba(13,27,60,.9);border:1px solid rgba(255,255,255,.13);border-bottom:0}
-  /* design-canvas port: per-screen accent (Run blue, Rules purple,
-     Growth loop green, Impact amber) + help chips on section titles */
-  :root{--acc:var(--green)}
-  nav a.on{border-bottom:3px solid var(--acc);padding-bottom:5px}
-  .card{border-top:2px solid var(--acc)}
-  .card .t{color:var(--acc)}
-  .card .t::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--acc);border-radius:50%;font-size:10px;margin-left:8px;opacity:.75}
-  .helpbox{border:1px solid var(--acc, var(--mark));background:rgba(127,196,255,0.06);border-radius:6px;padding:10px 13px;font-size:12.5px;color:var(--muted);line-height:1.55;margin:2px 0 10px}
-  .card .t.nohelp::after{content:none}
-</style>
+<title>Find gaps — FinLang Workbench</title>
+<link rel="stylesheet" href="wb.css">
 </head>
 <body>
-<svg id="bg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-  <defs><pattern id="ht" width="18" height="18" patternUnits="userSpaceOnUse">
-    <path d="M-2,16 L16,-2 M7,21 L21,7" stroke="#17284d" stroke-width="1" fill="none"/>
-  </pattern></defs>
-  <rect width="100%" height="100%" fill="#0d1b3c"/>
-  <rect width="100%" height="100%" fill="url(#ht)"/>
-</svg>
-<header>
-  <a href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
-  <small>WORKBENCH &middot; GROWTH LOOP</small>
+<header class="top">
+  <div class="wrap">
+    <a class="home" href="./" title="Workbench home"><svg class="lk" viewBox="86 404 776 202" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="FinLang"><use href="#lkp"/></svg></a>
+    <nav class="tabsnav" aria-label="Workbench"><a href="run.html">Categorise</a><a href="rules.html">Rules</a><a href="gaps.html" class="on" aria-current="page">Find gaps</a><a href="impact.html">Test a change</a></nav>
+    <div class="status" id="wbstatus"><span class="dot" aria-hidden="true"></span><span>Engine</span></div>
+  </div>
 </header>
-<nav><a href="index.html">Home</a><a href="run.html">Run</a><a href="rules.html">Rules</a><a href="gaps.html" class="on">Growth loop</a><a href="impact.html">Impact</a></nav>
 
-<main>
-  <section>
-    <h1>Growth loop</h1>
-    <div class="card">
-      <div class="t">1 &middot; THE CATEGORISED OUTPUT</div>
-      <div id="handoff" style="display:none">
-        <div class="src">&#10003; carried over from your last Run (<span id="handoff_n"></span> rows)</div>
-        <div class="why"><a id="clear_handoff" style="color:var(--blue);cursor:pointer">use a file instead</a></div>
+<main class="page">
+  <div class="wrap">
+    <div class="flow wide">
+      <div class="head">
+        <h1>Find gaps</h1>
+        <p class="lede">See which counterparties no rule claimed, then draft rules for them. This is the growth loop: run, find the gaps, add rules, run again, and watch the gaps close.</p>
       </div>
-      <div id="file_row">
-        <label>Transactions CSV</label>
-        <input type="file" id="raw_csv" accept=".csv">
-        <label>Rules to check coverage of</label>
-        <select id="g_rules_mode">
-          <option value="file">a .fin file from disk</option>
-          <option value="pack">a bundled rulepack</option>
-          <option value="draft">rules from the Rules editor</option>
+
+      <div class="card">
+        <div class="t" data-n="1">The categorised output</div>
+        <div id="handoff" style="display:none;margin-top:10px">
+          <div class="src">&#10003; carried over from your last categorise run (<span id="handoff_n"></span> rows)</div>
+          <div class="why"><button type="button" id="clear_handoff" class="lnk">Use a different file instead</button></div>
+        </div>
+        <div id="file_row">
+          <label for="raw_csv">Transactions CSV</label>
+          <input type="file" id="raw_csv" accept=".csv">
+          <label for="g_rules_mode">Rules to check coverage of</label>
+          <select id="g_rules_mode">
+            <option value="file">A .fin file from your computer</option>
+            <option value="pack">A bundled starter pack</option>
+            <option value="draft">My draft from the Rules screen</option>
+          </select>
+          <div id="g_rules_file_row" style="margin-top:10px"><input type="file" id="g_rules_file" accept=".fin" aria-label="Rules file (.fin)"></div>
+          <div id="g_rules_pack_row" style="display:none;margin-top:10px"><select id="g_include_pack" aria-label="Bundled pack"></select></div>
+          <div class="why">Your rules run over the data first, then the gaps are found in what came back, so the gaps are always relative to the rules you chose here.</div>
+          <details>
+            <summary>I already have a categorised output file</summary>
+            <label for="cat_csv">categorized.csv (from Categorise, under downloads)</label>
+            <input type="file" id="cat_csv" accept=".csv">
+          </details>
+        </div>
+        <label for="min_count">Only counterparties appearing at least</label>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="number" id="min_count" value="1" min="1" style="width:100px"> <span class="why" style="margin:0">time(s)</span>
+        </div>
+        <div style="margin-top:18px"><button type="button" class="primary" id="discover" disabled>Find gaps</button></div>
+        <div id="spin">Working&hellip;</div>
+        <div id="g_err" class="err" role="alert" hidden></div>
+      </div>
+
+      <div class="card step" id="s_cands">
+        <div class="t" data-n="2">What no rule claimed <span id="cand_n" style="color:var(--amber);margin-left:6px;font-weight:600"></span></div>
+        <div style="margin:6px 0 10px;font-size:14px">
+          Tick: <button type="button" id="tick_all" class="lnk">all</button>, <button type="button" id="tick_none" class="lnk">none</button>
+        </div>
+        <div class="scroll" id="cands"></div>
+      </div>
+
+      <div class="card step" id="s_suggest">
+        <div class="t" data-n="3">Draft rules for the ticked ones</div>
+        <label for="sg_category">Category to assign</label>
+        <input type="text" id="sg_category" value="Review">
+        <label for="sg_prefix">Rule-name prefix</label>
+        <input type="text" id="sg_prefix" value="SUGGEST">
+        <label for="sg_match">Match style</label>
+        <select id="sg_match">
+          <option value="fuzzy" selected>Fuzzy: a contains-style wildcard (usually right)</option>
+          <option value="exact">Exact: the full counterparty name only</option>
         </select>
-        <div id="g_rules_file_row"><input type="file" id="g_rules_file" accept=".fin"></div>
-        <div id="g_rules_pack_row" style="display:none"><select id="g_include_pack"></select></div>
-        <div class="why">It runs your rules over the data first, then finds what they
-          didn't claim &mdash; so the gaps are always relative to rules you chose here.</div>
-        <details style="margin-top:8px">
-          <summary>I already have a categorised output file</summary>
-          <label>categorized.csv (from Run &rarr; downloads)</label>
-          <input type="file" id="cat_csv" accept=".csv">
-        </details>
+        <div style="margin-top:18px"><button type="button" class="primary" id="suggest">Draft rules</button></div>
+        <div class="why" style="margin-top:10px">Drafts are proposals. Nothing is adopted until you append them
+          to your rules and keep them; a person accepts, edits or deletes every draft.</div>
       </div>
-      <label>Only counterparties appearing at least</label>
-      <input type="number" id="min_count" value="1" min="1" style="width:90px"> <span class="why" style="display:inline">time(s)</span>
-      <button type="button" class="primary" id="discover" disabled>Discover gaps</button>
-      <div id="spin">working&hellip;</div>
-    </div>
 
-    <div class="card step" id="s_suggest">
-      <div class="t">3 &middot; DRAFT RULES FOR THE TICKED ONES</div>
-      <label>Category to assign</label>
-      <input type="text" id="sg_category" value="Review">
-      <label>Rule-name prefix</label>
-      <input type="text" id="sg_prefix" value="SUGGEST">
-      <label>Match style</label>
-      <select id="sg_match">
-        <option value="fuzzy" selected>fuzzy &mdash; contains-style wildcard (usually right)</option>
-        <option value="exact">exact &mdash; the full counterparty string only</option>
-      </select>
-      <button type="button" class="primary" id="suggest">Draft rules</button>
-      <div class="why">Drafts are proposals. Nothing is adopted until you append them
-        to your rules and keep them &mdash; a human accepts, edits or bins every draft.</div>
-    </div>
-  </section>
-
-  <section>
-    <h1>Results</h1>
-    <div class="card step" id="s_cands">
-      <div class="t">2 &middot; WHAT NO RULE CLAIMED <span id="cand_n" style="color:var(--amber)"></span></div>
-      <div style="margin-bottom:6px">
-        <a id="tick_all" style="color:var(--blue);cursor:pointer;font-size:12.5px">all</a> &middot;
-        <a id="tick_none" style="color:var(--blue);cursor:pointer;font-size:12.5px">none</a>
+      <div class="card step" id="s_drafts">
+        <div class="t" data-n="4">The drafts</div>
+        <pre class="fin" id="drafts" style="margin-top:10px"></pre>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+          <button type="button" class="ghost" id="append">Append to my Rules draft</button>
+          <button type="button" class="ghost" id="dl">Download draft_rules.fin</button>
+          <a class="ghost" href="run.html?rules=draft">Run again with the updated rules</a>
+        </div>
+        <div class="why" id="append_note"></div>
       </div>
-      <div class="scroll" id="cands"></div>
     </div>
-    <div class="card step" id="s_drafts">
-      <div class="t">4 &middot; THE DRAFTS</div>
-      <pre class="fin" id="drafts"></pre>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
-        <button type="button" class="ghost" id="append">Append to my Workbench draft &rarr;</button>
-        <button type="button" class="ghost" id="dl">Download draft_rules.fin</button>
-        <a class="ghost" href="run.html?rules=draft" style="text-decoration:none">Re-run with updated rules &rarr;</a>
-      </div>
-      <div class="why" id="append_note"></div>
-    </div>
-  </section>
+  </div>
 </main>
-<div style="display:none" id="lkhost"></div>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
@@ -166,15 +107,23 @@ if (stash){
   $("file_row").style.display = "none";
   $("handoff_n").textContent = Math.max(0, flCsvRows(stash).length - 1);
   // provenance: gaps only mean anything relative to the rules that ran, so
-  // say which run this output came from.
+  // say which run this output came from. The rebuilt banner keeps id="handoff_n":
+  // the fresh-file path writes the row count there (it threw when the id was lost).
   try {
     const d = JSON.parse(localStorage.getItem("finlang_last_run_desc") || "null");
+    if (d) state.rulesDesc = d.rules;
     if (d) $("handoff").querySelector(".src").innerHTML =
-      `&#10003; carried over from your last Run (<span>${$("handoff_n").textContent}</span> rows)` +
-      `<div style="color:var(--muted);margin-top:3px">${esc(d.input)} &middot; against ` +
-      `<b style="color:var(--amber)">${esc(d.rules)}</b> &middot; ${esc(d.when)}</div>`;
+      `&#10003; carried over from your last categorise run (<span id="handoff_n">${$("handoff_n").textContent}</span> rows)` +
+      `<div style="color:var(--ink-2);font-weight:400;margin-top:3px">${esc(d.input)}, against ` +
+      `<b style="color:var(--amber)">${esc(d.rules)}</b>, ${esc(d.when)}</div>`;
   } catch(e){}
 }
+/* a dimmed step is also out of reach: inert until it is switched on */
+document.querySelectorAll(".card.step").forEach(el => {
+  const sync = () => { el.inert = !el.classList.contains("on"); };
+  sync();
+  new MutationObserver(sync).observe(el, {attributes: true, attributeFilter: ["class"]});
+});
 $("clear_handoff").onclick = () => {
   state.csvText = null;
   $("handoff").style.display = "none";
@@ -194,7 +143,7 @@ $("g_rules_mode").onchange = e => {
 fetch("/rulepacks").then(r=>r.json()).then(b=>{
   const s = $("g_include_pack");
   b.packs.forEach(p => s.add(new Option(`${p.name} — ${p.file}`, p.name)));
-}).catch(()=>{});
+}).catch(() => { $("g_include_pack").add(new Option("Couldn't load the bundled packs: is finlang-ui still running?", "")); });
 function draftRules(){
   const t = localStorage.getItem("finlang_rules_draft") || "";
   return t.trim() ? new Blob([t], {type:"text/plain"}) : null;
@@ -204,11 +153,38 @@ function rawReady(){
   const m = $("g_rules_mode").value;
   return m==="pack" || (m==="draft" ? !!draftRules() : $("g_rules_file").files.length > 0);
 }
-function gate(){ $("discover").disabled = !(state.csvText || rawReady()); }
+function gate(){ $("discover").disabled = !!state.busy || !(state.csvText || rawReady()); }   // one request at a time
 gate();
 
+function showErr(msg){ const e = $("g_err"); e.textContent = msg; e.hidden = !msg; }
+/* Drafts go - out of memory as well as off screen - when Find gaps runs
+   again, when nothing is ticked, and when drafting fails, so nothing unseen
+   can be appended or downloaded. (Changing ticks after drafting keeps the
+   drafts on screen: what is shown is what Append writes.) */
+function clearDrafts(note){
+  state.drafts = "";
+  $("drafts").textContent = "";
+  $("append").disabled = true; $("dl").disabled = true;
+  $("append_note").textContent = note || "";
+}
 $("discover").onclick = async () => {
-  $("discover").disabled = true; $("spin").style.display = "block";
+  if (state.busy) return;
+  state.busy = true;
+  $("discover").disabled = true; $("suggest").disabled = true;   // one request at a time
+  // what this run uses is fixed now: provenance must not follow a later pick
+  const runRules = $("g_rules_mode").value, runRaw = ($("raw_csv").files[0] || {}).name || "input.csv";
+  // the threshold too: the request AND the explanation of its answer use the
+  // value the run started with (read again on return, a threshold changed
+  // mid-run turned "none at 2" into "every row was claimed" - Codex re-check)
+  const runMin = Math.max(1, Math.floor(Number($("min_count").value)) || 1);
+  $("min_count").value = runMin;
+  const runDesc = runRules==="pack" ? `bundled pack: ${$("g_include_pack").value}`
+                : runRules==="draft" ? "your Workbench draft"
+                : ($("g_rules_file").files[0] || {}).name || "a .fin file";
+  $("spin").style.display = "block"; showErr("");
+  clearDrafts(); $("s_drafts").classList.remove("on");
+  state.cands = null; $("cands").innerHTML = ""; $("cand_n").textContent = "";
+  $("s_cands").classList.remove("on"); $("s_suggest").classList.remove("on");
   try {
     // No categorised output in hand? Make one right here: run the chosen rules
     // over the chosen data via /process (audit off - only categories matter for
@@ -223,47 +199,67 @@ $("discover").onclick = async () => {
       fp.append("audit_mode", "none");
       fp.append("return_audit", "false");
       const rp = await fetch("/process", {method:"POST", body:fp});
-      const bp = await rp.json();
+      const bp = await flJson(rp);
       if (!rp.ok){
-        const d = typeof bp.detail==="string" ? bp.detail : JSON.stringify(bp.detail, null, 2);
-        alert(d); return;
+        const why = flReason(bp);
+        // advice follows the cause: only a reading problem points at Categorise's locale settings
+        showErr(why + (/Dropped|Missing required columns|delimiter|codec/i.test(why)
+          ? "\nFiles that need a header mapping or locale settings: categorise them on the Categorise screen first, then come back - the output carries over."
+          : ""));
+        return;
       }
       state.csvText = bp.output_csv;
-      const rulesDesc = m==="pack" ? `bundled pack: ${$("g_include_pack").value}`
-                      : m==="draft" ? "your Workbench draft"
-                      : $("g_rules_file").files[0].name;
+      const rulesDesc = runDesc;
+      state.rulesDesc = rulesDesc;
       $("handoff").style.display = "block";
       $("file_row").style.display = "none";
       $("handoff_n").textContent = Math.max(0, flCsvRows(state.csvText).length - 1);
       $("handoff").querySelector(".src").innerHTML =
-        `&#10003; categorised just now (<span>${$("handoff_n").textContent}</span> rows)` +
-        `<div style="color:var(--muted);margin-top:3px">${esc($("raw_csv").files[0].name)} ` +
-        `&middot; against <b style="color:var(--amber)">${esc(rulesDesc)}</b></div>`;
+        `&#10003; categorised just now (<span id="handoff_n">${$("handoff_n").textContent}</span> rows)` +
+        `<div style="color:var(--ink-2);font-weight:400;margin-top:3px">${esc(runRaw)}, ` +
+        `against <b style="color:var(--amber)">${esc(rulesDesc)}</b></div>`;
     }
     const fd = new FormData();
     fd.append("input_csv", new Blob([state.csvText], {type:"text/csv"}), "categorized.csv");
-    fd.append("min_count", $("min_count").value || "1");
+    fd.append("min_count", String(runMin));     // a whole number, fixed at the start
     const r = await fetch("/discover", {method:"POST", body:fd});
-    const b = await r.json();
-    if (!r.ok){ alert(typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail)); return; }
-    renderCands(b.candidates_csv || "");
-  } finally { $("spin").style.display = "none"; gate(); }
+    const b = await flJson(r);
+    if (!r.ok){ showErr(flReason(b)); return; }
+    renderCands(b.candidates_csv || "", runMin);
+  } catch(e){
+    flStatus(); showErr(flUnreachable(e));
+  } finally { state.busy = false; $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
 
-function renderCands(csv){
+function renderCands(csv, n){
   const L = flCsvRows(csv).filter(r => r.some(c => c !== ""));
   $("s_cands").classList.add("on");
   if (L.length < 2){
-    $("cand_n").textContent = "· none — every row was claimed by a rule";
-    $("cands").innerHTML = '<div class="why">No gaps at this threshold. That is the goal state, not an error.</div>';
-    state.cands = null; return;
+    // An empty list says what discovery found, never that every row has a
+    // category: it groups rows by a fingerprint of the counterparty name made
+    // of Latin letters and digits, and skips rows whose fingerprint is empty
+    // (山田商店, a blank name) - Codex re-check, 1 Nov
+    const skipped = " An empty list does not mean every row has a category: discovery groups rows by " +
+      "counterparty name and skips names it cannot group (blank names, or names with no Latin letters " +
+      "or digits), so rows like those can stay uncategorised at any threshold. Check the categorised " +
+      "output for blank categories.";
+    if (n === 1){
+      $("cand_n").textContent = "no candidates found";
+      $("cands").innerHTML = `<div class="why">No candidate counterparties found at this threshold.${skipped}</div>`;
+    } else {
+      $("cand_n").textContent = `no candidates appearing ${n} or more times`;
+      $("cands").innerHTML = `<div class="why">No candidate counterparties found appearing ${n} or more times. ` +
+        `Lower the number to see rarer ones.${skipped}</div>`;
+    }
+    state.cands = null; $("s_suggest").classList.remove("on"); return;
   }
   state.cands = L;
-  $("cand_n").textContent = `· ${L.length - 1}`;
-  let h = '<table class="rows"><thead><tr><th></th>' +
+  $("cand_n").textContent = `${L.length - 1}`;
+  let h = '<table class="rows generic"><thead><tr><th></th>' +
     L[0].map(c=>`<th>${esc(c)}</th>`).join("") + "</tr></thead><tbody>";
   L.slice(1).forEach((r, i) => {
-    h += `<tr><td><input type="checkbox" class="ck" data-i="${i}" checked></td>` +
+    const who = r[L[0].indexOf("example_name")] || r[1] || r[0] || `candidate ${i + 1}`;
+    h += `<tr><td><input type="checkbox" class="ck" data-i="${i}" checked aria-label="Draft a rule for ${esc(who)}"></td>` +
          r.map(c=>`<td>${esc(c)}</td>`).join("") + "</tr>";
   });
   $("cands").innerHTML = h + "</tbody></table>";
@@ -275,12 +271,16 @@ $("tick_none").onclick = () => document.querySelectorAll(".ck").forEach(c => c.c
 $("suggest").onclick = async () => {
   if (!state.cands) return;
   const ticked = [...document.querySelectorAll(".ck")].filter(c => c.checked).map(c => +c.dataset.i);
-  if (!ticked.length){ alert("Nothing ticked."); return; }
+  if (!ticked.length){ clearDrafts("Nothing ticked: tick at least one counterparty above.");
+    $("s_drafts").classList.add("on"); return; }
   // Filter the engine's own candidates CSV down to the ticked rows - selection,
   // not interpretation. Header row passes through untouched.
   const lines = [state.cands[0]].concat(ticked.map(i => state.cands[i + 1]));
   const csv = lines.map(r => r.map(c => /[",\n]/.test(c) ? '"' + c.replace(/"/g,'""') + '"' : c).join(",")).join("\n");
   $("spin").style.display = "block";
+  if (state.busy) return;
+  state.busy = true;
+  $("suggest").disabled = true; $("discover").disabled = true;   // one request at a time
   try {
     const fd = new FormData();
     fd.append("candidates_csv", new Blob([csv], {type:"text/csv"}), "candidates.csv");
@@ -288,14 +288,18 @@ $("suggest").onclick = async () => {
     fd.append("prefix", $("sg_prefix").value || "SUGGEST");
     fd.append("emit_match", $("sg_match").value);
     const r = await fetch("/suggest", {method:"POST", body:fd});
-    const b = await r.json();
-    if (!r.ok){ alert(typeof b.detail==="string" ? b.detail : JSON.stringify(b.detail)); return; }
+    const b = await flJson(r);
+    if (!r.ok){ clearDrafts(flReason(b)); $("s_drafts").classList.add("on"); return; }
     state.drafts = b.rules_fin || "";
+    $("append").disabled = $("dl").disabled = !state.drafts.trim();
     $("drafts").textContent = state.drafts || "(no rules drafted)";
     $("s_drafts").classList.add("on");
     $("append_note").textContent = "";
-  } finally { $("spin").style.display = "none"; }
+  } catch(e){
+    flStatus(); clearDrafts(flUnreachable(e)); $("s_drafts").classList.add("on");
+  } finally { state.busy = false; $("spin").style.display = "none"; $("suggest").disabled = false; gate(); }
 };
+
 
 $("append").onclick = () => {
   if (!state.drafts.trim()) return;
@@ -303,7 +307,14 @@ $("append").onclick = () => {
   const stamp = "# drafted by suggest, " + new Date().toISOString().slice(0, 10) + " - review each rule\n";
   localStorage.setItem("finlang_rules_draft",
     (cur.trim() ? cur.trim() + "\n\n" : "") + stamp + state.drafts.trim() + "\n");
-  $("append_note").innerHTML = 'Appended. Open the <a href="rules.html" style="color:var(--mark)">Rules screen</a> to review and Check, or re-run directly.';
+  $("append").disabled = true;    // once per set of drafts: a second click doubled them
+  const src = state.rulesDesc || "";
+  const notDraft = src && src !== "your Workbench draft";
+  $("append_note").innerHTML = 'Appended. Open the <a href="rules.html" class="lnk">Rules screen</a> to review and check them' +
+    (notDraft
+      ? `. <b>Your gaps were measured against ${esc(src)}, which isn't in your Rules draft.</b> ` +
+        "Load it on the Rules screen first, or the next run uses only these drafts and the rows those rules categorised lose their category."
+      : ", or run again straight away.");
 };
 $("dl").onclick = () => {
   const a = document.createElement("a");
@@ -331,11 +342,9 @@ function flCsvRows(text){
   if (cur !== "" || row.length){ row.push(cur); rows.push(row); }
   return rows;
 }
-function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-fetch("lockup.svg").then(r=>r.text()).then(t=>{
-  $("lkhost").innerHTML = `<svg xmlns="http://www.w3.org/2000/svg"><defs><g id="lkp">${t}</g></defs></svg>`;
-});
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 </script>
+<script src="wb.js"></script>
 <script src="help.js"></script>
 </body>
 </html>
