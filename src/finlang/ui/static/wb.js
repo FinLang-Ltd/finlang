@@ -57,7 +57,10 @@ function flRuleNames(b){
   if (!b || typeof b.rule_count !== "number" || !Array.isArray(b.rules) || b.rules.length !== b.rule_count)
     return null;
   const names = b.rules.map(x => x && x.name);
-  return names.every(n => typeof n === "string" && /[^\p{C}\p{Z}\s]/u.test(n)) ? names : null;
+  // A selector or a braille blank alone draws no ink. Test the whole list
+  // before either screen truncates it, and return the names as written.
+  const visibleCharacter = /[^\p{C}\p{Z}\s\p{Default_Ignorable_Code_Point}\u2800]/u;
+  return names.every(n => typeof n === "string" && visibleCharacter.test(n)) ? names : null;
 }
 async function flJson(r){
   try { return await r.json(); }
