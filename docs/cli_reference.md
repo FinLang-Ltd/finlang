@@ -50,7 +50,7 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 | ------------------------ | ------------------------------------------------------------ |
 | `--input PATH`           | Input CSV file to process.                                   |
 | `--output PATH`          | Output CSV after rule processing. (Must be writeable).       |
-| `--rules PATH`           | Your primary `.fin` rules file.                              |
+| `--rules PATH [PATH ...]` | Load one or more `.fin` files in command-line order. You can repeat the flag. On v0.9.1 and earlier, list all paths after a single `--rules`. |
 | `--include-pack LIST`    | Comma-separated built-in packs to include (e.g., `retail,sanity`). See [Rule Packs](#rule-packs-quick-reference). |
 | `--map PATH`             | Custom header mapping JSON (replaces bundled map; no merge). |
 | `--audit PATH`           | Write audit JSON (diff of changed cells).                    |

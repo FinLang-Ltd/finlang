@@ -125,6 +125,7 @@ def test_repeated_rules_flags_apply_both_files(tmp_path):
     data, taxi_rules = _write_min_fixtures(tmp_path)
     with data.open("a", encoding="utf-8") as transactions:
         transactions.write("2026-01-06,-4.50,ACME CAFE\n")
+        transactions.write("2026-01-07,-8.50,ACME TAXI CAFE\n")
     cafe_rules = tmp_path / "cafe.fin"
     cafe_rules.write_text(
         'rule "cafe" {\n  match:\n    - counterparty ~ "*CAFE*"\n'
@@ -135,23 +136,31 @@ def test_repeated_rules_flags_apply_both_files(tmp_path):
     cmd = f'{BIN} --input "{data}" --headless'
     run(f'{cmd} --output "{repeated}" --rules "{taxi_rules}" --rules "{cafe_rules}"')
     with repeated.open(encoding="utf-8-sig", newline="") as output:
-        assert [row["category"] for row in csv.DictReader(output)] == ["Transport", "Dining"]
+        # Both files match the last row, where the later file must win.
+        categories = [row["category"] for row in csv.DictReader(output)]
+    assert categories == ["Transport", "Dining", "Dining"]
 
     run(f'{cmd} --output "{grouped}" --rules "{taxi_rules}" "{cafe_rules}"')
     assert repeated.read_bytes() == grouped.read_bytes()
 
 
-def test_missing_named_rules_file_is_fatal(tmp_path):
+@pytest.mark.parametrize("repeated", [False, True], ids=["grouped", "repeated"])
+def test_missing_named_rules_file_is_fatal(tmp_path, repeated):
     data, rules = _write_min_fixtures(tmp_path)
     out = tmp_path / "out.csv"
+    missing = tmp_path / "typo.fin"
+    rules_args = ["--rules", str(missing), "--rules", str(rules)] if repeated else [
+        "--rules", str(rules), str(missing)
+    ]
     r = subprocess.run(
-        f'{BIN} --input "{data}" --output "{out}" --rules "{rules}" "{tmp_path / "typo.fin"}" --headless',
-        shell=True, capture_output=True, text=True)
+        [BIN, "--input", str(data), "--output", str(out), "--headless", *rules_args],
+        capture_output=True, text=True)
     assert r.returncode == 2, (
         f"missing named rules file must be fatal (exit 2), got {r.returncode}; "
         f"partial rules + exit 0 silently omits categorisation.\nstderr: {r.stderr}"
     )
     assert "not found" in (r.stderr + r.stdout).lower()
+    assert not out.exists()
 
 
 def test_unknown_include_pack_is_fatal(tmp_path):
