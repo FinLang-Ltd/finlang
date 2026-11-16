@@ -121,6 +121,26 @@ def _write_min_fixtures(tmp_path):
     return data, rules
 
 
+def test_repeated_rules_flags_apply_both_files(tmp_path):
+    data, taxi_rules = _write_min_fixtures(tmp_path)
+    with data.open("a", encoding="utf-8") as transactions:
+        transactions.write("2026-01-06,-4.50,ACME CAFE\n")
+    cafe_rules = tmp_path / "cafe.fin"
+    cafe_rules.write_text(
+        'rule "cafe" {\n  match:\n    - counterparty ~ "*CAFE*"\n'
+        '  set:\n    - category = "Dining"\n}\n', encoding="utf-8")
+
+    repeated = tmp_path / "repeated.csv"
+    grouped = tmp_path / "grouped.csv"
+    cmd = f'{BIN} --input "{data}" --headless'
+    run(f'{cmd} --output "{repeated}" --rules "{taxi_rules}" --rules "{cafe_rules}"')
+    with repeated.open(encoding="utf-8-sig", newline="") as output:
+        assert [row["category"] for row in csv.DictReader(output)] == ["Transport", "Dining"]
+
+    run(f'{cmd} --output "{grouped}" --rules "{taxi_rules}" "{cafe_rules}"')
+    assert repeated.read_bytes() == grouped.read_bytes()
+
+
 def test_missing_named_rules_file_is_fatal(tmp_path):
     data, rules = _write_min_fixtures(tmp_path)
     out = tmp_path / "out.csv"

@@ -915,7 +915,7 @@ def main(args_list=None):
 
     ap.add_argument("--version", action="version", version=f"FinLang {__version__}",
                     help="Show program's version number and exit.")
-    ap.add_argument("--rules", nargs="+", help="One or more .fin files (your rules). May be combined with --include-pack.")
+    ap.add_argument("--rules", nargs="+", action="extend", help="One or more .fin files (your rules). May be combined with --include-pack.")
     ap.add_argument("--include-pack", default="", help="Comma-separated starter packs to include (e.g. retail,transport,subs)")
     ap.add_argument("--input", required=True, help="Path to input CSV file")
     ap.add_argument("--output", help="Path to output CSV file. Required except in impact mode (--impact-rules), which writes no categorised output.")
