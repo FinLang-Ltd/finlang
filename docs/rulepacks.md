@@ -163,8 +163,8 @@ Commercial packs are standalone `.fin` files. Include them via `--rules`:
 # Your rules + commercial pack
 finlang --input bank.csv --output out.csv \
   --rules my_rules.fin \
-  --rules banking/Banking.ReconcileHeuristics.fin \
-  --rules banking/Banking.BankFees.fin \
+          banking/Banking.ReconcileHeuristics.fin \
+          banking/Banking.BankFees.fin \
   --include-pack sanity
 ```
 

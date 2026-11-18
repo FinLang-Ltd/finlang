@@ -4,7 +4,7 @@
 > **Last verified:** v0.9.1
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.
-All definitions verified against the v0.9.1 codebase (September 2026).
+The v0.9.1 codebase is the baseline for these definitions.
 
 ---
 
@@ -71,7 +71,7 @@ All definitions verified against the v0.9.1 codebase (September 2026).
 
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
-| `--rules` | Path(s) to `.fin` file(s) | Load user rules | Multiple allowed. |
+| `--rules` | Path(s) to `.fin` file(s) | Load user rules in command-line order | You can repeat the flag. On v0.9.1 and earlier, use a single flag with all paths. |
 | `--include-pack` | Comma list (e.g., `retail,sanity`) | Include bundled rule packs | Optional. |
 | `--map` | Path to header map JSON | Apply canonical field mapping | Defaults to built-in map if omitted. |
 | `--audit` | Output path (`.json`) | Write audit log | Use with `--audit-mode`. |

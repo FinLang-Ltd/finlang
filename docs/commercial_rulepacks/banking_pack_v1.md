@@ -91,9 +91,9 @@ The Banking Pack is a commercial add-on. After purchase, you receive three `.fin
 ```bash
 finlang --input bank.csv --output out.csv \
   --rules my_rules.fin \
-  --rules banking/Banking.ReconcileHeuristics.fin \
-  --rules banking/Banking.BankFees.fin \
-  --rules banking/Banking.DuplicateHeuristics.fin
+          banking/Banking.ReconcileHeuristics.fin \
+          banking/Banking.BankFees.fin \
+          banking/Banking.DuplicateHeuristics.fin
 ```
 
 Or combine into a single rules file:
