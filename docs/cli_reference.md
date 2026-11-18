@@ -2,7 +2,7 @@
 
 > **Applies to:** FinLang v0.7+  
 > **Status:** Active  
-> **Last verified:** v0.9.1
+> **Last verified:** v0.9.2
 
 ## 0) Quick Navigation
 - [1) `finlang` — Main CLI](#1-finlang--main-cli)
@@ -48,6 +48,7 @@ FinLang expects the following **canonical columns** after mapping/synthesis. You
 
 | Flag                     | Description                                                  |
 | ------------------------ | ------------------------------------------------------------ |
+| `--version`              | Print the installed version (e.g. `FinLang 0.9.2`) and exit. |
 | `--input PATH`           | Input CSV file to process.                                   |
 | `--output PATH`          | Output CSV after rule processing. (Must be writeable).       |
 | `--rules PATH [PATH ...]` | Load one or more `.fin` files in command-line order. You can repeat the flag. On v0.9.1 and earlier, list all paths after a single `--rules`. |

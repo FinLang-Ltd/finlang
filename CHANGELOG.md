@@ -6,6 +6,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.2] - 2026-11-18
+
+### Changed
+- **The Workbench has a new look (the "Statement" redesign).** The dark navy screens are replaced by a light, calm layout, one task per screen. Screens are named for their job: **Categorise** (was Run), **Rules**, **Find gaps** (was Growth loop), **Test a change** (was Impact), plus Home. Each is a short set of numbered steps. Verify and Compare are switches; the audit trail is a select that defaults to Full. Results open with a banner and tags, and the rows ledger shows the rule that set each row's category. Click a row (or press Enter or Space on it) to open **Why this category**: every rule that matched, in the order it ran, what each one changed, and which earlier result a later rule replaced, with a **Copy explanation** button. **Compare with another system** gains *How rows are paired*: row by row (the default), identity check, or key matching, as one choice. Categorise and Test a change show the equivalent command. The page holds no rule logic of its own: validation and categorisation still go through the engine. See `docs/workbench.md`.
+
+### Fixed
+- **Repeating `--rules` now adds the files together.** `--rules a.fin --rules b.fin` used argparse's default `store` action, so each `--rules` replaced the one before and only the last group's files were loaded. The earlier files were dropped with no error, and a missing file in an earlier group wasn't reported. Every listed file now loads, in command-line order, and a missing file in any group is fatal (exit 2). `--rules a.fin b.fin` (one flag, several files) worked before and still does, as does combining either form with `--include-pack`. CLI only: the HTTP API sends one rules file per request and is unaffected. Found because the Banking Pack quick start repeated the flag and ran 1 of its 3 files. Its examples now use the single-flag form, which works on every version.
+- **After an upgrade, a browser could show a new Workbench page with an old stylesheet.** `/ui` was served without a `Cache-Control` header, so the browser guessed how long to keep files. It is now served with `Cache-Control: no-cache`: the browser re-checks each load, and an unchanged file still comes back as a `304`. On a page that looks half-styled from an earlier version, press `Ctrl+F5` once.
+- **Find gaps:** switching from a carried-over Categorise output to a fresh file failed and did nothing. It now uses the fresh file.
+- **Test a change:** the engine-summary table showed nested values as `[object Object]` and pushed the page about 1,700px wide. Nested values are now a collapsible JSON block.
+
+### Tests
+- `tests/test_cli_smoke.py` 11 → 13: repeated `--rules` applies both files in order, and a missing named rules file is fatal whether it sits in the first or a later group.
+- Standalone Workbench suites: UI-contract 17 → 18 (the `/ui` `Cache-Control` header) and Playwright end-to-end 10 → 99, driving the redesigned screens against a live server and the real CLI. Standalone API suite unchanged at 43. Daily gate unchanged at 204 tests / 10 gates. The engine's categorisation logic is unchanged.
+
 ## [0.9.1] - 2026-09-27
 
 ### Fixed
