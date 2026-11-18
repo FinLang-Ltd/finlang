@@ -1,7 +1,7 @@
 # 📖 Core Workflows
 > **Applies to:** FinLang v0.7+
 > **Status:** Stable
-> **Last verified:** v0.9.1
+> **Last verified:** v0.9.2
 
 
 
@@ -13,7 +13,7 @@
 - [Test performance](#-benchmarking) → Validate scaling
 - [Deploy to a team](#-enterprise-integration--workflows) → Enterprise setup & CI/CD
 
-> **Prefer a screen to a shell?** Every workflow on this page can start life in the [Workbench](workbench.md) (`finlang-ui`) — it shows the exact CLI command for each run, so the click-through version hands you the scriptable version.
+> **Prefer a screen to a shell?** Every workflow on this page can start life in the [Workbench](workbench.md) (`finlang-ui`) — Categorise and Test a change show the exact CLI command for each run, so the click-through version hands you the scriptable version.
 
 ---
 

@@ -1,10 +1,10 @@
 # 🚩 FinLang Flags & Canonical Formats
 > **Applies to:** FinLang v0.7+
 > **Status:** Active
-> **Last verified:** v0.9.1
+> **Last verified:** v0.9.2
 
 This page defines the **single source of truth** for CLI flags and their **expected input formats**.
-The v0.9.1 codebase is the baseline for these definitions.
+All definitions verified against the v0.9.2 codebase (November 2026): every flag in `finlang --help` is listed here, and `--rules`, the only flag whose behaviour changed since v0.9.1, matches its help text.
 
 ---
 
@@ -71,6 +71,7 @@ The v0.9.1 codebase is the baseline for these definitions.
 
 | Flag | Canonical Input | Meaning | Notes |
 |-----|------------------|--------|------|
+| `--version` | — | Print the installed version (e.g. `FinLang 0.9.2`) and exit | Processes nothing. |
 | `--rules` | Path(s) to `.fin` file(s) | Load user rules in command-line order | You can repeat the flag. On v0.9.1 and earlier, use a single flag with all paths. |
 | `--include-pack` | Comma list (e.g., `retail,sanity`) | Include bundled rule packs | Optional. |
 | `--map` | Path to header map JSON | Apply canonical field mapping | Defaults to built-in map if omitted. |
@@ -187,11 +188,11 @@ finlang-suggest --input cand.csv --output draft_rules.fin   --emit-match exact -
 
 ## 🧪 Audit Reference
 Cross-verified against **Independent Technical Audit (Nov 9, 2025)**.
-All flags validated in FinLang v0.9.1.
+All flags validated in FinLang v0.9.2.
 
 ---
 
-## ⚠️ Known Issues (v0.9.1)
+## ⚠️ Known Issues (v0.9.2)
 
 - None
 
