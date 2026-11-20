@@ -134,7 +134,7 @@ Demonstrates FinLang operators and syntax. Not for production use.
 
 For complex use cases, FinLang Ltd offers commercial rule packs with deeper coverage.
 
-### Banking Pack v1.0 (£49)
+### Banking Pack v1.0 (£499, one-time)
 **92 rules** for UK banking data normalization.
 
 | File | Rules | Purpose |

@@ -6,10 +6,10 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
 ---
 
 ## 🔹 Company Details
-- **Entity:** FinLang Ltd  
+- **Entity:** FinLang Ltd, registered in Scotland, company number SC860894  
 - **Location:** Auchterarder, Scotland, United Kingdom  
 - **ICO Registration Number:** ZB998843  
-- **Trademark:** “FinLang” filed (UKIPO)  
+- **Trademark:** FinLang®, registered (UKIPO UK00004268386, classes 9 and 42), owned by FinLang Ltd  
 
 ---
 
@@ -31,8 +31,8 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
   - benchmarks.md + PDF (official v0.7.7 performance results — ~180K rows/sec standard, ~217K rows/sec FastIO on the 20M-row integrity harness)
 
 - **Legal Documentation:**  
-  - privacy.md (GDPR/ICO aligned privacy policy, no data collection, self-hosted)  
-  - terms.md (Terms of Use / End User Licence Agreement, dual licence clarity, IP protection, renewals, refunds, liability, Scotland jurisdiction)
+  - privacy.md (UK GDPR privacy policy: legal bases, rights, retention, transfers; no transaction data collected, self-hosted)  
+  - terms.md (Commercial Licence Terms v2, 20 Nov 2026: plans, no kill switch, rulepack licence, confidentiality, UK GDPR Article 28 processor schedule, liability, Scots law)
 
 ---
 
@@ -50,24 +50,32 @@ This Compliance Pack provides a consolidated overview of **FinLang Ltd**’s leg
 - **No telemetry** – software does not “phone home.”
 - **Optional HTTP API is self-hosted** – deployed on the customer’s own infrastructure; the same no-collection posture applies.  
 - **Minimal data stored:** name, email, licence type (commercial customers only).  
-- **Payments handled by Lemon Squeezy** (PCI DSS compliant processor).  
+- **Payments handled by Lemon Squeezy** (merchant of record; FinLang Ltd never sees card details).  
 - **Data Retention:**  
   - Inquiries – 3 years  
   - Payment records – 7 years  
-  - Licence information – term + 2 years  
+  - Licence information – while the licence lasts + 2 years; perpetual rulepack licences 6 years after purchase  
+  - Data sent for support or services – deleted or returned when the work ends  
 
 ---
 
 ## 🔹 Licence & Legal Structure
-- **Dual licensing:** AGPLv3 (open source) and Commercial Licence (terms.md).  
+- **Dual licensing:** AGPLv3 (open source) and the FinLang Commercial Licence Terms (terms.md, v2).  
+- **Commercial plans:** Team (one legal entity, internal use), Enterprise Group (whole group, internal use), Enterprise Platform (adds client-facing use, priced by band of client organisations). No seat counts.  
 - **Commercial licence:**  
-  - Annual subscription, auto-renewal, non-refundable  
-  - Updates & upgrades clause (minor updates included, major versions optional)  
-  - Support SLAs tiered (Solo, Team/Business, Enterprise)  
-  - Liability capped at fees paid in last 12 months  
-  - Governing law: Scotland, UK courts jurisdiction  
-- **Assignment clause:** Active licences transfer automatically upon acquisition.  
-- **Force majeure & survival clauses** included.  
+  - Annual, Team auto-renews; fees non-refundable; price changes only at renewal with 30 days' notice  
+  - Every release during the term included, major versions too  
+  - No kill switch: on expiry, use continues under AGPLv3  
+  - Support: Team by email, 48-hour response target; Enterprise as agreed in the order  
+  - 90-day conformity remedy: if it doesn't work as documented and can't be fixed, the order is refunded  
+  - Liability capped for both parties at the greater of fees paid in the last 12 months and £1,000  
+  - Mutual confidentiality; customer purchase-order terms don't apply  
+  - Governing law: Scotland; Scottish courts  
+- **Commercial rulepacks:** perpetual licence for the buying entity, and its group while it holds an Enterprise plan (terms clause 9).  
+- **Enterprise Platform:** may distribute FinLang to client organisations; copies already delivered stay licensed after expiry; 90-day wind-down for hosted use.  
+- **Acquisitions:** if a customer is acquired or sells a business, cover continues until the end of the period paid for; customer orders continue on the same terms if FinLang Ltd is acquired.  
+- **Data:** FinLang Ltd acts as processor only for data a customer chooses to send for support (terms clause 10.4 and Schedule 1). Customers are asked not to send payment card or special category data.  
+- **Business customers only;** force majeure, severability and survival clauses included.  
 
 ---
 
