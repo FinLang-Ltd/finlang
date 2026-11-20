@@ -274,8 +274,8 @@ finlang --input bank.csv --output categorized.csv \
 
 ## 📜 License & Commercial Use
 
-FinLang is open source under the **GNU Affero General Public License (AGPL-3.0)**.  
-Commercial licenses and enterprise support are available via **FinLang Ltd**.
+FinLang is open source under the **GNU Affero General Public License (AGPL-3.0)**: anyone can run it, on any data, free.  
+A commercial licence from **FinLang Ltd** removes the AGPL obligations, chiefly sharing the source of changes you make when you distribute FinLang or offer a modified version over a network: **Team** (one legal entity), **Enterprise Group** or **Enterprise Platform**. Plans and prices: [finlang.io/licensing](https://finlang.io/licensing). Terms: [docs/legal/terms.md](docs/legal/terms.md). Privacy: [docs/legal/privacy.md](docs/legal/privacy.md).
 
 📧 info@finlang.io  
 🌐 https://finlang.io

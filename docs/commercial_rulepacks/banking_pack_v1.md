@@ -85,7 +85,7 @@ The pack applies the following standardized flags to your data:
 
 ## 📦 Installation
 
-The Banking Pack is a commercial add-on. After purchase, you receive three `.fin` files.
+The Banking Pack is a commercial add-on (£499, one-time). After purchase, you receive three `.fin` files, licensed under clause 9 of the [FinLang Commercial Licence Terms](../legal/terms.md). It works with any licence tier, including AGPLv3 use.
 
 **Usage:**
 ```bash

@@ -15,7 +15,7 @@ Before we can accept your contributions, you must agree to the
 ### Why a CLA?
 FinLang Ltd maintains **dual licensing**:
 - **Community Edition:** GNU AGPL-3.0-only  
-- **Commercial Editions:** Proprietary licences (Solo, Team, Business, Enterprise)
+- **Commercial Editions:** Commercial licences (Team, Enterprise Group, Enterprise Platform) under the [FinLang Commercial Licence Terms](docs/legal/terms.md)
 
 The CLA allows your code to appear in **both** editions while you **retain copyright**.
 
@@ -26,7 +26,7 @@ You only need to sign once.
   Your GitHub username and timestamp act as your electronic signature.
 - **Corporate contributors:**  
   Have an authorised signatory email a signed PDF of `docs/legal/CLA.md` to  
-  `legal@finlang.io` before your first contribution.
+  `info@finlang.io` before your first contribution.
 
 > ⚖️ You keep your copyright.  
 > FinLang Ltd receives permission to include your contribution in both open-source and commercial editions.
@@ -122,7 +122,7 @@ Before creating a new issue:
 
 ## 📨 Contact
 
-**Email:** [legal@finlang.io](mailto:legal@finlang.io)  
+**Email:** [info@finlang.io](mailto:info@finlang.io)  
 **Company:** FinLang Ltd  
 **Jurisdiction:** Scotland, United Kingdom
 
